@@ -1,0 +1,13 @@
+﻿services:
+  pvpanalytics:
+    image: pvpanalytics
+    build:
+      context: .
+      dockerfile: PvpAnalytics/Dockerfile
+
+  pvpanalytics-1:
+    image: pvpanalytics-1
+    build:
+      context: .
+      dockerfile: PvpAnalytics/Dockerfile
+
