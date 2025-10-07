@@ -2,7 +2,6 @@
 
     <ItemGroup>
       <ProjectReference Include="..\PvpAnalytics.Shared\PvpAnalytics.Shared.csproj" />
-      <ProjectReference Include="..\PvpAnalytics.Infrastructure\PvpAnalytics.Infrastructure.csproj" />
     </ItemGroup>
 
     <PropertyGroup>

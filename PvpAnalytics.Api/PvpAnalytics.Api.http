@@ -1,6 +1,0 @@
-@PvpAnalytics.Api_HostAddress = http://localhost:5207
-
-GET {{PvpAnalytics.Api_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###

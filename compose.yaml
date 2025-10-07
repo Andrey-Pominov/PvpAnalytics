@@ -1,13 +1,17 @@
-﻿services:
+﻿version: "3.9"
+services:
   pvpanalytics:
     image: pvpanalytics
     build:
       context: .
       dockerfile: PvpAnalytics/Dockerfile
 
-  pvpanalytics-1:
-    image: pvpanalytics-1
-    build:
-      context: .
-      dockerfile: PvpAnalytics/Dockerfile
-
+  db:
+    image: postgres:16
+    restart: always
+    environment:
+      POSTGRES_USER: pvp
+      POSTGRES_PASSWORD: pvp123
+      POSTGRES_DB: pvpdb
+    ports:
+      - "5432:5432"
