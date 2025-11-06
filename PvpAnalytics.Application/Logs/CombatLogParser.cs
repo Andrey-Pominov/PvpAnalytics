@@ -56,8 +56,8 @@ public class CombatLogParser
                 healing = ParseInt(SafeField(fields, CombatLogFieldMappings.SpellHeal.Amount));
                 break;
             case CombatLogEventTypes.SpellAbsorbed:
-                // Different structure; skip detailed parse for now
-                absorbed = 0;
+                // Read absorbed amount; null if missing or unparsable
+                absorbed = ParseInt(SafeField(fields, CombatLogFieldMappings.SpellAbsorbed.Amount));
                 break;
         }
 
@@ -78,16 +78,15 @@ public class CombatLogParser
     }
 
     public bool IsArenaZone(int zoneId) => ArenaZoneIds.IsArena(zoneId);
-    public Core.Enum.GameMode GetGameMode(int zoneId) => ArenaZoneIds.GetGameModeOrDefault(zoneId);
 
     private static bool TryParseTimestamp(string input, out DateTime timestamp)
     {
         // Try with date first; then without year
         if (DateTime.TryParseExact(input, TimestampFormats, CultureInfo.InvariantCulture,
-                DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out timestamp))
+                DateTimeStyles.AssumeLocal | DateTimeStyles.AdjustToUniversal, out timestamp))
             return true;
         // Fallback: let DateTime parser try
-        return DateTime.TryParse(input, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out timestamp);
+        return DateTime.TryParse(input, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal | DateTimeStyles.AdjustToUniversal, out timestamp);
     }
 
     private static string SafeField(string[] arr, int idx) => idx < arr.Length ? arr[idx] : string.Empty;

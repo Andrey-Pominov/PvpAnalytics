@@ -25,6 +25,12 @@ public static class CombatLogFieldMappings
         public const int Amount = 12;
     }
 
+    public static class SpellAbsorbed
+    {
+        // Typical ABSORBED amount column for SPELL_ABSORBED events
+        public const int Amount = 15;
+    }
+
     public static class ZoneChange
     {
         public const int ZoneId = 1;   // numeric

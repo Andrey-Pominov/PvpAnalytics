@@ -15,7 +15,13 @@ public class LogsController(ICombatLogIngestionService ingestion) : ControllerBa
         if (file == null || file.Length == 0) return BadRequest("No file provided");
         await using var stream = file.OpenReadStream();
         var match = await ingestion.IngestAsync(stream, ct);
-        return CreatedAtAction(nameof(Upload), new { id = match.Id }, match);
+        if (match.Id > 0)
+        {
+            // Point Location header to GET /api/matches/{id}
+            return CreatedAtAction("Get", "Matches", new { id = match.Id }, match);
+        }
+        // No match persisted: return 202 Accepted with body
+        return Accepted(match);
     }
 }
 

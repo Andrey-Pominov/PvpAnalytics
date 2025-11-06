@@ -46,7 +46,8 @@ public class CombatLogIngestionService(
                 if (arenaActive && currentZoneId.HasValue)
                 {
                     matchEnd = parsed.Timestamp;
-                    lastPersistedMatch = await FinalizeAndPersistAsync(currentZoneName ?? "Unknown", matchStart, matchEnd, participants, bufferedEntries, playersByKey, ct, parser.GetGameMode(currentZoneId.Value));
+                    var gameMode = GameModeHelper.GetGameModeFromParticipantCount(participants.Count);
+                    lastPersistedMatch = await FinalizeAndPersistAsync(currentZoneName ?? "Unknown", matchStart, matchEnd, participants, bufferedEntries, playersByKey, ct, gameMode);
                 }
 
                 // Reset buffers
@@ -66,19 +67,27 @@ public class CombatLogIngestionService(
                 continue;
             }
 
-            // Always auto-create players on sight for any parsed combat event
+            // Always auto-create players on sight for any parsed combat event, with cache
             var srcName = parsed.SourceName;
             var tgtName = parsed.TargetName;
             if (!string.IsNullOrEmpty(srcName))
             {
-                var s = await GetOrCreatePlayerAsync(NormalizePlayerName(srcName), ct);
-                playersByKey[s.Name] = s;
+                var normSrc = NormalizePlayerName(srcName);
+                if (!playersByKey.TryGetValue(normSrc, out var s))
+                {
+                    s = await GetOrCreatePlayerAsync(normSrc, ct);
+                    playersByKey[s.Name] = s;
+                }
                 participants.Add(s.Name);
             }
             if (!string.IsNullOrEmpty(tgtName))
             {
-                var t = await GetOrCreatePlayerAsync(NormalizePlayerName(tgtName!), ct);
-                playersByKey[t.Name] = t;
+                var normTgt = NormalizePlayerName(tgtName!);
+                if (!playersByKey.TryGetValue(normTgt, out var t))
+                {
+                    t = await GetOrCreatePlayerAsync(normTgt, ct);
+                    playersByKey[t.Name] = t;
+                }
                 participants.Add(t.Name);
             }
 
@@ -91,22 +100,26 @@ public class CombatLogIngestionService(
             var source = !string.IsNullOrEmpty(srcName) ? playersByKey[NormalizePlayerName(srcName)] : null;
             Player? target = !string.IsNullOrEmpty(tgtName) ? playersByKey[NormalizePlayerName(tgtName!)] : null;
 
-            bufferedEntries.Add(new CombatLogEntry
+            if (source != null && source.Id > 0)
             {
-                Timestamp = parsed.Timestamp,
-                SourcePlayerId = source?.Id ?? 0,
-                TargetPlayerId = target?.Id,
-                Ability = parsed.SpellId.HasValue ? (parsed.SpellName ?? parsed.EventType) : (parsed.SpellName ?? parsed.EventType),
-                DamageDone = parsed.Damage ?? 0,
-                HealingDone = parsed.Healing ?? 0,
-                CrowdControl = string.Empty
-            });
+                bufferedEntries.Add(new CombatLogEntry
+                {
+                    Timestamp = parsed.Timestamp,
+                    SourcePlayerId = source.Id,
+                    TargetPlayerId = target?.Id,
+                    Ability = parsed.SpellId.HasValue ? (parsed.SpellName ?? parsed.EventType) : (parsed.SpellName ?? parsed.EventType),
+                    DamageDone = parsed.Damage ?? 0,
+                    HealingDone = parsed.Healing ?? 0,
+                    CrowdControl = string.Empty
+                });
+            }
         }
 
         // EOF: finalize if arena match still active
         if (arenaActive && currentZoneId.HasValue)
         {
-            lastPersistedMatch = await FinalizeAndPersistAsync(currentZoneName ?? "Unknown", matchStart, matchEnd, participants, bufferedEntries, playersByKey, ct, parser.GetGameMode(currentZoneId.Value));
+            var gameMode = GameModeHelper.GetGameModeFromParticipantCount(participants.Count);
+            lastPersistedMatch = await FinalizeAndPersistAsync(currentZoneName ?? "Unknown", matchStart, matchEnd, participants, bufferedEntries, playersByKey, ct, gameMode);
         }
 
         // Return the last match persisted (or a dummy if none)

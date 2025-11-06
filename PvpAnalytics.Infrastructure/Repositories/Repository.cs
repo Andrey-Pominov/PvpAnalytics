@@ -24,23 +24,32 @@ public class Repository<TEntity>(PvpAnalyticsDbContext dbContext) : IRepository<
         return await _dbSet.AsNoTracking().Where(predicate).ToListAsync(ct);
     }
 
-    public async Task<TEntity> AddAsync(TEntity entity, CancellationToken ct = default)
+    public async Task<TEntity> AddAsync(TEntity entity, CancellationToken ct = default, bool autoSave = true)
     {
         await _dbSet.AddAsync(entity, ct);
-        await dbContext.SaveChangesAsync(ct);
+        if (autoSave)
+        {
+            await dbContext.SaveChangesAsync(ct);
+        }
         return entity;
     }
 
-    public async Task UpdateAsync(TEntity entity, CancellationToken ct = default)
+    public async Task UpdateAsync(TEntity entity, CancellationToken ct = default, bool autoSave = true)
     {
         _dbSet.Update(entity);
-        await dbContext.SaveChangesAsync(ct);
+        if (autoSave)
+        {
+            await dbContext.SaveChangesAsync(ct);
+        }
     }
 
-    public async Task DeleteAsync(TEntity entity, CancellationToken ct = default)
+    public async Task DeleteAsync(TEntity entity, CancellationToken ct = default, bool autoSave = true)
     {
         _dbSet.Remove(entity);
-        await dbContext.SaveChangesAsync(ct);
+        if (autoSave)
+        {
+            await dbContext.SaveChangesAsync(ct);
+        }
     }
 }
 
