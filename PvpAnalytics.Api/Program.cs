@@ -1,15 +1,22 @@
+using Microsoft.EntityFrameworkCore;
 using PvpAnalytics.Infrastructure;
+using PvpAnalytics.Application;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddInfrastructure(builder.Configuration);
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+builder.Services.AddApplication();
+
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+using (var scope = app.Services.CreateAsyncScope()) {
+    var db = scope.ServiceProvider.GetRequiredService<PvpAnalyticsDbContext>();
+    await db.Database.MigrateAsync();
+}
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
