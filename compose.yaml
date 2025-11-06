@@ -4,7 +4,15 @@ services:
     image: pvpanalytics
     build:
       context: .
-      dockerfile: PvpAnalytics/Dockerfile
+      dockerfile: PvpAnalytics.Api/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Username=pvp;Password=pvp123;Database=pvpdb
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8080
+    depends_on:
+      - db
 
   db:
     image: postgres:16
@@ -14,4 +22,4 @@ services:
       POSTGRES_PASSWORD: pvp123
       POSTGRES_DB: pvpdb
     ports:
-      - "5432:5432"
+      - "5433:5432"

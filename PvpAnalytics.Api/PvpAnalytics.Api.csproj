@@ -16,6 +16,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\PvpAnalytics.Infrastructure\PvpAnalytics.Infrastructure.csproj" />
+      <ProjectReference Include="..\PvpAnalytics.Application\PvpAnalytics.Application.csproj" />
     </ItemGroup>
 
 </Project>
