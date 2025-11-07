@@ -12,6 +12,15 @@ public class CombatLogIngestionService(
     IRepository<CombatLogEntry> entryRepo)
     : ICombatLogIngestionService
 {
+    /// <summary>
+    /// Ingests combat-log text from the provided stream and persists arena matches, combat entries, players, and match results.
+    /// </summary>
+    /// <param name="fileStream">A readable stream containing the combat log text (UTF-8 or BOM-detected).</param>
+    /// <param name="ct">Token to observe for cancellation.</param>
+    /// <remarks>
+    /// Only arena-zone combat entries are recorded; players seen outside arenas are still created and tracked. Matches are finalized on zone changes and at end-of-file.
+    /// </remarks>
+    /// <returns>The last persisted <see cref="Match"/> created from the stream, or a synthesized <see cref="Match"/> with <c>Id = 0</c> if no match was persisted.</returns>
     public async Task<Match> IngestAsync(Stream fileStream, CancellationToken ct = default)
     {
         using var reader = new StreamReader(fileStream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, leaveOpen: true);
@@ -30,13 +39,12 @@ public class CombatLogIngestionService(
 
         Match? lastPersistedMatch = null;
 
-        string? line;
-        while ((line = await reader.ReadLineAsync()) != null)
+        while (await reader.ReadLineAsync(ct) is { } line)
         {
             if (string.IsNullOrWhiteSpace(line)) continue;
             if (line.StartsWith("#")) continue; // header lines
 
-            var parsed = parser.ParseLine(line);
+            var parsed = CombatLogParser.ParseLine(line);
             if (parsed == null) continue;
 
             // Handle ZONE_CHANGE
@@ -58,7 +66,7 @@ public class CombatLogIngestionService(
 
                 currentZoneId = parsed.ZoneId;
                 currentZoneName = parsed.ZoneName ?? ArenaZoneIds.GetNameOrDefault(currentZoneId.Value);
-                arenaActive = currentZoneId.HasValue && parser.IsArenaZone(currentZoneId.Value);
+                arenaActive = currentZoneId.HasValue && CombatLogParser.IsArenaZone(currentZoneId.Value);
                 if (arenaActive && currentZoneId.HasValue)
                 {
                     matchStart = parsed.Timestamp;
@@ -82,7 +90,7 @@ public class CombatLogIngestionService(
             }
             if (!string.IsNullOrEmpty(tgtName))
             {
-                var normTgt = NormalizePlayerName(tgtName!);
+                var normTgt = NormalizePlayerName(tgtName);
                 if (!playersByKey.TryGetValue(normTgt, out var t))
                 {
                     t = await GetOrCreatePlayerAsync(normTgt, ct);
@@ -98,16 +106,16 @@ public class CombatLogIngestionService(
             matchEnd = parsed.Timestamp;
 
             var source = !string.IsNullOrEmpty(srcName) ? playersByKey[NormalizePlayerName(srcName)] : null;
-            Player? target = !string.IsNullOrEmpty(tgtName) ? playersByKey[NormalizePlayerName(tgtName!)] : null;
+            var target = !string.IsNullOrEmpty(tgtName) ? playersByKey[NormalizePlayerName(tgtName)] : null;
 
-            if (source != null && source.Id > 0)
+            if (source is { Id: > 0 })
             {
                 bufferedEntries.Add(new CombatLogEntry
                 {
                     Timestamp = parsed.Timestamp,
                     SourcePlayerId = source.Id,
                     TargetPlayerId = target?.Id,
-                    Ability = parsed.SpellId.HasValue ? (parsed.SpellName ?? parsed.EventType) : (parsed.SpellName ?? parsed.EventType),
+                    Ability = parsed.SpellName ?? parsed.EventType,
                     DamageDone = parsed.Damage ?? 0,
                     HealingDone = parsed.Healing ?? 0,
                     CrowdControl = string.Empty
@@ -205,5 +213,4 @@ public class CombatLogIngestionService(
     }
 
 }
-
 

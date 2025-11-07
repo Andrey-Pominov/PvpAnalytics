@@ -4,34 +4,35 @@ namespace PvpAnalytics.Core.Logs;
 
 public static class GameModeHelper
 {
+
     /// <summary>
-    /// Maps participant count to GameMode enum.
-    /// 4 participants -> TwoVsTwo
-    /// 6 participants -> ThreeVsThree
-    /// 10 participants -> Skirmish (no FiveVsFive in enum)
-    /// Otherwise -> TwoVsTwo (default)
+    /// Determine the game mode for a match based on the number of participants.
     /// </summary>
+    /// <param name="participantCount">The number of participants in the match.</param>
+    /// <returns>
+    /// The corresponding <see cref="GameMode"/>:
+    /// 4 → <see cref="GameMode.TwoVsTwo"/>, 6 → <see cref="GameMode.ThreeVsThree"/>, 10 → <see cref="GameMode.Skirmish"/>, otherwise <see cref="GameMode.TwoVsTwo"/>.
+    /// </returns>
     public static GameMode GetGameModeFromParticipantCount(int participantCount)
     {
-        // Assertions for expected mappings
         System.Diagnostics.Debug.Assert(participantCount >= 0, "Participant count should be non-negative");
         
         return participantCount switch
         {
-            4 => GameMode.TwoVsTwo,      // 2v2 = 4 total players
-            6 => GameMode.ThreeVsThree,  // 3v3 = 6 total players
-            10 => GameMode.Skirmish,     // Note: No FiveVsFive in enum, using Skirmish for 10 players
-            _ => GameMode.TwoVsTwo       // Default fallback for edge cases (0, 1, 2, 3, 5, 7, 8, 9, 11+)
+            4 => GameMode.TwoVsTwo,     
+            6 => GameMode.ThreeVsThree, 
+            10 => GameMode.Skirmish,
+            _ => GameMode.TwoVsTwo
         };
     }
-
+    
     /// <summary>
-    /// Maps participant count to GameMode enum, with null handling.
-    /// Returns TwoVsTwo for null or invalid counts.
+    /// Determines the GameMode corresponding to an optional participant count.
     /// </summary>
+    /// <param name="participantCount">Number of participants in the match; when null, the participant count is unknown.</param>
+    /// <returns>`GameMode.TwoVsTwo` if <paramref name="participantCount"/> is null; otherwise the GameMode that corresponds to the provided participant count.</returns>
     public static GameMode GetGameModeFromParticipantCount(int? participantCount)
     {
         return participantCount.HasValue ? GetGameModeFromParticipantCount(participantCount.Value) : GameMode.TwoVsTwo;
     }
 }
-
