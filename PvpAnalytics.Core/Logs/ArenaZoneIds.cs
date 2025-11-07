@@ -18,10 +18,20 @@ public static class ArenaZoneIds
             { 3963, "Maldraxxus Coliseum" },
         };
 
-    public static bool IsArena(int zoneId) => Map.ContainsKey(zoneId);
+    /// <summary>
+/// Determines whether the specified zone ID corresponds to a known arena.
+/// </summary>
+/// <param name="zoneId">The zone identifier to check.</param>
+/// <returns>`true` if the zone ID maps to a known arena, `false` otherwise.</returns>
+public static bool IsArena(int zoneId) => Map.ContainsKey(zoneId);
 
-    public static string GetNameOrDefault(int zoneId, string fallback = "Unknown Arena")
+    /// <summary>
+        /// Retrieves the arena name for the provided zone ID, or returns the specified fallback if not found.
+        /// </summary>
+        /// <param name="zoneId">Arena zone identifier.</param>
+        /// <param name="fallback">Fallback name to return when the zone ID is not present; defaults to "Unknown Arena".</param>
+        /// <returns>The arena name associated with <paramref name="zoneId"/>, or <paramref name="fallback"/> if absent.</returns>
+        public static string GetNameOrDefault(int zoneId, string fallback = "Unknown Arena")
         => Map.GetValueOrDefault(zoneId, fallback);
 }
-
 

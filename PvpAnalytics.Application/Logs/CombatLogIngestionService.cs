@@ -12,6 +12,15 @@ public class CombatLogIngestionService(
     IRepository<CombatLogEntry> entryRepo)
     : ICombatLogIngestionService
 {
+    /// <summary>
+    /// Ingests combat-log text from the provided stream and persists arena matches, combat entries, players, and match results.
+    /// </summary>
+    /// <param name="fileStream">A readable stream containing the combat log text (UTF-8 or BOM-detected).</param>
+    /// <param name="ct">Token to observe for cancellation.</param>
+    /// <remarks>
+    /// Only arena-zone combat entries are recorded; players seen outside arenas are still created and tracked. Matches are finalized on zone changes and at end-of-file.
+    /// </remarks>
+    /// <returns>The last persisted <see cref="Match"/> created from the stream, or a synthesized <see cref="Match"/> with <c>Id = 0</c> if no match was persisted.</returns>
     public async Task<Match> IngestAsync(Stream fileStream, CancellationToken ct = default)
     {
         using var reader = new StreamReader(fileStream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, leaveOpen: true);
@@ -204,5 +213,4 @@ public class CombatLogIngestionService(
     }
 
 }
-
 
