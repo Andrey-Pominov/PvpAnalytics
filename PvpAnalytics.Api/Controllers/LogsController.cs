@@ -1,9 +1,11 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PvpAnalytics.Application.Logs;
 using PvpAnalytics.Core.Entities;
 
 namespace PvpAnalytics.Api.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class LogsController(ICombatLogIngestionService ingestion) : ControllerBase
