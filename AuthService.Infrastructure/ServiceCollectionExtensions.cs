@@ -1,5 +1,4 @@
 using AuthService.Application.Abstractions;
-using AuthService.Core.Options;
 using AuthService.Infrastructure.Data;
 using AuthService.Infrastructure.Services;
 using AuthService.Infrastructure.Entities;
@@ -7,6 +6,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using PvpAnalytics.Shared.Security;
 
 namespace AuthService.Infrastructure;
 
@@ -24,9 +24,10 @@ public static class ServiceCollectionExtensions
             {
                 options.Password.RequireDigit = true;
                 options.Password.RequireLowercase = true;
-                options.Password.RequireUppercase = false;
-                options.Password.RequireNonAlphanumeric = false;
-                options.Password.RequiredLength = 6;
+                options.Password.RequireUppercase = true;
+                options.Password.RequireNonAlphanumeric = true;
+                options.Password.RequiredLength = 8;
+                options.Password.RequiredUniqueChars = 1;
             })
             .AddEntityFrameworkStores<AuthDbContext>()
             .AddDefaultTokenProviders();

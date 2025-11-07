@@ -6,13 +6,13 @@ using AuthService.Application.Abstractions;
 using AuthService.Application.DTOs;
 using AuthService.Application.Models;
 using AuthService.Core.Entities;
-using AuthService.Core.Options;
 using AuthService.Infrastructure.Data;
 using AuthService.Infrastructure.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using PvpAnalytics.Shared.Security;
 
 namespace AuthService.Infrastructure.Services;
 
@@ -80,9 +80,11 @@ public class IdentityService : IIdentityService
 
     public async Task<AuthResponse> RefreshTokenAsync(RefreshTokenRequest request, CancellationToken ct = default)
     {
+        var tokenHash = ComputeRefreshTokenHash(request.RefreshToken);
+
         var refreshToken = await _dbContext.RefreshTokens
             .AsNoTracking()
-            .FirstOrDefaultAsync(rt => rt.Token == request.RefreshToken, ct);
+            .FirstOrDefaultAsync(rt => rt.TokenHash == tokenHash, ct);
 
         if (refreshToken is null || !refreshToken.IsActive)
         {
@@ -133,10 +135,12 @@ public class IdentityService : IIdentityService
 
         var accessToken = new JwtSecurityTokenHandler().WriteToken(jwt);
 
+        var (refreshTokenPlain, refreshTokenHash) = GenerateSecureRefreshToken();
+
         var refreshToken = new RefreshToken
         {
             UserId = user.Id,
-            Token = GenerateSecureRefreshToken(),
+            TokenHash = refreshTokenHash,
             ExpiresAt = now.AddDays(_jwtOptions.RefreshTokenDays)
         };
 
@@ -146,7 +150,7 @@ public class IdentityService : IIdentityService
         return new AuthResponse(
             accessToken,
             expires,
-            refreshToken.Token,
+            refreshTokenPlain,
             refreshToken.ExpiresAt);
     }
 
@@ -163,11 +167,20 @@ public class IdentityService : IIdentityService
         await _dbContext.SaveChangesAsync(ct);
     }
 
-    private static string GenerateSecureRefreshToken()
+    private (string PlainToken, string TokenHash) GenerateSecureRefreshToken()
     {
         Span<byte> bytes = stackalloc byte[64];
         RandomNumberGenerator.Fill(bytes);
-        return Convert.ToBase64String(bytes);
+        var plainToken = Convert.ToBase64String(bytes);
+        var tokenHash = ComputeRefreshTokenHash(plainToken);
+        return (plainToken, tokenHash);
+    }
+
+    private string ComputeRefreshTokenHash(string token)
+    {
+        using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(_jwtOptions.SigningKey));
+        var hashBytes = hmac.ComputeHash(Encoding.UTF8.GetBytes(token));
+        return Convert.ToBase64String(hashBytes);
     }
 }
 

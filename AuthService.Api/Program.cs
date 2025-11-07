@@ -1,10 +1,10 @@
 using System.Text;
-using AuthService.Core.Options;
 using AuthService.Infrastructure;
 using AuthService.Infrastructure.Data;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using PvpAnalytics.Shared.Security;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,6 +15,11 @@ builder.Services.AddInfrastructure(builder.Configuration);
 
 var jwtSection = builder.Configuration.GetSection(JwtOptions.SectionName);
 var jwtOptions = jwtSection.Get<JwtOptions>() ?? throw new InvalidOperationException("Jwt configuration section is missing.");
+if (string.IsNullOrWhiteSpace(jwtOptions.SigningKey))
+{
+    throw new InvalidOperationException(
+        "JWT signing key is not configured. Set the 'Jwt__SigningKey' environment variable or use a secure secret store.");
+}
 
 builder.Services.AddAuthentication(options =>
     {

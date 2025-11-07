@@ -13,7 +13,7 @@ services:
       - ASPNETCORE_URLS=http://+:8080
       - Jwt__Issuer=PvpAnalytics.Auth
       - Jwt__Audience=PvpAnalytics.Api
-      - Jwt__SigningKey=CHANGE_ME_SUPER_SECRET_KEY
+      - Jwt__SigningKey=${JWT_SIGNING_KEY?JWT_SIGNING_KEY not set}
     depends_on:
       - db
 
@@ -30,7 +30,7 @@ services:
       - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Database=authdb;Username=auth;Password=auth123
       - Jwt__Issuer=PvpAnalytics.Auth
       - Jwt__Audience=PvpAnalytics.Api
-      - Jwt__SigningKey=CHANGE_ME_SUPER_SECRET_KEY
+      - Jwt__SigningKey=${JWT_SIGNING_KEY?JWT_SIGNING_KEY not set}
       - Jwt__AccessTokenMinutes=60
       - Jwt__RefreshTokenDays=7
     depends_on:

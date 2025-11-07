@@ -1,4 +1,4 @@
-namespace PvpAnalytics.Api.Security;
+namespace PvpAnalytics.Shared.Security;
 
 public class JwtOptions
 {
@@ -10,5 +10,4 @@ public class JwtOptions
     public int AccessTokenMinutes { get; set; } = 60;
     public int RefreshTokenDays { get; set; } = 7;
 }
-
 

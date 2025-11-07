@@ -1,7 +1,9 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace AuthService.Application.DTOs;
 
 public record LoginRequest(
-    string Email,
-    string Password);
+    [Required][EmailAddress] string Email,
+    [Required][MinLength(8)] string Password);
 
 

@@ -116,7 +116,12 @@ Prereqs: .NET 9 SDK, PostgreSQL 16+
 
 ### AuthService.Api
 
-1. Update `AuthService.Api/appsettings.Development.json` (or environment variables) with database + JWT details.
+1. Update `AuthService.Api/appsettings.Development.json` (or environment variables) with database + JWT details. **Set a secure signing key via environment variable**:
+   ```bash
+   export JWT_SIGNING_KEY=$(python -c "import secrets; print(secrets.token_urlsafe(64))")
+   ```
+   (On Windows PowerShell: `$Env:JWT_SIGNING_KEY = python -c "import secrets; print(secrets.token_urlsafe(64))"`.)
+   Docker Compose reads the signing key from the `JWT_SIGNING_KEY` environment variable so nothing sensitive is committed. In development you can instead use `dotnet user-secrets set Jwt:SigningKey "$JWT_SIGNING_KEY"`.
 2. Start the auth service:
    ```bash
    dotnet run --project AuthService.Api --urls http://localhost:8081
@@ -146,7 +151,7 @@ Prereqs: .NET 9 SDK, PostgreSQL 16+
    ```
 4. Authenticated request example:
    ```bash
-   curl http://localhost:5000/api/players \
+   curl http://localhost:8080/api/players \
         -H "Authorization: Bearer <access_token>"
    ```
 

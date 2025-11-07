@@ -21,12 +21,16 @@ public class AuthDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Gui
         builder.Entity<ApplicationUser>(b =>
         {
             b.Property(u => u.FullName).HasMaxLength(200);
+            b.Property(u => u.CreatedAt)
+                .HasDefaultValueSql("NOW()")
+                .ValueGeneratedOnAdd();
         });
 
         builder.Entity<RefreshToken>(b =>
         {
             b.HasKey(rt => rt.Id);
-            b.HasIndex(rt => rt.Token).IsUnique();
+            b.Property(rt => rt.TokenHash).IsRequired();
+            b.HasIndex(rt => rt.TokenHash).IsUnique();
             b.HasOne<ApplicationUser>()
                 .WithMany()
                 .HasForeignKey(rt => rt.UserId)
