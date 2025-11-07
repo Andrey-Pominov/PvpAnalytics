@@ -12,7 +12,7 @@ builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
-using (var scope = app.Services.CreateAsyncScope()) {
+await using (var scope = app.Services.CreateAsyncScope()) {
     var db = scope.ServiceProvider.GetRequiredService<PvpAnalyticsDbContext>();
     await db.Database.MigrateAsync();
 }

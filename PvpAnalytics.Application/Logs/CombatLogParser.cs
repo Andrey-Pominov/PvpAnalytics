@@ -7,11 +7,10 @@ public class CombatLogParser
 {
     private static readonly string[] TimestampFormats = { "M/d/yyyy H:mm:ss.ffff", "M/d H:mm:ss.fff", "M/d H:mm:ss" };
 
-    public ParsedCombatLogEvent? ParseLine(string line)
+    public static ParsedCombatLogEvent? ParseLine(string line)
     {
         if (string.IsNullOrWhiteSpace(line)) return null;
-        // Split timestamp and csv by two spaces
-        var parts = line.Split(new[] { "  " }, 2, StringSplitOptions.None);
+        var parts = line.Split(["  "], 2, StringSplitOptions.None);
         if (parts.Length != 2) return null;
 
         if (!TryParseTimestamp(parts[0], out var ts)) return null;
@@ -33,7 +32,6 @@ public class CombatLogParser
             };
         }
 
-        // Common combat events
         var sourceGuid = SafeField(fields, CombatLogFieldMappings.Common.SourceGuid);
         var sourceName = SafeField(fields, CombatLogFieldMappings.Common.SourceName);
         var targetGuid = SafeField(fields, CombatLogFieldMappings.Common.TargetGuid);
@@ -56,7 +54,6 @@ public class CombatLogParser
                 healing = ParseInt(SafeField(fields, CombatLogFieldMappings.SpellHeal.Amount));
                 break;
             case CombatLogEventTypes.SpellAbsorbed:
-                // Read absorbed amount; null if missing or unparsable
                 absorbed = ParseInt(SafeField(fields, CombatLogFieldMappings.SpellAbsorbed.Amount));
                 break;
         }
@@ -77,21 +74,16 @@ public class CombatLogParser
         };
     }
 
-    public bool IsArenaZone(int zoneId) => ArenaZoneIds.IsArena(zoneId);
+    public static bool IsArenaZone(int zoneId) => ArenaZoneIds.IsArena(zoneId);
 
     private static bool TryParseTimestamp(string input, out DateTime timestamp)
     {
-        // Try with date first; then without year
-        if (DateTime.TryParseExact(input, TimestampFormats, CultureInfo.InvariantCulture,
-                DateTimeStyles.AssumeLocal | DateTimeStyles.AdjustToUniversal, out timestamp))
-            return true;
-        // Fallback: let DateTime parser try
-        return DateTime.TryParse(input, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal | DateTimeStyles.AdjustToUniversal, out timestamp);
+        return DateTime.TryParseExact(input, TimestampFormats, CultureInfo.InvariantCulture,
+            DateTimeStyles.AssumeLocal | DateTimeStyles.AdjustToUniversal, out timestamp) || DateTime.TryParse(input,
+            CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal | DateTimeStyles.AdjustToUniversal, out timestamp);
     }
 
     private static string SafeField(string[] arr, int idx) => idx < arr.Length ? arr[idx] : string.Empty;
     private static int? ParseInt(string s) => int.TryParse(TrimQuotes(s), out var v) ? v : null;
     private static string TrimQuotes(string s) => s.Trim(' ', '"');
 }
-
-

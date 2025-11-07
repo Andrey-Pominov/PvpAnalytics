@@ -30,13 +30,12 @@ public class CombatLogIngestionService(
 
         Match? lastPersistedMatch = null;
 
-        string? line;
-        while ((line = await reader.ReadLineAsync()) != null)
+        while (await reader.ReadLineAsync(ct) is { } line)
         {
             if (string.IsNullOrWhiteSpace(line)) continue;
             if (line.StartsWith("#")) continue; // header lines
 
-            var parsed = parser.ParseLine(line);
+            var parsed = CombatLogParser.ParseLine(line);
             if (parsed == null) continue;
 
             // Handle ZONE_CHANGE
@@ -58,7 +57,7 @@ public class CombatLogIngestionService(
 
                 currentZoneId = parsed.ZoneId;
                 currentZoneName = parsed.ZoneName ?? ArenaZoneIds.GetNameOrDefault(currentZoneId.Value);
-                arenaActive = currentZoneId.HasValue && parser.IsArenaZone(currentZoneId.Value);
+                arenaActive = currentZoneId.HasValue && CombatLogParser.IsArenaZone(currentZoneId.Value);
                 if (arenaActive && currentZoneId.HasValue)
                 {
                     matchStart = parsed.Timestamp;
@@ -82,7 +81,7 @@ public class CombatLogIngestionService(
             }
             if (!string.IsNullOrEmpty(tgtName))
             {
-                var normTgt = NormalizePlayerName(tgtName!);
+                var normTgt = NormalizePlayerName(tgtName);
                 if (!playersByKey.TryGetValue(normTgt, out var t))
                 {
                     t = await GetOrCreatePlayerAsync(normTgt, ct);
@@ -98,16 +97,16 @@ public class CombatLogIngestionService(
             matchEnd = parsed.Timestamp;
 
             var source = !string.IsNullOrEmpty(srcName) ? playersByKey[NormalizePlayerName(srcName)] : null;
-            Player? target = !string.IsNullOrEmpty(tgtName) ? playersByKey[NormalizePlayerName(tgtName!)] : null;
+            var target = !string.IsNullOrEmpty(tgtName) ? playersByKey[NormalizePlayerName(tgtName)] : null;
 
-            if (source != null && source.Id > 0)
+            if (source is { Id: > 0 })
             {
                 bufferedEntries.Add(new CombatLogEntry
                 {
                     Timestamp = parsed.Timestamp,
                     SourcePlayerId = source.Id,
                     TargetPlayerId = target?.Id,
-                    Ability = parsed.SpellId.HasValue ? (parsed.SpellName ?? parsed.EventType) : (parsed.SpellName ?? parsed.EventType),
+                    Ability = parsed.SpellName ?? parsed.EventType,
                     DamageDone = parsed.Damage ?? 0,
                     HealingDone = parsed.Healing ?? 0,
                     CrowdControl = string.Empty

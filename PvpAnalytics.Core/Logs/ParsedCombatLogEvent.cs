@@ -1,5 +1,3 @@
-using System.Globalization;
-
 namespace PvpAnalytics.Core.Logs;
 
 public class ParsedCombatLogEvent

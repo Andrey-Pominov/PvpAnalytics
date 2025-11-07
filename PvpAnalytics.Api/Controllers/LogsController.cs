@@ -10,7 +10,7 @@ public class LogsController(ICombatLogIngestionService ingestion) : ControllerBa
 {
     [HttpPost("upload")]
     [RequestSizeLimit(104857600)] // 100 MB
-    public async Task<ActionResult<Match>> Upload([FromForm] IFormFile file, CancellationToken ct)
+    public async Task<ActionResult<Match>> Upload([FromForm] IFormFile? file, CancellationToken ct)
     {
         if (file == null || file.Length == 0) return BadRequest("No file provided");
         await using var stream = file.OpenReadStream();
@@ -20,7 +20,7 @@ public class LogsController(ICombatLogIngestionService ingestion) : ControllerBa
             // Point Location header to GET /api/matches/{id}
             return CreatedAtAction("Get", "Matches", new { id = match.Id }, match);
         }
-        // No match persisted: return 202 Accepted with body
+        
         return Accepted(match);
     }
 }
