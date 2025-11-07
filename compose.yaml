@@ -11,8 +11,32 @@ services:
       - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Username=pvp;Password=pvp123;Database=pvpdb
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:8080
+      - Jwt__Issuer=PvpAnalytics.Auth
+      - Jwt__Audience=PvpAnalytics.Api
+      - Jwt__SigningKey=CHANGE_ME_SUPER_SECRET_KEY
     depends_on:
       - db
+
+  auth:
+    image: authservice
+    build:
+      context: .
+      dockerfile: AuthService.Api/Dockerfile
+    ports:
+      - "8081:8081"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8081
+      - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Database=authdb;Username=auth;Password=auth123
+      - Jwt__Issuer=PvpAnalytics.Auth
+      - Jwt__Audience=PvpAnalytics.Api
+      - Jwt__SigningKey=CHANGE_ME_SUPER_SECRET_KEY
+      - Jwt__AccessTokenMinutes=60
+      - Jwt__RefreshTokenDays=7
+    depends_on:
+      - db
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   db:
     image: postgres:16
@@ -22,4 +46,6 @@ services:
       POSTGRES_PASSWORD: pvp123
       POSTGRES_DB: pvpdb
     ports:
-      - "5433:5432"
+      - "5442:5432"
+    volumes:
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
