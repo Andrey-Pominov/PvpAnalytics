@@ -10,6 +10,7 @@ COPY AuthService.Api/AuthService.Api.csproj AuthService.Api/
 COPY AuthService.Application/AuthService.Application.csproj AuthService.Application/
 COPY AuthService.Infrastructure/AuthService.Infrastructure.csproj AuthService.Infrastructure/
 COPY AuthService.Core/AuthService.Core.csproj AuthService.Core/
+COPY PvpAnalytics.Shared/PvpAnalytics.Shared.csproj PvpAnalytics.Shared/
 
 RUN dotnet restore AuthService.Api/AuthService.Api.csproj
 

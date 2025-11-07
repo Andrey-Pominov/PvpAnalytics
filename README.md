@@ -8,6 +8,7 @@ PvP combat analytics for World of Warcraft combat logs. Upload a `WoWCombatLog*.
 - Data model
 - API overview
 - Run locally (dotnet)
+- UI frontend (React)
 - Run with Docker Compose
 - Configuration
 - Log upload and parsing details
@@ -154,6 +155,33 @@ Prereqs: .NET 9 SDK, PostgreSQL 16+
    curl http://localhost:8080/api/players \
         -H "Authorization: Bearer <access_token>"
    ```
+
+## UI frontend (React)
+
+The `PvpAnalytics.UI/` directory contains a standalone Vite + React (TypeScript) dashboard that visualises arena statistics.
+
+### Install & run
+
+```bash
+cd PvpAnalytics.UI
+npm install
+npm run dev
+```
+
+Navigate to the printed Vite URL (default `http://localhost:5173`). The page renders mock data while the analytics API endpoints are stabilised.
+
+### Switching to live data
+
+- Configure the analytics API base URL via environment variable before starting Vite:
+  ```bash
+  # macOS / Linux
+  export VITE_ANALYTICS_API_BASE_URL=http://localhost:8080/api
+
+  # Windows PowerShell
+  $Env:VITE_ANALYTICS_API_BASE_URL = 'http://localhost:8080/api'
+  ```
+- Uncomment the `axios.get` block inside `PvpAnalytics.UI/src/store/statsStore.ts` if you need to bypass the mock fallback entirely. By default the store attempts to call the API when `VITE_ANALYTICS_API_BASE_URL` is present, otherwise it serves the mocked dataset defined in `PvpAnalytics.UI/src/mocks/playerStats.ts`.
+- `Search` triggers `loadStats(<playerIdOrQuery>)`; adjust the wrapper endpoint once a search API is available.
 
 ## Run with Docker Compose
 
