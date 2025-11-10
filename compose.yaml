@@ -38,6 +38,15 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
+  ui:
+    image: nginx:stable-alpine
+    ports:
+      - "3000:80"
+    volumes:
+      - ./PvpAnalytics.UI/dist:/usr/share/nginx/html:ro
+    depends_on:
+      - pvpanalytics
+
   db:
     image: postgres:16
     restart: always
