@@ -1,4 +1,5 @@
 using System.Text;
+using Microsoft.Extensions.Logging;
 using PvpAnalytics.Core.Entities;
 using PvpAnalytics.Core.Repositories;
 using PvpAnalytics.Core.Logs;
@@ -9,9 +10,11 @@ public class CombatLogIngestionService(
     IRepository<Player> playerRepo,
     IRepository<Match> matchRepo,
     IRepository<MatchResult> resultRepo,
-    IRepository<CombatLogEntry> entryRepo)
+    IRepository<CombatLogEntry> entryRepo,
+    ILogger<CombatLogIngestionService> logger)
     : ICombatLogIngestionService
 {
+    private readonly ILogger<CombatLogIngestionService> _logger = logger;
     /// <summary>
     /// Ingests combat-log text from the provided stream and persists arena matches, combat entries, players, and match results.
     /// </summary>
@@ -23,6 +26,7 @@ public class CombatLogIngestionService(
     /// <returns>The last persisted <see cref="Match"/> created from the stream, or a synthesized <see cref="Match"/> with <c>Id = 0</c> if no match was persisted.</returns>
     public async Task<Match> IngestAsync(Stream fileStream, CancellationToken ct = default)
     {
+        _logger.LogInformation("Combat log ingestion started.");
         using var reader = new StreamReader(fileStream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, leaveOpen: true);
 
         var parser = new CombatLogParser();
@@ -56,6 +60,10 @@ public class CombatLogIngestionService(
                     matchEnd = parsed.Timestamp;
                     var gameMode = GameModeHelper.GetGameModeFromParticipantCount(participants.Count);
                     lastPersistedMatch = await FinalizeAndPersistAsync(currentZoneName ?? "Unknown", matchStart, matchEnd, participants, bufferedEntries, playersByKey, ct, gameMode);
+                    if (lastPersistedMatch.Id > 0)
+                    {
+                        _logger.LogInformation("Persisted intermediate match {MatchId} on zone {Zone}.", lastPersistedMatch.Id, currentZoneName);
+                    }
                 }
 
                 // Reset buffers
@@ -128,10 +136,14 @@ public class CombatLogIngestionService(
         {
             var gameMode = GameModeHelper.GetGameModeFromParticipantCount(participants.Count);
             lastPersistedMatch = await FinalizeAndPersistAsync(currentZoneName ?? "Unknown", matchStart, matchEnd, participants, bufferedEntries, playersByKey, ct, gameMode);
+            if (lastPersistedMatch.Id > 0)
+            {
+                _logger.LogInformation("Persisted final match {MatchId} on zone {Zone}.", lastPersistedMatch.Id, currentZoneName);
+            }
         }
 
         // Return the last match persisted (or a dummy if none)
-        return lastPersistedMatch ?? new Match
+        var result = lastPersistedMatch ?? new Match
         {
             Id = 0,
             MapName = currentZoneName ?? "Unknown",
@@ -141,6 +153,17 @@ public class CombatLogIngestionService(
             IsRanked = false,
             UniqueHash = ComputeMatchHash(playersByKey.Keys, matchStart, matchEnd)
         };
+
+        if (result.Id == 0)
+        {
+            _logger.LogInformation("Combat log ingestion completed without persisted match.");
+        }
+        else
+        {
+            _logger.LogInformation("Combat log ingestion completed with match {MatchId}.", result.Id);
+        }
+
+        return result;
 
         async Task<Player> GetOrCreatePlayerAsync(string name, CancellationToken token)
         {
@@ -172,6 +195,8 @@ public class CombatLogIngestionService(
             UniqueHash = ComputeMatchHash(participants, start, end)
         };
         match = await matchRepo.AddAsync(match, ct);
+
+        _logger.LogDebug("Persisted match {MatchId} with {ParticipantCount} participants.", match.Id, participants.Count);
 
         foreach (var e in entries)
         {

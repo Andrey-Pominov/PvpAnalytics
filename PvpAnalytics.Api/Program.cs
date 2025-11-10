@@ -44,7 +44,10 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
-await using (var scope = app.Services.CreateAsyncScope()) {
+var skipMigrations = builder.Configuration.GetValue<bool?>("EfMigrations:Skip") ?? false;
+if (!skipMigrations)
+{
+    await using var scope = app.Services.CreateAsyncScope();
     var db = scope.ServiceProvider.GetRequiredService<PvpAnalyticsDbContext>();
     await db.Database.MigrateAsync();
 }
@@ -64,3 +67,8 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+namespace PvpAnalytics.Api
+{
+    public partial class Program;
+}

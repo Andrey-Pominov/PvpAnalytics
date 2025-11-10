@@ -11,6 +11,7 @@ using AuthService.Infrastructure.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using PvpAnalytics.Shared.Security;
 
@@ -20,7 +21,8 @@ public class IdentityService(
     UserManager<ApplicationUser> userManager,
     SignInManager<ApplicationUser> signInManager,
     AuthDbContext dbContext,
-    IOptions<JwtOptions> jwtOptions)
+    IOptions<JwtOptions> jwtOptions,
+    ILogger<IdentityService> logger)
     : IIdentityService
 {
     private readonly JwtOptions _jwtOptions = jwtOptions.Value;
@@ -30,6 +32,7 @@ public class IdentityService(
         var existing = await userManager.FindByEmailAsync(request.Email);
         if (existing is not null)
         {
+            logger.LogWarning("Attempt to register existing user.");
             throw new InvalidOperationException("User already exists.");
         }
 
@@ -44,8 +47,8 @@ public class IdentityService(
         var createResult = await userManager.CreateAsync(user, request.Password);
         if (createResult.Succeeded) return await GenerateTokensForUserAsync(user, ct);
         var errors = string.Join(";", createResult.Errors.Select(e => e.Description));
+        logger.LogError("Failed to create user. Errors: {Errors}", errors);
         throw new InvalidOperationException($"Failed to create user: {errors}");
-
     }
 
     public async Task<AuthResponse> LoginAsync(LoginRequest request, CancellationToken ct = default)
@@ -53,15 +56,18 @@ public class IdentityService(
         var user = await userManager.FindByEmailAsync(request.Email);
         if (user is null)
         {
+            logger.LogWarning("Login failed: invalid credentials.");
             throw new InvalidOperationException("Invalid credentials.");
         }
 
         var result = await signInManager.CheckPasswordSignInAsync(user, request.Password, false);
         if (!result.Succeeded)
         {
+            logger.LogWarning("Login failed: invalid credentials.");
             throw new InvalidOperationException("Invalid credentials.");
         }
 
+        logger.LogInformation("Login succeeded for user {UserId}.", user.Id);
         return await GenerateTokensForUserAsync(user, ct);
     }
 
@@ -75,17 +81,20 @@ public class IdentityService(
 
         if (refreshToken is null || !refreshToken.IsActive)
         {
+            logger.LogWarning("Refresh token rejected: invalid or inactive token.");
             throw new InvalidOperationException("Invalid refresh token.");
         }
 
         var user = await userManager.FindByIdAsync(refreshToken.UserId.ToString());
         if (user is null)
         {
+            logger.LogWarning("Refresh token failed: user {UserId} not found.", refreshToken.UserId);
             throw new InvalidOperationException("User not found.");
         }
 
         await RevokeRefreshTokenAsync(refreshToken.Id, ct);
 
+        logger.LogInformation("Refresh token succeeded for user {UserId}.", user.Id);
         return await GenerateTokensForUserAsync(user, ct);
     }
 

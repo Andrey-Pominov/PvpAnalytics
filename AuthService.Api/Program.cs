@@ -44,8 +44,10 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
-using (var scope = app.Services.CreateScope())
+var skipMigrations = builder.Configuration.GetValue<bool?>("EfMigrations:Skip") ?? false;
+if (!skipMigrations)
 {
+    using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
     db.Database.Migrate();
 }
@@ -63,3 +65,8 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+namespace AuthService.Api
+{
+    public partial class Program;
+}

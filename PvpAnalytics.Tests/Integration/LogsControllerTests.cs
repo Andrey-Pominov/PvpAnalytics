@@ -1,0 +1,92 @@
+using System.IO;
+using System.Net;
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
+using System.Text;
+using System.Text.Json;
+using FluentAssertions;
+using PvpAnalytics.Core.Entities;
+using PvpAnalytics.Core.Enum;
+using Xunit;
+
+namespace PvpAnalytics.Tests.Integration;
+
+public class LogsControllerTests : IClassFixture<PvpAnalyticsApiFactory>, IDisposable
+{
+    private readonly PvpAnalyticsApiFactory _factory;
+    private readonly HttpClient _client;
+    private readonly TestIngestionState _state;
+
+    public LogsControllerTests(PvpAnalyticsApiFactory factory)
+    {
+        _factory = factory;
+        _state = factory.IngestionState;
+        _client = factory.CreateClient();
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(TestAuthHandler.AuthenticationScheme);
+    }
+
+    public void Dispose()
+    {
+        _state.Reset();
+    }
+
+    [Fact]
+    public async Task Upload_ReturnsBadRequest_WhenFileMissing()
+    {
+        using var content = new MultipartFormDataContent();
+
+        var response = await _client.PostAsync("/api/logs/upload", content);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task Upload_ReturnsCreated_AndLocationHeader()
+    {
+        _state.Handler = async (stream, ct) =>
+        {
+            using var reader = new StreamReader(stream, Encoding.UTF8, leaveOpen: true);
+            await reader.ReadToEndAsync(ct);
+            return new Match
+            {
+                Id = 42,
+                MapName = "Nagrand Arena",
+                CreatedOn = DateTime.UtcNow,
+                UniqueHash = Guid.NewGuid().ToString("N"),
+                GameMode = GameMode.ThreeVsThree,
+                Duration = 95,
+                IsRanked = true
+            };
+        };
+
+        var log = """
+                  # Header
+                  1/2/2024 19:10:03.100  ZONE_CHANGE,559,Nagrand Arena,,,,,,,,,,,,
+                  1/2/2024 19:10:04.200  SPELL_DAMAGE,0x0100,Alpha-Illidan,0x0,0x0,0x0200,Bravo-Illidan,0x0,0x0,1337,Chaos Bolt,0x0,1200,0,0,0,0,0,0,0
+                  1/2/2024 19:10:05.300  SPELL_DAMAGE,0x0200,Bravo-Illidan,0x0,0x0,0x0100,Alpha-Illidan,0x0,0x0,6789,Shadow Bolt,0x0,1300,0,0,0,0,0,0,0
+                  1/2/2024 19:10:36.000  ZONE_CHANGE,84,Ironforge,,,,,,,,,,,,
+                  """;
+
+        using var content = new MultipartFormDataContent();
+        var bytes = Encoding.UTF8.GetBytes(log);
+        content.Add(new ByteArrayContent(bytes)
+        {
+            Headers =
+            {
+                ContentType = new MediaTypeHeaderValue("text/plain")
+            }
+        }, "file", "combatlog.txt");
+
+        var response = await _client.PostAsync("/api/logs/upload", content);
+        var body = await response.Content.ReadAsStringAsync();
+
+        response.StatusCode.Should().Be(HttpStatusCode.Created, $"body: {body}");
+        response.Headers.Location.Should().NotBeNull();
+        response.Headers.Location!.AbsolutePath.Should().Be("/api/Matches/42");
+
+        var match = await response.Content.ReadFromJsonAsync<JsonElement>();
+        match.TryGetProperty("mapName", out var map).Should().BeTrue();
+        map.GetString().Should().Be("Nagrand Arena");
+    }
+}
+
