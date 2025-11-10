@@ -16,28 +16,18 @@ using PvpAnalytics.Shared.Security;
 
 namespace AuthService.Infrastructure.Services;
 
-public class IdentityService : IIdentityService
+public class IdentityService(
+    UserManager<ApplicationUser> userManager,
+    SignInManager<ApplicationUser> signInManager,
+    AuthDbContext dbContext,
+    IOptions<JwtOptions> jwtOptions)
+    : IIdentityService
 {
-    private readonly UserManager<ApplicationUser> _userManager;
-    private readonly SignInManager<ApplicationUser> _signInManager;
-    private readonly AuthDbContext _dbContext;
-    private readonly JwtOptions _jwtOptions;
-
-    public IdentityService(
-        UserManager<ApplicationUser> userManager,
-        SignInManager<ApplicationUser> signInManager,
-        AuthDbContext dbContext,
-        IOptions<JwtOptions> jwtOptions)
-    {
-        _userManager = userManager;
-        _signInManager = signInManager;
-        _dbContext = dbContext;
-        _jwtOptions = jwtOptions.Value;
-    }
+    private readonly JwtOptions _jwtOptions = jwtOptions.Value;
 
     public async Task<AuthResponse> RegisterAsync(RegisterRequest request, CancellationToken ct = default)
     {
-        var existing = await _userManager.FindByEmailAsync(request.Email);
+        var existing = await userManager.FindByEmailAsync(request.Email);
         if (existing is not null)
         {
             throw new InvalidOperationException("User already exists.");
@@ -51,25 +41,22 @@ public class IdentityService : IIdentityService
             FullName = request.FullName
         };
 
-        var createResult = await _userManager.CreateAsync(user, request.Password);
-        if (!createResult.Succeeded)
-        {
-            var errors = string.Join(";", createResult.Errors.Select(e => e.Description));
-            throw new InvalidOperationException($"Failed to create user: {errors}");
-        }
+        var createResult = await userManager.CreateAsync(user, request.Password);
+        if (createResult.Succeeded) return await GenerateTokensForUserAsync(user, ct);
+        var errors = string.Join(";", createResult.Errors.Select(e => e.Description));
+        throw new InvalidOperationException($"Failed to create user: {errors}");
 
-        return await GenerateTokensForUserAsync(user, ct);
     }
 
     public async Task<AuthResponse> LoginAsync(LoginRequest request, CancellationToken ct = default)
     {
-        var user = await _userManager.FindByEmailAsync(request.Email);
+        var user = await userManager.FindByEmailAsync(request.Email);
         if (user is null)
         {
             throw new InvalidOperationException("Invalid credentials.");
         }
 
-        var result = await _signInManager.CheckPasswordSignInAsync(user, request.Password, false);
+        var result = await signInManager.CheckPasswordSignInAsync(user, request.Password, false);
         if (!result.Succeeded)
         {
             throw new InvalidOperationException("Invalid credentials.");
@@ -82,7 +69,7 @@ public class IdentityService : IIdentityService
     {
         var tokenHash = ComputeRefreshTokenHash(request.RefreshToken);
 
-        var refreshToken = await _dbContext.RefreshTokens
+        var refreshToken = await dbContext.RefreshTokens
             .AsNoTracking()
             .FirstOrDefaultAsync(rt => rt.TokenHash == tokenHash, ct);
 
@@ -91,7 +78,7 @@ public class IdentityService : IIdentityService
             throw new InvalidOperationException("Invalid refresh token.");
         }
 
-        var user = await _userManager.FindByIdAsync(refreshToken.UserId.ToString());
+        var user = await userManager.FindByIdAsync(refreshToken.UserId.ToString());
         if (user is null)
         {
             throw new InvalidOperationException("User not found.");
@@ -122,7 +109,7 @@ public class IdentityService : IIdentityService
             claims.Add(new Claim("name", user.FullName));
         }
 
-        var roles = await _userManager.GetRolesAsync(user);
+        var roles = await userManager.GetRolesAsync(user);
         claims.AddRange(roles.Select(role => new Claim(ClaimTypes.Role, role)));
 
         var jwt = new JwtSecurityToken(
@@ -144,8 +131,8 @@ public class IdentityService : IIdentityService
             ExpiresAt = now.AddDays(_jwtOptions.RefreshTokenDays)
         };
 
-        _dbContext.RefreshTokens.Add(refreshToken);
-        await _dbContext.SaveChangesAsync(ct);
+        dbContext.RefreshTokens.Add(refreshToken);
+        await dbContext.SaveChangesAsync(ct);
 
         return new AuthResponse(
             accessToken,
@@ -156,15 +143,15 @@ public class IdentityService : IIdentityService
 
     private async Task RevokeRefreshTokenAsync(Guid refreshTokenId, CancellationToken ct)
     {
-        var refreshToken = await _dbContext.RefreshTokens.FirstOrDefaultAsync(rt => rt.Id == refreshTokenId, ct);
+        var refreshToken = await dbContext.RefreshTokens.FirstOrDefaultAsync(rt => rt.Id == refreshTokenId, ct);
         if (refreshToken is null)
         {
             return;
         }
 
         refreshToken.RevokedAt = DateTime.UtcNow;
-        _dbContext.RefreshTokens.Update(refreshToken);
-        await _dbContext.SaveChangesAsync(ct);
+        dbContext.RefreshTokens.Update(refreshToken);
+        await dbContext.SaveChangesAsync(ct);
     }
 
     private (string PlainToken, string TokenHash) GenerateSecureRefreshToken()
