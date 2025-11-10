@@ -68,7 +68,7 @@ Configuration keys used by the service:
 
 ```json
 "ConnectionStrings": {
-  "DefaultConnection": "Host=localhost;Port=5432;Database=authdb;Username=auth;Password=auth123"
+  "DefaultConnection": "Server=localhost,1433;Database=AuthService;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True"
 },
 "Jwt": {
   "Issuer": "PvpAnalytics.Auth",
@@ -199,7 +199,8 @@ Navigate to the printed Vite URL (default `http://localhost:5173`). The page ren
 Compose file: `compose.yaml`
 
 - Services:
-  - `db` (Postgres 16) – exposed on host port 5433
+  - `db` (Postgres 16) – analytics store, exposed on host port 5433
+  - `auth-sql` (SQL Server 2022) – auth store, exposed on host port 1433
   - `pvpanalytics` (analytics API) – exposed on host port 8080
   - `auth` (auth microservice) – exposed on host port 8081
 
@@ -212,12 +213,19 @@ APIs:
 - Auth: `http://localhost:8081`
 - Analytics: `http://localhost:8080`
 
-Environment (in compose):
-- `ConnectionStrings__DefaultConnection=Host=db;Port=5432;Username=pvp;Password=pvp123;Database=pvpdb`
-- `ASPNETCORE_URLS=http://+:8080`
-- `Jwt__Issuer`, `Jwt__Audience`, `Jwt__SigningKey` (shared between auth + analytics)
+- Environment (in compose):
+  - Analytics API
+    - `ConnectionStrings__DefaultConnection=Host=db;Port=5432;Username=pvp;Password=pvp123;Database=pvpdb`
+    - `ASPNETCORE_URLS=http://+:8080`
+  - Auth API
+    - `ConnectionStrings__DefaultConnection=Server=auth-sql,1433;Database=AuthService;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True`
+    - `ASPNETCORE_URLS=http://+:8081`
+    - `Jwt__Issuer`, `Jwt__Audience`, `Jwt__SigningKey` (shared with analytics)
+  - SQL Server container
+    - `ACCEPT_EULA=Y`
+    - `SA_PASSWORD=YourStrong!Passw0rd`
 
-The Postgres container mounts `docker/postgres/init.sql` to create the `auth` user and `authdb` database on first run.
+The Postgres container mounts `docker/postgres/init.sql` to create the analytics schema on first run; the SQL Server data files persist in the named volume `auth-sql-data`.
 
 Migrations run at container start (automatic `Database.Migrate()`).
 
@@ -262,8 +270,8 @@ Match detection (`CombatLogIngestionService`):
 ## Configuration
 
 - Connection strings:
-  - Analytics API: `ConnectionStrings:DefaultConnection` (`ConnectionStrings__DefaultConnection`)
-  - Auth service: same key pointing at `authdb`
+  - Analytics API: `ConnectionStrings:DefaultConnection` (`ConnectionStrings__DefaultConnection`) targeting Postgres
+  - Auth service: `ConnectionStrings:DefaultConnection` targeting SQL Server (e.g. `Server=auth-sql,1433;Database=AuthService;User Id=sa;Password=...;TrustServerCertificate=True`)
 - JWT options (`Jwt` section / `Jwt__*` environment variables) must match between services:
   - `Issuer`, `Audience`, `SigningKey`, `AccessTokenMinutes`, `RefreshTokenDays`
 - ASP.NET Core host settings: `ASPNETCORE_ENVIRONMENT`, `ASPNETCORE_URLS`
@@ -275,7 +283,7 @@ Match detection (`CombatLogIngestionService`):
   dotnet test
   ```
 - `PvpAnalytics.Tests` covers combat-log parsing/ingestion (unit tests) along with API integration tests that exercise `POST /api/logs/upload` using a stub authentication handler.
-- Auth microservice integration tests use an in-memory SQLite provider with a lightweight test factory. They validate the `register`, `login`, and `refresh` flows and assert error handling for duplicate or invalid credentials.
+- Auth microservice integration tests use EF Core's in-memory provider with a lightweight test factory. They validate the `register`, `login`, and `refresh` flows and assert error handling for duplicate or invalid credentials.
 - The test harnesses inject structured logging, so failures surface actionable context in the console when assertions fail.
 
 ## Development notes
