@@ -26,14 +26,13 @@ public class IdentityService(
     : IIdentityService
 {
     private readonly JwtOptions _jwtOptions = jwtOptions.Value;
-    private readonly ILogger<IdentityService> _logger = logger;
 
     public async Task<AuthResponse> RegisterAsync(RegisterRequest request, CancellationToken ct = default)
     {
         var existing = await userManager.FindByEmailAsync(request.Email);
         if (existing is not null)
         {
-            _logger.LogWarning("Attempt to register existing user {Email}.", request.Email);
+            logger.LogWarning("Attempt to register existing user.");
             throw new InvalidOperationException("User already exists.");
         }
 
@@ -48,9 +47,8 @@ public class IdentityService(
         var createResult = await userManager.CreateAsync(user, request.Password);
         if (createResult.Succeeded) return await GenerateTokensForUserAsync(user, ct);
         var errors = string.Join(";", createResult.Errors.Select(e => e.Description));
-        _logger.LogError("Failed to create user {Email}. Errors: {Errors}", request.Email, errors);
+        logger.LogError("Failed to create user. Errors: {Errors}", errors);
         throw new InvalidOperationException($"Failed to create user: {errors}");
-
     }
 
     public async Task<AuthResponse> LoginAsync(LoginRequest request, CancellationToken ct = default)
@@ -58,18 +56,18 @@ public class IdentityService(
         var user = await userManager.FindByEmailAsync(request.Email);
         if (user is null)
         {
-            _logger.LogWarning("Login failed for {Email}: user not found.", request.Email);
+            logger.LogWarning("Login failed user not found.");
             throw new InvalidOperationException("Invalid credentials.");
         }
 
         var result = await signInManager.CheckPasswordSignInAsync(user, request.Password, false);
         if (!result.Succeeded)
         {
-            _logger.LogWarning("Login failed for {Email}: invalid password.", request.Email);
+            logger.LogWarning("Login failed: invalid password.");
             throw new InvalidOperationException("Invalid credentials.");
         }
 
-        _logger.LogInformation("Login succeeded for {Email}.", request.Email);
+        logger.LogInformation("Login succeeded for user {UserId}.", user.Id);
         return await GenerateTokensForUserAsync(user, ct);
     }
 
@@ -83,20 +81,20 @@ public class IdentityService(
 
         if (refreshToken is null || !refreshToken.IsActive)
         {
-            _logger.LogWarning("Refresh token rejected: invalid or inactive token.");
+            logger.LogWarning("Refresh token rejected: invalid or inactive token.");
             throw new InvalidOperationException("Invalid refresh token.");
         }
 
         var user = await userManager.FindByIdAsync(refreshToken.UserId.ToString());
         if (user is null)
         {
-            _logger.LogWarning("Refresh token failed: user {UserId} not found.", refreshToken.UserId);
+            logger.LogWarning("Refresh token failed: user {UserId} not found.", refreshToken.UserId);
             throw new InvalidOperationException("User not found.");
         }
 
         await RevokeRefreshTokenAsync(refreshToken.Id, ct);
 
-        _logger.LogInformation("Refresh token succeeded for user {UserId}.", user.Id);
+        logger.LogInformation("Refresh token succeeded for user {UserId}.", user.Id);
         return await GenerateTokensForUserAsync(user, ct);
     }
 

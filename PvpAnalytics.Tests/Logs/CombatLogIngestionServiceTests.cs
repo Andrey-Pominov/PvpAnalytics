@@ -8,6 +8,7 @@ using PvpAnalytics.Core.Enum;
 using PvpAnalytics.Core.Repositories;
 using PvpAnalytics.Core.Logs;
 using Xunit;
+using System.Threading;
 
 namespace PvpAnalytics.Tests.Logs;
 
@@ -20,16 +21,17 @@ public class CombatLogIngestionServiceTests
         var matchRepo = new InMemoryRepository<Match>(m => m.Id);
         var resultRepo = new InMemoryRepository<MatchResult>(r => r.Id);
         var entryRepo = new InMemoryRepository<CombatLogEntry>(e => e.Id);
+        
 
         var sut = new CombatLogIngestionService(playerRepo, matchRepo, resultRepo, entryRepo, NullLogger<CombatLogIngestionService>.Instance);
 
         var log = """
-                  # Nicked header
-                  1/2/2024 19:10:03.100  ZONE_CHANGE,559,Nagrand Arena,,,,,,,,,,,,
-                  1/2/2024 19:10:04.200  SPELL_DAMAGE,0x0100,Alpha-Illidan,0x0,0x0,0x0200,Bravo-Illidan,0x0,0x0,1337,Chaos Bolt,0x0,1200,0,0,0,0,0,0,0
-                  1/2/2024 19:10:05.300  SPELL_HEAL,0x0200,Bravo-Illidan,0x0,0x0,0x0100,Alpha-Illidan,0x0,0x0,2337,Rejuvenation,0x0,0,900,0,0,0,0,0,0
-                  1/2/2024 19:10:30.000  ZONE_CHANGE,87,Stormwind City,,,,,,,,,,,,
-                  """;
+# Nicked header
+1/2/2024 19:10:03.100  ZONE_CHANGE,559,Nagrand Arena,,,,,,,,,,,,
+1/2/2024 19:10:04.200  SPELL_DAMAGE,0x0100,Alpha-Illidan,0x0,0x0,0x0200,Bravo-Illidan,0x0,0x0,1337,Chaos Bolt,0x0,1200,0,0,0,0,0,0,0
+1/2/2024 19:10:05.300  SPELL_HEAL,0x0200,Bravo-Illidan,0x0,0x0,0x0100,Alpha-Illidan,0x0,0x0,2337,Rejuvenation,0x0,0,900,0,0,0,0,0,0
+1/2/2024 19:10:30.000  ZONE_CHANGE,87,Stormwind City,,,,,,,,,,,,
+""";
 
         await using var stream = new MemoryStream(Encoding.UTF8.GetBytes(log));
 
@@ -104,8 +106,8 @@ public class CombatLogIngestionServiceTests
         {
             if (_getId(entity) <= 0)
             {
-                _currentId += 1;
-                _setId(entity, _currentId);
+                var newId = Interlocked.Increment(ref _currentId);
+                _setId(entity, newId);
             }
 
             _entities.Add(entity);

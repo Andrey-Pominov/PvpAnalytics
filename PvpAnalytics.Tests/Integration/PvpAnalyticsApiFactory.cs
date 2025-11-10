@@ -19,15 +19,11 @@ public sealed class PvpAnalyticsApiFactory : WebApplicationFactory<PvpAnalytics.
     {
         builder.UseEnvironment(Environments.Development);
 
-        Environment.SetEnvironmentVariable("EfMigrations__Skip", "true");
-        Environment.SetEnvironmentVariable("Jwt__Issuer", "TestIssuer");
-        Environment.SetEnvironmentVariable("Jwt__Audience", "TestAudience");
-        Environment.SetEnvironmentVariable("Jwt__SigningKey", "0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF");
-
         builder.ConfigureAppConfiguration((_, config) =>
         {
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
+                ["EfMigrations:Skip"] = "true",
                 [$"{JwtOptions.SectionName}:Issuer"] = "TestIssuer",
                 [$"{JwtOptions.SectionName}:Audience"] = "TestAudience",
                 [$"{JwtOptions.SectionName}:SigningKey"] = "0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF"
