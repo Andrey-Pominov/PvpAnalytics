@@ -21,8 +21,8 @@ const StatsPage = () => {
   const loadStats = useStatsStore((state) => state.loadStats)
 
   useEffect(() => {
-    void loadStats()
-  }, [loadStats])
+    void useStatsStore.getState().loadStats()
+  }, [])
 
   const stats = useMemo(() => data ?? mockPlayerStatistics, [data])
 
