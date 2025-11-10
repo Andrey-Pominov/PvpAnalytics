@@ -23,7 +23,10 @@ export const useStatsStore = create<StatsState>((set) => ({
       const baseUrl = import.meta.env.VITE_ANALYTICS_API_BASE_URL as string | undefined
 
       if (baseUrl && baseUrl !== 'mock') {
-        const { data } = await axios.get<PlayerStatistics>(`${baseUrl}/players/${playerId}/stats`)
+        const encodedId = encodeURIComponent(playerId)
+        const { data } = await axios.get<PlayerStatistics>(`${baseUrl}/players/${encodedId}/stats`, {
+          timeout: 5000,
+        })
         set({ data, loading: false })
         return
       }

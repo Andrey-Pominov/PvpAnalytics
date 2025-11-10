@@ -6,7 +6,7 @@ interface MatchHighlightProps {
 }
 
 const formatNumber = (value: number) =>
-  value >= 1_000_000 ? `${(value / 1_000_000).toFixed(2)} M` : `${Math.round(value / 1000)} K`
+  new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 }).format(value)
 
 const MatchHighlight = ({ match }: MatchHighlightProps) => {
   return (

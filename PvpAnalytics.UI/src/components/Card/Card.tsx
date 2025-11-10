@@ -11,7 +11,7 @@ interface CardProps {
 const Card = ({ title, subtitle, actions, className, children }: PropsWithChildren<CardProps>) => {
   return (
     <section className={`${styles.card} ${className ?? ''}`.trim()}>
-      {(title || actions) && (
+      {(title || subtitle || actions) && (
         <header className={styles.header}>
           <div>
             {title && <h2 className={styles.title}>{title}</h2>}
