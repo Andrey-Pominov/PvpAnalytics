@@ -47,8 +47,8 @@ const MatchHighlight = ({ match }: MatchHighlightProps) => {
         ))}
       </div>
       <footer className={styles.timeline}>
-        {match.timeline.map((event) => (
-          <div key={event.timestamp} className={styles.timelineItem}>
+        {match.timeline.map((event, index) => (
+          <div key={`${event.timestamp}-${index}`} className={styles.timelineItem}>
             <span className={styles.timelineTime}>{(event.timestamp / 60).toFixed(2)}</span>
             <span className={styles.timelineDescription}>{event.description}</span>
           </div>
