@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import Card from '../components/Card/Card'
 import SearchBar from '../components/SearchBar/SearchBar'
 import ToggleGroup from '../components/ToggleGroup/ToggleGroup'
@@ -13,14 +14,21 @@ import styles from './StatsPage.module.css'
 const StatsPage = () => {
   const [activeTopTab, setActiveTopTab] = useState('rating')
   const [activeFilter, setActiveFilter] = useState('recent')
-  const { data, loading, error } = useStatsStore((state) => ({
-    data: state.data,
-    loading: state.loading,
-    error: state.error,
-  }))
+  const { data, loading, error } = useStatsStore(
+    useShallow((state) => ({
+      data: state.data,
+      loading: state.loading,
+      error: state.error,
+    })),
+  )
   const loadStats = useStatsStore((state) => state.loadStats)
+  const hasRequestedInitialLoad = useRef(false)
 
   useEffect(() => {
+    if (hasRequestedInitialLoad.current) {
+      return
+    }
+    hasRequestedInitialLoad.current = true
     void loadStats()
   }, [loadStats])
 
