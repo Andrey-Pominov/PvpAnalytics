@@ -68,7 +68,7 @@ Configuration keys used by the service:
 
 ```json
 "ConnectionStrings": {
-  "DefaultConnection": "Server=localhost,1433;Database=AuthService;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True"
+  "DefaultConnection": "Server=localhost,1433;Database=AuthService;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True"
 },
 "Jwt": {
   "Issuer": "PvpAnalytics.Auth",
