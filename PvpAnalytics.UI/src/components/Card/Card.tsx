@@ -1,5 +1,4 @@
 import type { PropsWithChildren, ReactNode } from 'react'
-import styles from './Card.module.css'
 
 interface CardProps {
   title?: string
@@ -8,22 +7,23 @@ interface CardProps {
   className?: string
 }
 
-const Card = ({ title, subtitle, actions, className, children }: PropsWithChildren<CardProps>) => {
-  return (
-    <section className={`${styles.card} ${className ?? ''}`.trim()}>
-      {(title || subtitle || actions) && (
-        <header className={styles.header}>
-          <div>
-            {title && <h2 className={styles.title}>{title}</h2>}
-            {subtitle && <p className={styles.subtitle}>{subtitle}</p>}
-          </div>
-          {actions && <div className={styles.actions}>{actions}</div>}
-        </header>
-      )}
-      <div className={styles.body}>{children}</div>
-    </section>
-  )
-}
+const baseClasses =
+  'flex flex-col gap-4 rounded-2xl border border-accent-muted/40 bg-surface/90 p-6 shadow-card backdrop-blur-lg'
+
+const Card = ({ title, subtitle, actions, className, children }: PropsWithChildren<CardProps>) => (
+  <section className={[baseClasses, className ?? ''].filter(Boolean).join(' ')}>
+    {(title || subtitle || actions) && (
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          {title && <h2 className="text-base font-semibold text-text">{title}</h2>}
+          {subtitle && <p className="mt-1 text-sm text-text-muted">{subtitle}</p>}
+        </div>
+        {actions && <div className="flex-shrink-0 sm:ml-auto">{actions}</div>}
+      </header>
+    )}
+    <div className="flex flex-col gap-4">{children}</div>
+  </section>
+)
 
 export default Card
 

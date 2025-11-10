@@ -160,6 +160,12 @@ Prereqs: .NET 9 SDK, PostgreSQL 16+
 
 The `PvpAnalytics.UI/` directory contains a standalone Vite + React (TypeScript) dashboard that visualises arena statistics.
 
+### Styling
+
+- Tailwind CSS provides utility-first styling; global tokens (colors, typography, spacing) live in `tailwind.config.js`.
+- Responsive breakpoints are applied directly in component class names, so the same codebase adapts to desktop and mobile layouts without separate projects.
+- Custom gradients and glassmorphism accents are implemented with Tailwind utilities plus a small number of inline styles where necessary (e.g., SVG shadows).
+
 ### Install & run
 
 ```bash
@@ -182,6 +188,11 @@ Navigate to the printed Vite URL (default `http://localhost:5173`). The page ren
   ```
 - Uncomment the `axios.get` block inside `PvpAnalytics.UI/src/store/statsStore.ts` if you need to bypass the mock fallback entirely. By default the store attempts to call the API when `VITE_ANALYTICS_API_BASE_URL` is present, otherwise it serves the mocked dataset defined in `PvpAnalytics.UI/src/mocks/playerStats.ts`.
 - `Search` triggers `loadStats(<playerIdOrQuery>)`; adjust the wrapper endpoint once a search API is available.
+- Production build / lint:
+  ```bash
+  npm run build
+  npm run lint
+  ```
 
 ## Run with Docker Compose
 
