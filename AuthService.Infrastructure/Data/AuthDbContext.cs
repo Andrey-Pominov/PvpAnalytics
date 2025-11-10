@@ -6,12 +6,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AuthService.Infrastructure.Data;
 
-public class AuthDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>
+public class AuthDbContext(DbContextOptions<AuthDbContext> options)
+    : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>(options)
 {
-    public AuthDbContext(DbContextOptions<AuthDbContext> options) : base(options)
-    {
-    }
-
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     protected override void OnModelCreating(ModelBuilder builder)
@@ -22,7 +19,7 @@ public class AuthDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Gui
         {
             b.Property(u => u.FullName).HasMaxLength(200);
             b.Property(u => u.CreatedAt)
-                .HasDefaultValueSql("NOW()")
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
                 .ValueGeneratedOnAdd();
         });
 

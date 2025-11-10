@@ -257,6 +257,16 @@ Match detection (`CombatLogIngestionService`):
   - `Issuer`, `Audience`, `SigningKey`, `AccessTokenMinutes`, `RefreshTokenDays`
 - ASP.NET Core host settings: `ASPNETCORE_ENVIRONMENT`, `ASPNETCORE_URLS`
 
+## Testing
+
+- Run all backend unit and integration tests with:
+  ```bash
+  dotnet test
+  ```
+- `PvpAnalytics.Tests` covers combat-log parsing/ingestion (unit tests) along with API integration tests that exercise `POST /api/logs/upload` using a stub authentication handler.
+- Auth microservice integration tests use an in-memory SQLite provider with a lightweight test factory. They validate the `register`, `login`, and `refresh` flows and assert error handling for duplicate or invalid credentials.
+- The test harnesses inject structured logging, so failures surface actionable context in the console when assertions fail.
+
 ## Development notes
 
 - Generic repository (`IRepository<TEntity>`) with optional `autoSave` parameter on `Add/Update/Delete` for unit-of-work batching
@@ -264,6 +274,7 @@ Match detection (`CombatLogIngestionService`):
 - API controllers are minimal and operate directly on entities (DTOs can be added later)
 - Health endpoint: `GET /api/health`
 - AuthService uses ASP.NET Core Identity with JWT + refresh tokens; extend via `IdentityService` if additional policies/claims are needed
+- Structured logging is enabled in ingestion and auth paths (`LogsController`, `CombatLogIngestionService`, `AuthController`, `IdentityService`) to surface key events and failure diagnostics.
 - Postman collection example is provided in earlier conversation; generate via OpenAPI if needed
 
 ## License
