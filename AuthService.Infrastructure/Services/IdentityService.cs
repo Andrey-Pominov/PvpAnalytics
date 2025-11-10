@@ -56,14 +56,14 @@ public class IdentityService(
         var user = await userManager.FindByEmailAsync(request.Email);
         if (user is null)
         {
-            logger.LogWarning("Login failed user not found.");
+            logger.LogWarning("Login failed: invalid credentials.");
             throw new InvalidOperationException("Invalid credentials.");
         }
 
         var result = await signInManager.CheckPasswordSignInAsync(user, request.Password, false);
         if (!result.Succeeded)
         {
-            logger.LogWarning("Login failed: invalid password.");
+            logger.LogWarning("Login failed: invalid credentials.");
             throw new InvalidOperationException("Invalid credentials.");
         }
 
