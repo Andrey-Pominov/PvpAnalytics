@@ -18,6 +18,11 @@ const WinRateList = ({ title, entries }: WinRateListProps) => (
           <span className="font-semibold text-accent">{entry.value}%</span>
           <div className="col-span-2 h-1.5 rounded-full bg-white/10">
             <div
+              role="progressbar"
+              aria-valuenow={entry.value}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuetext={`Win rate ${entry.value}%`}
               className="h-full rounded-full bg-gradient-to-r from-accent to-sky-400 transition-all duration-300"
               style={{ width: `${entry.value}%` }}
             />

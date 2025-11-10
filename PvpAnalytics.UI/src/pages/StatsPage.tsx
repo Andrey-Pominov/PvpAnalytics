@@ -52,7 +52,7 @@ const StatsPage = () => {
 
       <section className="flex flex-col gap-6 rounded-3xl border border-accent-muted/30 bg-gradient-to-br from-background/80 to-surface/70 p-6 shadow-inner shadow-black/20 backdrop-blur">
         <div className="flex items-center gap-4">
-          <div className="grid h-16 w-16 place-items-center rounded-2xl bg-gradient-to-br from-accent to-sky-400 text-xl font-bold text-white" aria-hidden>
+          <div className="grid h-16 w-16 place-items-center rounded-2xl bg-gradient-to-br from-accent to-sky-400 text-xl font-bold text-white" aria-hidden={true}>
             {stats.player.name.substring(0, 1)}
           </div>
           <div>
