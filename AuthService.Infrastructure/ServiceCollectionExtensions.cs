@@ -1,3 +1,4 @@
+using System;
 using AuthService.Application.Abstractions;
 using AuthService.Infrastructure.Data;
 using AuthService.Infrastructure.Services;
@@ -16,8 +17,19 @@ public static class ServiceCollectionExtensions
     {
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
 
-        services.AddDbContext<AuthDbContext>(options =>
-            options.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
+        var connectionString = configuration.GetConnectionString("DefaultConnection")
+            ?? throw new InvalidOperationException("ConnectionStrings:DefaultConnection is not configured.");
+
+        if (connectionString.StartsWith("InMemory:", StringComparison.OrdinalIgnoreCase))
+        {
+            var databaseName = connectionString["InMemory:".Length..];
+            services.AddDbContext<AuthDbContext>(options => options.UseInMemoryDatabase(databaseName));
+        }
+        else
+        {
+            services.AddDbContext<AuthDbContext>(options =>
+                options.UseSqlServer(connectionString));
+        }
 
         services
             .AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>

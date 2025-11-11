@@ -27,7 +27,7 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:8081
-      - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Database=authdb;Username=auth;Password=auth123
+      - ConnectionStrings__DefaultConnection=Server=auth-sql,1433;Database=AuthService;User Id=sa;Password=${SA_PASSWORD?SA_PASSWORD not set};TrustServerCertificate=True
       - Jwt__Issuer=PvpAnalytics.Auth
       - Jwt__Audience=PvpAnalytics.Api
       - Jwt__SigningKey=${JWT_SIGNING_KEY?JWT_SIGNING_KEY not set}
@@ -35,6 +35,7 @@ services:
       - Jwt__RefreshTokenDays=7
     depends_on:
       - db
+      - auth-sql
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
@@ -58,3 +59,17 @@ services:
       - "5442:5432"
     volumes:
       - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+
+  auth-sql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    restart: always
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=${SA_PASSWORD?SA_PASSWORD not set}
+    ports:
+      - "1433:1433"
+    volumes:
+      - auth-sql-data:/var/opt/mssql
+
+volumes:
+  auth-sql-data:
