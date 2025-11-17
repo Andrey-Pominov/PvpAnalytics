@@ -21,11 +21,12 @@ public static class GameModeHelper
         // For 6 participants, check if it's Solo Shuffle based on arena match ID pattern
         if (participantCount == 6 && !string.IsNullOrEmpty(arenaMatchId))
         {
-            // Solo Shuffle arena matches typically have specific ID patterns
-            // If the arena match ID contains indicators of shuffle (this may need refinement based on actual log format)
-            // For now, we'll default to ThreeVsThree and let the system be refined later
-            // You may need to update this logic based on actual arena match ID patterns from logs
-            return GameMode.ThreeVsThree;
+            // Solo Shuffle arena matches typically have "shuffle" in the arena match ID
+            if (arenaMatchId.Contains("shuffle", StringComparison.OrdinalIgnoreCase))
+            {
+                return GameMode.Shuffle;
+            }
+            // If no shuffle indicator found, fall through to default ThreeVsThree logic
         }
         
         return participantCount switch

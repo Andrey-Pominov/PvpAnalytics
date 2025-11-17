@@ -58,7 +58,8 @@ public sealed class TestIngestionState
         new Match
         {
             Id = 100,
-            MapName = "Test Arena",
+            ArenaZone = ArenaZone.DalaranArena,
+            ArenaMatchId = Guid.NewGuid().ToString("N"),
             CreatedOn = DateTime.UtcNow,
             UniqueHash = Guid.NewGuid().ToString("N"),
             GameMode = GameMode.TwoVsTwo,

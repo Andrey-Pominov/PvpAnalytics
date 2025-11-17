@@ -14,9 +14,9 @@ public static class ServiceCollectionExtensions
         services.AddDbContext<PvpAnalyticsDbContext>(options =>
         {
             options.UseNpgsql(config.GetConnectionString("DefaultConnection"));
-            // Suppress the pending model changes warning - it will be logged instead of throwing
+            // Log the pending model changes warning instead of throwing
             options.ConfigureWarnings(warnings =>
-                warnings.Ignore(RelationalEventId.PendingModelChangesWarning));
+                warnings.Log(RelationalEventId.PendingModelChangesWarning));
         });
         services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
         

@@ -21,8 +21,10 @@ public static class ServiceCollectionExtensions
             ?? throw new InvalidOperationException("ConnectionStrings:DefaultConnection is not configured.");
 
         // Validate that we're not accidentally using a PostgreSQL connection string
-        if (connectionString.StartsWith("Host=", StringComparison.OrdinalIgnoreCase) ||
-            connectionString.Contains("Port=5432") && !connectionString.Contains("Server="))
+        // Intent: (starts with 'Host=' OR contains 'Port=5432') AND does not contain 'Server='
+        if ((connectionString.StartsWith("Host=", StringComparison.OrdinalIgnoreCase) ||
+             connectionString.Contains("Port=5432", StringComparison.OrdinalIgnoreCase)) &&
+            !connectionString.Contains("Server=", StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidOperationException(
                 $"Invalid connection string for AuthService: AuthService must use SQL Server, but detected PostgreSQL connection string format. " +

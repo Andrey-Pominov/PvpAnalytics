@@ -66,18 +66,28 @@ Errors are returned as `400 Bad Request` with `{ "error": "message" }`.
 
 Configuration keys used by the service:
 
-```json
-"ConnectionStrings": {
-  "DefaultConnection": "Server=localhost,1433;Database=AuthService;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True"
-},
-"Jwt": {
-  "Issuer": "PvpAnalytics.Auth",
-  "Audience": "PvpAnalytics.Api",
-  "SigningKey": "CHANGE_ME",
-  "AccessTokenMinutes": 60,
-  "RefreshTokenDays": 7
-}
-```
+**For Local Development (dotnet run):**
+- Use **User Secrets** to store sensitive configuration:
+  ```bash
+  dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Server=localhost,1433;Database=AuthServiceDev;User Id=sa;Password=[YOUR_SA_PASSWORD];TrustServerCertificate=True"
+  dotnet user-secrets set "Jwt:SigningKey" "[YOUR_JWT_SIGNING_KEY]"
+  ```
+- The `appsettings.Development.json` file contains placeholders; User Secrets override these values.
+
+**For Docker/Production:**
+- Use **environment variables** (configured in `compose.yaml`):
+  ```json
+  "ConnectionStrings": {
+    "DefaultConnection": "Server=auth-sql,1433;Database=AuthService;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True"
+  },
+  "Jwt": {
+    "Issuer": "PvpAnalytics.Auth",
+    "Audience": "PvpAnalytics.Api",
+    "SigningKey": "${JWT_SIGNING_KEY}",
+    "AccessTokenMinutes": 60,
+    "RefreshTokenDays": 7
+  }
+  ```
 
 All `register/login/refresh` routes are `[AllowAnonymous]`; any future authenticated endpoints can rely on `[Authorize]`.
 
@@ -117,40 +127,48 @@ Prereqs: .NET 9 SDK, PostgreSQL 16+
 
 ### AuthService.Api
 
-1. Update `AuthService.Api/appsettings.Development.json` (or environment variables) with database + JWT details. **Set a secure signing key via environment variable**:
+1. Ensure SQL Server is running locally (or use Docker: `docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=[YOUR_SA_PASSWORD]" -p 1433:1433 --name auth-sql mcr.microsoft.com/mssql/server:2022-latest`).
+2. **Configure User Secrets** for sensitive configuration (connection string and JWT signing key):
    ```bash
-   export JWT_SIGNING_KEY=$(python -c "import secrets; print(secrets.token_urlsafe(64))")
+   cd AuthService.Api
+   dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Server=localhost,1433;Database=AuthServiceDev;User Id=sa;Password=[YOUR_SA_PASSWORD];TrustServerCertificate=True"
+   dotnet user-secrets set "Jwt:SigningKey" "[YOUR_JWT_SIGNING_KEY]"
    ```
-   (On Windows PowerShell: `$Env:JWT_SIGNING_KEY = python -c "import secrets; print(secrets.token_urlsafe(64))"`.)
-   Docker Compose reads the signing key from the `JWT_SIGNING_KEY` environment variable so nothing sensitive is committed. In development you can instead use `dotnet user-secrets set Jwt:SigningKey "$JWT_SIGNING_KEY"`.
-2. Start the auth service:
+   Note: The `appsettings.Development.json` contains placeholder values (empty password); User Secrets override these values. This ensures no sensitive data is committed to source control.
+3. Start the auth service:
    ```bash
    dotnet run --project AuthService.Api --urls http://localhost:8081
    ```
-3. Register/login:
+4. Register/login:
    ```bash
    curl -X POST http://localhost:8081/api/auth/register \
         -H "Content-Type: application/json" \
-        -d '{"email":"user@example.com","password":"Passw0rd!","fullName":"Test User"}'
+        -d '{"email":"user@example.com","password":"[YOUR_PASSWORD]","fullName":"Test User"}'
 
    curl -X POST http://localhost:8081/api/auth/login \
         -H "Content-Type: application/json" \
-        -d '{"email":"user@example.com","password":"Passw0rd!"}'
+        -d '{"email":"user@example.com","password":"[YOUR_PASSWORD]"}'
    ```
    Save the `accessToken` and `refreshToken` values.
 
 ### PvpAnalytics.Api
 
-1. Configure `PvpAnalytics.Api/appsettings.Development.json` with the analytics DB connection string and matching JWT settings (issuer/audience/key must mirror the auth service).
-2. Start the analytics API:
+1. Ensure PostgreSQL is running locally (or use Docker: `docker run -e POSTGRES_USER=pvp -e POSTGRES_PASSWORD=[YOUR_POSTGRES_PASSWORD] -e POSTGRES_DB=pvpdb -p 5442:5432 --name pvpdb postgres:16`).
+2. Configure `PvpAnalytics.Api/appsettings.Development.json` with the analytics DB connection string and matching JWT settings (issuer/audience/key must mirror the auth service).
+   - Optionally use User Secrets for JWT configuration:
+     ```bash
+     cd PvpAnalytics.Api
+     dotnet user-secrets set "Jwt:SigningKey" "[YOUR_JWT_SIGNING_KEY]"
+     ```
+3. Start the analytics API:
    ```bash
    dotnet run --project PvpAnalytics.Api --urls http://localhost:8080
    ```
-3. Health check (unauthenticated):
+4. Health check (unauthenticated):
    ```bash
    curl http://localhost:8080/api/health
    ```
-4. Authenticated request example:
+5. Authenticated request example:
    ```bash
    curl http://localhost:8080/api/players \
         -H "Authorization: Bearer <access_token>"
@@ -213,17 +231,23 @@ APIs:
 - Auth: `http://localhost:8081`
 - Analytics: `http://localhost:8080`
 
-- Environment (in compose):
+- Environment (configured via `.env` file and `compose.yaml`):
   - Analytics API
-    - `ConnectionStrings__DefaultConnection=Host=db;Port=5432;Username=pvp;Password=pvp123;Database=pvpdb`
+    - `ConnectionStrings__DefaultConnection=Host=db;Port=5432;Username=pvp;Password=[YOUR_POSTGRES_PASSWORD];Database=pvpdb`
     - `ASPNETCORE_URLS=http://+:8080`
   - Auth API
-    - `ConnectionStrings__DefaultConnection=Server=auth-sql,1433;Database=AuthService;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True`
+    - `ConnectionStrings__DefaultConnection=Server=auth-sql,1433;Database=AuthService;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True`
     - `ASPNETCORE_URLS=http://+:8081`
-    - `Jwt__Issuer`, `Jwt__Audience`, `Jwt__SigningKey` (shared with analytics)
+    - `Jwt__Issuer`, `Jwt__Audience`, `Jwt__SigningKey` (from `${JWT_SIGNING_KEY}` environment variable)
   - SQL Server container
     - `ACCEPT_EULA=Y`
-    - `SA_PASSWORD=YourStrong!Passw0rd`
+    - `SA_PASSWORD=${SA_PASSWORD}` (from `.env` file)
+
+**Important:** Create a `.env` file in the project root with:
+```
+SA_PASSWORD=[YOUR_SA_PASSWORD]
+JWT_SIGNING_KEY=[YOUR_JWT_SIGNING_KEY]
+```
 
 The Postgres container mounts `docker/postgres/init.sql` to create the analytics schema on first run; the SQL Server data files persist in the named volume `auth-sql-data`.
 
@@ -247,9 +271,16 @@ Match detection (`CombatLogIngestionService`):
 - Finalizes a `Match` and `MatchResult`s on zone switch or EOF
 - `GameMode` derived from participant count via `GameModeHelper`:
   - 4 → TwoVsTwo
-  - 6 → ThreeVsThree
+  - 6 → ThreeVsThree (or Shuffle if arenaMatchId contains "shuffle")
   - 10 → Skirmish (fallback; enum lacks 5v5)
   - otherwise → TwoVsTwo (default)
+
+### Spell Mappings
+
+Player class, spec, and faction detection uses static spell mappings in `PvpAnalytics.Core/Logs/PlayerAttributeMappings.cs`:
+- **Target Expansion:** World of Warcraft: The War Within (Patch 11.0.x) as of November 2024
+- **Maintenance:** See `SPELL_MAINTENANCE.md` for the process to update mappings when Blizzard releases new patches
+- **Priority System:** Spec detection uses priority-based matching to handle multiple spell matches deterministically
 
 ## Authentication workflow
 
@@ -269,12 +300,35 @@ Match detection (`CombatLogIngestionService`):
 
 ## Configuration
 
-- Connection strings:
-  - Analytics API: `ConnectionStrings:DefaultConnection` (`ConnectionStrings__DefaultConnection`) targeting Postgres
-  - Auth service: `ConnectionStrings:DefaultConnection` targeting SQL Server (e.g. `Server=auth-sql,1433;Database=AuthService;User Id=sa;Password=...;TrustServerCertificate=True`)
-- JWT options (`Jwt` section / `Jwt__*` environment variables) must match between services:
-  - `Issuer`, `Audience`, `SigningKey`, `AccessTokenMinutes`, `RefreshTokenDays`
-- ASP.NET Core host settings: `ASPNETCORE_ENVIRONMENT`, `ASPNETCORE_URLS`
+### Local Development (dotnet run)
+
+**Auth Service:**
+- Use **User Secrets** for sensitive configuration:
+  ```bash
+  cd AuthService.Api
+  dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Server=localhost,1433;Database=AuthServiceDev;User Id=sa;Password=[YOUR_SA_PASSWORD];TrustServerCertificate=True"
+  dotnet user-secrets set "Jwt:SigningKey" "[YOUR_JWT_SIGNING_KEY]"
+  ```
+- The `appsettings.Development.json` contains placeholders; User Secrets override these values.
+
+**Analytics API:**
+- Connection string in `appsettings.Development.json` points to local PostgreSQL
+- JWT configuration should match Auth Service (use User Secrets if needed)
+
+### Docker/Production
+
+**Connection strings:**
+- Analytics API: `ConnectionStrings__DefaultConnection` environment variable targeting Postgres
+- Auth service: `ConnectionStrings__DefaultConnection` environment variable targeting SQL Server
+  - Format: `Server=auth-sql,1433;Database=AuthService;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True`
+  - `SA_PASSWORD` is provided via `.env` file or environment variable
+
+**JWT options** (`Jwt` section / `Jwt__*` environment variables) must match between services:
+- `Issuer`, `Audience`, `SigningKey`, `AccessTokenMinutes`, `RefreshTokenDays`
+- In Docker: `JWT_SIGNING_KEY` environment variable (from `.env` file)
+
+**ASP.NET Core host settings:**
+- `ASPNETCORE_ENVIRONMENT`, `ASPNETCORE_URLS`
 
 ## Testing
 
