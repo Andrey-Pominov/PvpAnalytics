@@ -7,3 +7,4 @@ riderModule.iml
 /.vscode
 node_modules/
 dist/
+.env

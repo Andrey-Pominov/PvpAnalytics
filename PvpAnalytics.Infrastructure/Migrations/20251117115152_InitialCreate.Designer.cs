@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using PvpAnalytics.Infrastructure;
@@ -11,9 +12,11 @@ using PvpAnalytics.Infrastructure;
 namespace PvpAnalytics.Infrastructure.Migrations
 {
     [DbContext(typeof(PvpAnalyticsDbContext))]
-    partial class PvpAnalyticsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251117115152_InitialCreate")]
+    partial class InitialCreate
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -78,9 +81,6 @@ namespace PvpAnalytics.Infrastructure.Migrations
                     b.Property<string>("ArenaMatchId")
                         .HasColumnType("text");
 
-                    b.Property<int>("ArenaZone")
-                        .HasColumnType("integer");
-
                     b.Property<DateTime>("CreatedOn")
                         .HasColumnType("timestamp with time zone");
 
@@ -92,6 +92,10 @@ namespace PvpAnalytics.Infrastructure.Migrations
 
                     b.Property<bool>("IsRanked")
                         .HasColumnType("boolean");
+
+                    b.Property<string>("MapName")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<string>("UniqueHash")
                         .IsRequired()
@@ -166,6 +170,10 @@ namespace PvpAnalytics.Infrastructure.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("Realm")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Spec")
                         .IsRequired()
                         .HasColumnType("text");
 

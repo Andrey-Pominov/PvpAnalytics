@@ -47,26 +47,30 @@ public sealed class PvpAnalyticsApiFactory : WebApplicationFactory<PvpAnalytics.
 
 internal sealed class TestCombatLogIngestionService(TestIngestionState state) : ICombatLogIngestionService
 {
-    public Task<Match> IngestAsync(Stream fileStream, CancellationToken ct = default)
+    public Task<List<Match>> IngestAsync(Stream fileStream, CancellationToken ct = default)
         => state.Handler(fileStream, ct);
 }
 
 public sealed class TestIngestionState
 {
-    private static readonly Func<Stream, CancellationToken, Task<Match>> DefaultHandler = (_, _) => Task.FromResult(new Match
+    private static readonly Func<Stream, CancellationToken, Task<List<Match>>> DefaultHandler = (_, _) => Task.FromResult(new List<Match>
     {
-        Id = 100,
-        MapName = "Test Arena",
-        CreatedOn = DateTime.UtcNow,
-        UniqueHash = Guid.NewGuid().ToString("N"),
-        GameMode = GameMode.TwoVsTwo,
-        Duration = 120,
-        IsRanked = true
+        new Match
+        {
+            Id = 100,
+            ArenaZone = ArenaZone.DalaranArena,
+            ArenaMatchId = Guid.NewGuid().ToString("N"),
+            CreatedOn = DateTime.UtcNow,
+            UniqueHash = Guid.NewGuid().ToString("N"),
+            GameMode = GameMode.TwoVsTwo,
+            Duration = 120,
+            IsRanked = true
+        }
     });
 
-    private Func<Stream, CancellationToken, Task<Match>> _handler = DefaultHandler;
+    private Func<Stream, CancellationToken, Task<List<Match>>> _handler = DefaultHandler;
 
-    public Func<Stream, CancellationToken, Task<Match>> Handler
+    public Func<Stream, CancellationToken, Task<List<Match>>> Handler
     {
         get => _handler;
         set => _handler = value ?? throw new ArgumentNullException(nameof(value));

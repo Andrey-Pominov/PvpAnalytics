@@ -38,6 +38,12 @@ public static class CombatLogFieldMappings
     {
         public const int Amount = 9;
     }
+
+    public static class ArenaMatchStart
+    {
+        public const int ArenaMatchId = 1;
+        public const int ZoneId = 2;
+    }
 }
 
 

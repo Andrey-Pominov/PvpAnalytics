@@ -37,6 +37,19 @@ public class CombatLogParser
             };
         }
 
+        if (evt == CombatLogEventTypes.ArenaMatchStart)
+        {
+            var arenaMatchId = SafeField(fields, CombatLogFieldMappings.ArenaMatchStart.ArenaMatchId);
+            var zoneId = ParseInt(SafeField(fields, CombatLogFieldMappings.ArenaMatchStart.ZoneId));
+            return new ParsedCombatLogEvent
+            {
+                Timestamp = ts,
+                EventType = evt,
+                ArenaMatchId = TrimQuotes(arenaMatchId),
+                ZoneId = zoneId
+            };
+        }
+
         var sourceGuid = SafeField(fields, CombatLogFieldMappings.Common.SourceGuid);
         var sourceName = SafeField(fields, CombatLogFieldMappings.Common.SourceName);
         var targetGuid = SafeField(fields, CombatLogFieldMappings.Common.TargetGuid);

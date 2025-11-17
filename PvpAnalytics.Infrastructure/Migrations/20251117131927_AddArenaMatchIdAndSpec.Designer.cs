@@ -12,8 +12,8 @@ using PvpAnalytics.Infrastructure;
 namespace PvpAnalytics.Infrastructure.Migrations
 {
     [DbContext(typeof(PvpAnalyticsDbContext))]
-    [Migration("20250916152009_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20251117131927_AddArenaMatchIdAndSpec")]
+    partial class AddArenaMatchIdAndSpec
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -78,6 +78,12 @@ namespace PvpAnalytics.Infrastructure.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
+                    b.Property<string>("ArenaMatchId")
+                        .HasColumnType("text");
+
+                    b.Property<int>("ArenaZone")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime>("CreatedOn")
                         .HasColumnType("timestamp with time zone");
 
@@ -89,10 +95,6 @@ namespace PvpAnalytics.Infrastructure.Migrations
 
                     b.Property<bool>("IsRanked")
                         .HasColumnType("boolean");
-
-                    b.Property<string>("MapName")
-                        .IsRequired()
-                        .HasColumnType("text");
 
                     b.Property<string>("UniqueHash")
                         .IsRequired()
@@ -129,6 +131,9 @@ namespace PvpAnalytics.Infrastructure.Migrations
                     b.Property<int>("RatingBefore")
                         .HasColumnType("integer");
 
+                    b.Property<string>("Spec")
+                        .HasColumnType("text");
+
                     b.Property<string>("Team")
                         .IsRequired()
                         .HasColumnType("text");
@@ -164,10 +169,6 @@ namespace PvpAnalytics.Infrastructure.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("Realm")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Spec")
                         .IsRequired()
                         .HasColumnType("text");
 

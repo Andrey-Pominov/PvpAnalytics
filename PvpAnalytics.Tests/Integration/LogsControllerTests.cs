@@ -41,21 +41,24 @@ public class LogsControllerTests : IClassFixture<PvpAnalyticsApiFactory>, IDispo
     }
 
     [Fact]
-    public async Task Upload_ReturnsCreated_AndLocationHeader()
+    public async Task Upload_ReturnsOk_WithListOfMatches()
     {
         _state.Handler = async (stream, ct) =>
         {
             using var reader = new StreamReader(stream, Encoding.UTF8, leaveOpen: true);
             await reader.ReadToEndAsync(ct);
-            return new Match
+            return new List<Match>
             {
-                Id = 42,
-                MapName = "Nagrand Arena",
-                CreatedOn = DateTime.UtcNow,
-                UniqueHash = Guid.NewGuid().ToString("N"),
-                GameMode = GameMode.ThreeVsThree,
-                Duration = 95,
-                IsRanked = true
+                new Match
+                {
+                    Id = 42,
+                    MapName = "Nagrand Arena",
+                    CreatedOn = DateTime.UtcNow,
+                    UniqueHash = Guid.NewGuid().ToString("N"),
+                    GameMode = GameMode.ThreeVsThree,
+                    Duration = 95,
+                    IsRanked = true
+                }
             };
         };
 
@@ -80,13 +83,13 @@ public class LogsControllerTests : IClassFixture<PvpAnalyticsApiFactory>, IDispo
         var response = await _client.PostAsync("/api/logs/upload", content);
         var body = await response.Content.ReadAsStringAsync();
 
-        response.StatusCode.Should().Be(HttpStatusCode.Created, $"body: {body}");
-        response.Headers.Location.Should().NotBeNull();
-        response.Headers.Location!.AbsolutePath.Should().Be("/api/Matches/42");
-
-        var match = await response.Content.ReadFromJsonAsync<JsonElement>();
-        match.TryGetProperty("mapName", out var map).Should().BeTrue();
-        map.GetString().Should().Be("Nagrand Arena");
+        response.StatusCode.Should().Be(HttpStatusCode.OK, $"body: {body}");
+        
+        var matches = await response.Content.ReadFromJsonAsync<List<Match>>();
+        matches.Should().NotBeNull();
+        matches!.Should().HaveCount(1);
+        matches[0].Id.Should().Be(42);
+        matches[0].MapName.Should().Be("Nagrand Arena");
     }
 }
 
