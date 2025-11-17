@@ -151,7 +151,6 @@ public static class PlayerAttributeMappings
         { "Chaos Bolt", "Destruction" },
         { "Hand of Gul'dan", "Demonology" },
         { "Haunt", "Affliction" },
-        { "Metamorphosis", "Demonology" },
         { "Drain Soul", "Affliction" },
         
         // Warrior specs
@@ -413,7 +412,6 @@ public static class PlayerAttributeMappings
         { "Chaos Bolt", 100 },        // Destruction - very definitive
         { "Hand of Gul'dan", 100 },   // Demonology - very definitive
         { "Haunt", 100 },             // Affliction - very definitive
-        { "Metamorphosis", 90 },      // Demonology - strong indicator
         { "Drain Soul", 80 },         // Affliction - strong indicator
         
         // Warrior specs
@@ -527,6 +525,9 @@ public static class PlayerAttributeMappings
     /// </summary>
     public static string? DetermineFaction(HashSet<string> spells)
     {
+        if (spells == null || spells.Count == 0)
+            return null;
+
         foreach (var spell in spells)
         {
             if (AbilityToFaction.TryGetValue(spell, out var faction))

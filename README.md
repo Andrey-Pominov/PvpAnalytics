@@ -244,7 +244,7 @@ APIs:
     - `SA_PASSWORD=${SA_PASSWORD}` (from `.env` file)
 
 **Important:** Create a `.env` file in the project root with:
-```
+```bash
 SA_PASSWORD=[YOUR_SA_PASSWORD]
 JWT_SIGNING_KEY=[YOUR_JWT_SIGNING_KEY]
 ```
