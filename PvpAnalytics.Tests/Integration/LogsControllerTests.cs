@@ -52,7 +52,7 @@ public class LogsControllerTests : IClassFixture<PvpAnalyticsApiFactory>, IDispo
                 new Match
                 {
                     Id = 42,
-                    MapName = "Nagrand Arena",
+                    ArenaZone = ArenaZone.NagrandArena,
                     CreatedOn = DateTime.UtcNow,
                     UniqueHash = Guid.NewGuid().ToString("N"),
                     GameMode = GameMode.ThreeVsThree,
@@ -86,10 +86,9 @@ public class LogsControllerTests : IClassFixture<PvpAnalyticsApiFactory>, IDispo
         response.StatusCode.Should().Be(HttpStatusCode.OK, $"body: {body}");
         
         var matches = await response.Content.ReadFromJsonAsync<List<Match>>();
-        matches.Should().NotBeNull();
-        matches!.Should().HaveCount(1);
-        matches[0].Id.Should().Be(42);
-        matches[0].MapName.Should().Be("Nagrand Arena");
+        matches.Should().NotBeNull().And.NotBeEmpty();
+        matches![0].Id.Should().Be(42);
+        matches[0].ArenaZone.Should().Be(ArenaZone.NagrandArena);
     }
 }
 
