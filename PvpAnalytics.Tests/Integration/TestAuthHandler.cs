@@ -10,6 +10,7 @@ public sealed class TestAuthHandler : AuthenticationHandler<AuthenticationScheme
 {
     public const string AuthenticationScheme = "Test";
 
+#pragma warning disable CS0618 // Type or member is obsolete
     public TestAuthHandler(
         IOptionsMonitor<AuthenticationSchemeOptions> options,
         ILoggerFactory logger,
@@ -18,6 +19,7 @@ public sealed class TestAuthHandler : AuthenticationHandler<AuthenticationScheme
         : base(options, logger, encoder, clock)
     {
     }
+#pragma warning restore CS0618 // Type or member is obsolete
 
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {

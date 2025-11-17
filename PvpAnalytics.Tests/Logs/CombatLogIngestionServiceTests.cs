@@ -3,8 +3,10 @@ using System.Text;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using PvpAnalytics.Application.Logs;
+using PvpAnalytics.Application.Services;
 using PvpAnalytics.Core.Entities;
 using PvpAnalytics.Core.Enum;
+using PvpAnalytics.Core.Models;
 using PvpAnalytics.Core.Repositories;
 using PvpAnalytics.Core.Logs;
 using Xunit;
@@ -21,9 +23,9 @@ public class CombatLogIngestionServiceTests
         var matchRepo = new InMemoryRepository<Match>(m => m.Id);
         var resultRepo = new InMemoryRepository<MatchResult>(r => r.Id);
         var entryRepo = new InMemoryRepository<CombatLogEntry>(e => e.Id);
-        
+        var wowApiService = new MockWowApiService();
 
-        var sut = new CombatLogIngestionService(playerRepo, matchRepo, resultRepo, entryRepo, NullLogger<CombatLogIngestionService>.Instance);
+        var sut = new CombatLogIngestionService(playerRepo, matchRepo, resultRepo, entryRepo, wowApiService, NullLogger<CombatLogIngestionService>.Instance);
 
         var log = """
 # Nicked header
@@ -41,7 +43,7 @@ public class CombatLogIngestionServiceTests
         matches.Should().NotBeEmpty();
         var match = matches[0];
         match.Id.Should().BeGreaterThan(0);
-        match.MapName.Should().Be("Nagrand Arena");
+        match.ArenaZone.Should().Be(ArenaZone.NagrandArena);
         match.GameMode.Should().Be(GameMode.TwoVsTwo);
 
         playerRepo.Entities.Should().HaveCount(2);
@@ -57,8 +59,9 @@ public class CombatLogIngestionServiceTests
         var matchRepo = new InMemoryRepository<Match>(m => m.Id);
         var resultRepo = new InMemoryRepository<MatchResult>(r => r.Id);
         var entryRepo = new InMemoryRepository<CombatLogEntry>(e => e.Id);
+        var wowApiService = new MockWowApiService();
 
-        var sut = new CombatLogIngestionService(playerRepo, matchRepo, resultRepo, entryRepo, NullLogger<CombatLogIngestionService>.Instance);
+        var sut = new CombatLogIngestionService(playerRepo, matchRepo, resultRepo, entryRepo, wowApiService, NullLogger<CombatLogIngestionService>.Instance);
 
         const string log = "1/2/2024 19:10:03.100  ZONE_CHANGE,1,Elwynn Forest";
 
@@ -125,6 +128,33 @@ public class CombatLogIngestionServiceTests
         {
             _entities.Remove(entity);
             return Task.CompletedTask;
+        }
+
+        public Task AddRangeAsync(IEnumerable<TEntity> entities, CancellationToken ct = default)
+        {
+            foreach (var entity in entities)
+            {
+                if (_getId(entity) <= 0)
+                {
+                    var newId = Interlocked.Increment(ref _currentId);
+                    _setId(entity, newId);
+                }
+                _entities.Add(entity);
+            }
+            return Task.CompletedTask;
+        }
+
+        public Task UpdateRangeAsync(IEnumerable<TEntity> entities, CancellationToken ct = default)
+        {
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class MockWowApiService : IWowApiService
+    {
+        public Task<WowPlayerData?> GetPlayerDataAsync(string realm, string name, string region, CancellationToken ct = default)
+        {
+            return Task.FromResult<WowPlayerData?>(null);
         }
     }
 }
