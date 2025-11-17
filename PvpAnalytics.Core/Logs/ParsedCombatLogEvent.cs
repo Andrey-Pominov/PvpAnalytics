@@ -19,6 +19,7 @@ public class ParsedCombatLogEvent
 
     public int? ZoneId { get; init; }
     public string? ZoneName { get; init; }
+    public string? ArenaMatchId { get; init; }
 }
 
 

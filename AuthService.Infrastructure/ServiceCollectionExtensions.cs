@@ -20,6 +20,16 @@ public static class ServiceCollectionExtensions
         var connectionString = configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("ConnectionStrings:DefaultConnection is not configured.");
 
+        // Validate that we're not accidentally using a PostgreSQL connection string
+        if (connectionString.StartsWith("Host=", StringComparison.OrdinalIgnoreCase) ||
+            connectionString.Contains("Port=5432") && !connectionString.Contains("Server="))
+        {
+            throw new InvalidOperationException(
+                $"Invalid connection string for AuthService: AuthService must use SQL Server, but detected PostgreSQL connection string format. " +
+                $"Connection string starts with: {connectionString.Substring(0, Math.Min(50, connectionString.Length))}... " +
+                $"Check for environment variable 'ConnectionStrings__DefaultConnection' that might be overriding the SQL Server connection string.");
+        }
+
         if (connectionString.StartsWith("InMemory:", StringComparison.OrdinalIgnoreCase))
         {
             var databaseName = connectionString["InMemory:".Length..];

@@ -14,4 +14,5 @@ public class MatchResult
     public int RatingBefore { get; set; }
     public int RatingAfter { get; set; }
     public bool IsWinner { get; set; }
+    public string? Spec { get; set; }
 }

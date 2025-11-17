@@ -6,7 +6,6 @@ public class Player
     public string Name { get; set; }
     public string Realm { get; set; }
     public string Class { get; set; }
-    public string Spec { get; set; }
     public string Faction { get; set; }
 
     public ICollection<MatchResult> MatchResults { get; set; }

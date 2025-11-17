@@ -51,6 +51,18 @@ public class Repository<TEntity>(PvpAnalyticsDbContext dbContext) : IRepository<
             await dbContext.SaveChangesAsync(ct);
         }
     }
+
+    public async Task AddRangeAsync(IEnumerable<TEntity> entities, CancellationToken ct = default)
+    {
+        await _dbSet.AddRangeAsync(entities, ct);
+        await dbContext.SaveChangesAsync(ct);
+    }
+
+    public async Task UpdateRangeAsync(IEnumerable<TEntity> entities, CancellationToken ct = default)
+    {
+        _dbSet.UpdateRange(entities);
+        await dbContext.SaveChangesAsync(ct);
+    }
 }
 
 

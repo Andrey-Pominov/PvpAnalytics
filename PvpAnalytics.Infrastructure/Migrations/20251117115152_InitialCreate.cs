@@ -21,6 +21,7 @@ namespace PvpAnalytics.Infrastructure.Migrations
                     UniqueHash = table.Column<string>(type: "text", nullable: false),
                     CreatedOn = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     MapName = table.Column<string>(type: "text", nullable: false),
+                    ArenaMatchId = table.Column<string>(type: "text", nullable: true),
                     GameMode = table.Column<int>(type: "integer", nullable: false),
                     Duration = table.Column<long>(type: "bigint", nullable: false),
                     IsRanked = table.Column<bool>(type: "boolean", nullable: false)
@@ -96,7 +97,8 @@ namespace PvpAnalytics.Infrastructure.Migrations
                     Team = table.Column<string>(type: "text", nullable: false),
                     RatingBefore = table.Column<int>(type: "integer", nullable: false),
                     RatingAfter = table.Column<int>(type: "integer", nullable: false),
-                    IsWinner = table.Column<bool>(type: "boolean", nullable: false)
+                    IsWinner = table.Column<bool>(type: "boolean", nullable: false),
+                    Spec = table.Column<string>(type: "text", nullable: true)
                 },
                 constraints: table =>
                 {

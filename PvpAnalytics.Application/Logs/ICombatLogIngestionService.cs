@@ -4,7 +4,7 @@ namespace PvpAnalytics.Application.Logs;
 
 public interface ICombatLogIngestionService
 {
-    Task<Match> IngestAsync(Stream fileStream, CancellationToken ct = default);
+    Task<List<Match>> IngestAsync(Stream fileStream, CancellationToken ct = default);
 }
 
 

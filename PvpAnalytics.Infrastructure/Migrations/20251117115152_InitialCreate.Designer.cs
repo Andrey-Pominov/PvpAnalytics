@@ -12,7 +12,7 @@ using PvpAnalytics.Infrastructure;
 namespace PvpAnalytics.Infrastructure.Migrations
 {
     [DbContext(typeof(PvpAnalyticsDbContext))]
-    [Migration("20250916152009_InitialCreate")]
+    [Migration("20251117115152_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -78,6 +78,9 @@ namespace PvpAnalytics.Infrastructure.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
+                    b.Property<string>("ArenaMatchId")
+                        .HasColumnType("text");
+
                     b.Property<DateTime>("CreatedOn")
                         .HasColumnType("timestamp with time zone");
 
@@ -128,6 +131,9 @@ namespace PvpAnalytics.Infrastructure.Migrations
 
                     b.Property<int>("RatingBefore")
                         .HasColumnType("integer");
+
+                    b.Property<string>("Spec")
+                        .HasColumnType("text");
 
                     b.Property<string>("Team")
                         .IsRequired()

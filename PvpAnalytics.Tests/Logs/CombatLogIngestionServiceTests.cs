@@ -27,6 +27,7 @@ public class CombatLogIngestionServiceTests
 
         var log = """
 # Nicked header
+1/2/2024 19:10:02.000  ARENA_MATCH_START,match-123,559,,,,,,,,,,,,
 1/2/2024 19:10:03.100  ZONE_CHANGE,559,Nagrand Arena,,,,,,,,,,,,
 1/2/2024 19:10:04.200  SPELL_DAMAGE,0x0100,Alpha-Illidan,0x0,0x0,0x0200,Bravo-Illidan,0x0,0x0,1337,Chaos Bolt,0x0,1200,0,0,0,0,0,0,0
 1/2/2024 19:10:05.300  SPELL_HEAL,0x0200,Bravo-Illidan,0x0,0x0,0x0100,Alpha-Illidan,0x0,0x0,2337,Rejuvenation,0x0,0,900,0,0,0,0,0,0
@@ -35,8 +36,10 @@ public class CombatLogIngestionServiceTests
 
         await using var stream = new MemoryStream(Encoding.UTF8.GetBytes(log));
 
-        var match = await sut.IngestAsync(stream);
+        var matches = await sut.IngestAsync(stream);
 
+        matches.Should().NotBeEmpty();
+        var match = matches[0];
         match.Id.Should().BeGreaterThan(0);
         match.MapName.Should().Be("Nagrand Arena");
         match.GameMode.Should().Be(GameMode.TwoVsTwo);
@@ -61,10 +64,9 @@ public class CombatLogIngestionServiceTests
 
         await using var stream = new MemoryStream(Encoding.UTF8.GetBytes(log));
 
-        var match = await sut.IngestAsync(stream);
+        var matches = await sut.IngestAsync(stream);
 
-        match.Id.Should().Be(0);
-        match.MapName.Should().Be("Elwynn Forest");
+        matches.Should().BeEmpty();
         matchRepo.Entities.Should().BeEmpty();
         entryRepo.Entities.Should().BeEmpty();
     }
