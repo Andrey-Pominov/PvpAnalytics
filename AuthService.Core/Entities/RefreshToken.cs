@@ -4,11 +4,11 @@ namespace AuthService.Core.Entities;
 
 public class RefreshToken
 {
-    public Guid Id { get; set; } = Guid.NewGuid();
-    public Guid UserId { get; set; }
-    public string TokenHash { get; set; } = null!;
-    public DateTime ExpiresAt { get; set; }
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public Guid Id { get; init; } = Guid.NewGuid();
+    public Guid UserId { get; init; }
+    public string TokenHash { get; init; } = null!;
+    public DateTime ExpiresAt { get; init; }
+    public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
     public DateTime? RevokedAt { get; set; }
 
     public bool IsExpired => DateTime.UtcNow >= ExpiresAt;

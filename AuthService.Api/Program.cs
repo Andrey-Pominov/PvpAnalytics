@@ -14,7 +14,9 @@ builder.Services.AddOpenApi();
 builder.Services.AddInfrastructure(builder.Configuration);
 
 var jwtSection = builder.Configuration.GetSection(JwtOptions.SectionName);
-var jwtOptions = jwtSection.Get<JwtOptions>() ?? throw new InvalidOperationException("Jwt configuration section is missing.");
+var myAllowSpecificOrigins = builder.Configuration.GetSection(JwtOptions.MyAllowSpecificOrigins).Value;
+var jwtOptions = jwtSection.Get<JwtOptions>() ??
+                 throw new InvalidOperationException("Jwt configuration section is missing.");
 if (string.IsNullOrWhiteSpace(jwtOptions.SigningKey))
 {
     throw new InvalidOperationException(
@@ -89,5 +91,5 @@ app.Run();
 
 namespace AuthService.Api
 {
-    public partial class Program;
+    public class Program;
 }
