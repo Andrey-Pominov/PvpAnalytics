@@ -1,0 +1,34 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentAssertions" Version="6.12.1" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="9.0.2" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.9" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.9" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Services\PvpAnalytics\PvpAnalytics.Api\PvpAnalytics.Api.csproj" />
+    <ProjectReference Include="..\..\Services\PvpAnalytics\PvpAnalytics.Application\PvpAnalytics.Application.csproj" />
+    <ProjectReference Include="..\..\Services\PvpAnalytics\PvpAnalytics.Infrastructure\PvpAnalytics.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Services\PvpAnalytics\PvpAnalytics.Core\PvpAnalytics.Core.csproj" />
+    <ProjectReference Include="..\..\Services\AuthService\AuthService.Api\AuthService.Api.csproj" />
+    <ProjectReference Include="..\..\Services\AuthService\AuthService.Application\AuthService.Application.csproj" />
+    <ProjectReference Include="..\..\Services\AuthService\AuthService.Infrastructure\AuthService.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Services\AuthService\AuthService.Core\AuthService.Core.csproj" />
+    <ProjectReference Include="..\..\Shared\PvpAnalytics.Shared\PvpAnalytics.Shared.csproj" />
+  </ItemGroup>
+
+</Project>

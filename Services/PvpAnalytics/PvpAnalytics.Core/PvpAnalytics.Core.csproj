@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <ItemGroup>
-      <ProjectReference Include="..\PvpAnalytics.Shared\PvpAnalytics.Shared.csproj" />
+      <ProjectReference Include="..\..\..\Shared\PvpAnalytics.Shared\PvpAnalytics.Shared.csproj" />
     </ItemGroup>
 
     <PropertyGroup>
