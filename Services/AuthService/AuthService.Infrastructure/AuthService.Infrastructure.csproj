@@ -23,7 +23,7 @@
   <ItemGroup>
     <ProjectReference Include="..\AuthService.Core\AuthService.Core.csproj" />
     <ProjectReference Include="..\AuthService.Application\AuthService.Application.csproj" />
-    <ProjectReference Include="..\PvpAnalytics.Shared\PvpAnalytics.Shared.csproj" />
+    <ProjectReference Include="..\..\..\Shared\PvpAnalytics.Shared\PvpAnalytics.Shared.csproj" />
   </ItemGroup>
 
 </Project>

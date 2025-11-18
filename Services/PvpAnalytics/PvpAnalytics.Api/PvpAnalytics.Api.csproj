@@ -19,7 +19,7 @@
     <ItemGroup>
       <ProjectReference Include="..\PvpAnalytics.Infrastructure\PvpAnalytics.Infrastructure.csproj" />
       <ProjectReference Include="..\PvpAnalytics.Application\PvpAnalytics.Application.csproj" />
-      <ProjectReference Include="..\PvpAnalytics.Shared\PvpAnalytics.Shared.csproj" />
+      <ProjectReference Include="..\..\..\Shared\PvpAnalytics.Shared\PvpAnalytics.Shared.csproj" />
     </ItemGroup>
 
 </Project>

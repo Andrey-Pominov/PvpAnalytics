@@ -4,7 +4,7 @@ services:
     image: pvpanalytics
     build:
       context: .
-      dockerfile: PvpAnalytics.Api/Dockerfile
+      dockerfile: Services/PvpAnalytics/PvpAnalytics.Api/Dockerfile
     ports:
       - "8080:8080"
     environment:
@@ -14,6 +14,10 @@ services:
       - Jwt__Issuer=PvpAnalytics.Auth
       - Jwt__Audience=PvpAnalytics.Api
       - Jwt__SigningKey=${JWT_SIGNING_KEY?JWT_SIGNING_KEY not set}
+      - WowApi__ClientId=${WowApi__ClientId?WowApi__ClientId not set}
+      - WowApi__ClientSecret=${WowApi__ClientSecret?WowApi__ClientSecret not set}
+      - WowApi__BaseUrl=https://us.api.blizzard.com
+      - WowApi__OAuthUrl=https://us.battle.net/oauth/token
     depends_on:
       - db
 
@@ -21,7 +25,7 @@ services:
     image: authservice
     build:
       context: .
-      dockerfile: AuthService.Api/Dockerfile
+      dockerfile: Services/AuthService/AuthService.Api/Dockerfile
     ports:
       - "8081:8081"
     environment:
@@ -44,7 +48,7 @@ services:
     ports:
       - "3000:80"
     volumes:
-      - ./PvpAnalytics.UI/dist:/usr/share/nginx/html:ro
+      - ./ui/PvpAnalytics.UI/dist:/usr/share/nginx/html:ro
     depends_on:
       - pvpanalytics
 
