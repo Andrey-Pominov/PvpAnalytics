@@ -1,4 +1,3 @@
-using System;
 using AuthService.Application.Abstractions;
 using AuthService.Infrastructure.Data;
 using AuthService.Infrastructure.Services;
@@ -20,8 +19,6 @@ public static class ServiceCollectionExtensions
         var connectionString = configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("ConnectionStrings:DefaultConnection is not configured.");
 
-        // Validate that we're not accidentally using a PostgreSQL connection string
-        // Intent: (starts with 'Host=' OR contains 'Port=5432') AND does not contain 'Server='
         if ((connectionString.StartsWith("Host=", StringComparison.OrdinalIgnoreCase) ||
              connectionString.Contains("Port=5432", StringComparison.OrdinalIgnoreCase)) &&
             !connectionString.Contains("Server=", StringComparison.OrdinalIgnoreCase))

@@ -14,12 +14,29 @@ builder.Services.AddOpenApi();
 builder.Services.AddInfrastructure(builder.Configuration);
 
 var jwtSection = builder.Configuration.GetSection(JwtOptions.SectionName);
-var jwtOptions = jwtSection.Get<JwtOptions>() ?? throw new InvalidOperationException("Jwt configuration section is missing.");
+var myAllowSpecificOrigins = builder.Configuration.GetSection(JwtOptions.MyAllowSpecificOrigins).Value;
+var jwtOptions = jwtSection.Get<JwtOptions>() ??
+                 throw new InvalidOperationException("Jwt configuration section is missing.");
 if (string.IsNullOrWhiteSpace(jwtOptions.SigningKey))
 {
     throw new InvalidOperationException(
         "JWT signing key is not configured. Set the 'Jwt__SigningKey' environment variable or use a secure secret store.");
 }
+
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+                     ?? ["http://localhost:3000", "http://localhost:8080", "http://localhost:3001"];
+   
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(
+        name: myAllowSpecificOrigins!,
+        policy => policy
+            .WithOrigins(allowedOrigins)
+            .AllowCredentials()
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+    );
+});
 
 builder.Services.AddAuthentication(options =>
     {
@@ -59,6 +76,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.UseCors(myAllowSpecificOrigins!);
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -68,5 +86,5 @@ app.Run();
 
 namespace AuthService.Api
 {
-    public partial class Program;
+    public class Program;
 }

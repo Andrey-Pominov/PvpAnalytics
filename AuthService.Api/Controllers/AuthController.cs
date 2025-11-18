@@ -2,7 +2,6 @@ using AuthService.Application.Abstractions;
 using AuthService.Application.DTOs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
 
 namespace AuthService.Api.Controllers;
 
