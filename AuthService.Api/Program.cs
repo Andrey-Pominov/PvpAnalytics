@@ -21,6 +21,26 @@ if (string.IsNullOrWhiteSpace(jwtOptions.SigningKey))
         "JWT signing key is not configured. Set the 'Jwt__SigningKey' environment variable or use a secure secret store.");
 }
 
+// Read CORS origins from configuration
+var corsOrigins = builder.Configuration.GetSection($"{CorsOptions.SectionName}:AllowedOrigins").Get<string[]>();
+if (corsOrigins == null || corsOrigins.Length == 0)
+{
+    throw new InvalidOperationException(
+        $"CORS allowed origins are not configured. Set the '{CorsOptions.SectionName}__AllowedOrigins' environment variable or configure '{CorsOptions.SectionName}:AllowedOrigins' in appsettings.json.");
+}
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(
+        name: CorsOptions.DefaultPolicyName,
+        policy => policy
+            .WithOrigins(corsOrigins)
+            .AllowCredentials()
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+    );
+});
+
 builder.Services.AddAuthentication(options =>
     {
         options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -59,6 +79,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.UseCors(CorsOptions.DefaultPolicyName);
 app.UseAuthentication();
 app.UseAuthorization();
 
