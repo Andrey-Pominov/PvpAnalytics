@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using System.Reflection;
 using FluentAssertions;
 using PaymentEntity = PaymentService.Core.Entities.Payment;
 using PaymentService.Core.Enum;
@@ -179,6 +180,8 @@ public class MockRepository<TEntity> : IRepository<TEntity> where TEntity : clas
     private readonly Dictionary<long, TEntity> _entities = new();
     private readonly List<TEntity> _allEntities = [];
     private Func<Expression<Func<TEntity, bool>>, IReadOnlyList<TEntity>>? _predicateHandler;
+    private long _nextId = 1;
+    private static readonly PropertyInfo? IdProperty = typeof(TEntity).GetProperty("Id", BindingFlags.Public | BindingFlags.Instance);
 
     public List<TEntity> AddedItems { get; } = new();
     public List<TEntity> UpdatedItems { get; } = new();
@@ -189,6 +192,7 @@ public class MockRepository<TEntity> : IRepository<TEntity> where TEntity : clas
         if (entity != null)
         {
             _entities[id] = entity;
+            UpdateNextId(id);
         }
     }
 
@@ -196,6 +200,23 @@ public class MockRepository<TEntity> : IRepository<TEntity> where TEntity : clas
     {
         _allEntities.Clear();
         _allEntities.AddRange(entities);
+        // Update _nextId based on entities in the list
+        foreach (var entity in entities)
+        {
+            var entityId = GetEntityId(entity);
+            if (entityId > 0)
+            {
+                UpdateNextId(entityId);
+            }
+        }
+    }
+    
+    private void UpdateNextId(long id)
+    {
+        if (id >= _nextId)
+        {
+            _nextId = id + 1;
+        }
     }
 
     public void SetupListWithPredicate(Expression<Func<TEntity, bool>> predicate, IReadOnlyList<TEntity> entities)
@@ -226,13 +247,35 @@ public class MockRepository<TEntity> : IRepository<TEntity> where TEntity : clas
     public Task<TEntity> AddAsync(TEntity entity, CancellationToken ct = default, bool autoSave = true)
     {
         AddedItems.Add(entity);
-        if (entity is PaymentEntity { Id: 0 } payment)
+        
+        // Get or assign a unique ID using reflection
+        long entityId = GetEntityId(entity);
+        if (entityId == 0)
         {
-            payment.Id = _entities.Count + 1;
+            entityId = _nextId++;
+            SetEntityId(entity, entityId);
         }
-        _entities[_entities.Count + 1] = entity;
+        else
+        {
+            // Ensure _nextId is always greater than any existing ID
+            UpdateNextId(entityId);
+        }
+        
+        _entities[entityId] = entity;
         _allEntities.Add(entity);
         return Task.FromResult(entity);
+    }
+    
+    private static long GetEntityId(TEntity entity)
+    {
+        if (IdProperty == null) return 0;
+        var value = IdProperty.GetValue(entity);
+        return value is long id ? id : 0;
+    }
+    
+    private static void SetEntityId(TEntity entity, long id)
+    {
+        IdProperty?.SetValue(entity, id);
     }
 
     public Task UpdateAsync(TEntity entity, CancellationToken ct = default, bool autoSave = true)
