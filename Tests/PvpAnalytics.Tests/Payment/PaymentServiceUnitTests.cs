@@ -10,7 +10,7 @@ namespace PvpAnalytics.Tests.Payment;
 
 public class PaymentServiceUnitTests
 {
-    [SkipAll]
+    [Fact]
     public async Task GetAsync_ReturnsPayment_WhenExists()
     {
         // Arrange
@@ -38,7 +38,7 @@ public class PaymentServiceUnitTests
         result.TransactionId.Should().Be("txn-001");
     }
 
-    [SkipAll]
+    [Fact]
     public async Task GetAsync_ReturnsNull_WhenNotExists()
     {
         // Arrange
@@ -52,7 +52,7 @@ public class PaymentServiceUnitTests
         result.Should().BeNull();
     }
 
-    [SkipAll]
+    [Fact]
     public async Task GetAllAsync_ReturnsAllPayments()
     {
         // Arrange
@@ -73,7 +73,7 @@ public class PaymentServiceUnitTests
         result.Should().HaveCount(2);
     }
 
-    [SkipAll]
+    [Fact]
     public async Task FindAsync_ReturnsFilteredPayments()
     {
         // Arrange
@@ -147,7 +147,7 @@ public class PaymentServiceUnitTests
         repository.UpdatedItems.Should().Contain(payment);
     }
 
-    [SkipAll]
+    [Fact]
     public async Task DeleteAsync_DeletesPayment()
     {
         // Arrange
@@ -247,7 +247,7 @@ public class MockRepository<TEntity> : IRepository<TEntity> where TEntity : clas
         return Task.CompletedTask;
     }
 
-    public Task AddRangeAsync(IEnumerable<TEntity> entities, CancellationToken ct = default)
+    public Task AddRangeAsync(IEnumerable<TEntity> entities, CancellationToken ct = default, bool autoSave = true)
     {
         foreach (var entity in entities)
         {
@@ -256,7 +256,7 @@ public class MockRepository<TEntity> : IRepository<TEntity> where TEntity : clas
         return Task.CompletedTask;
     }
 
-    public Task UpdateRangeAsync(IEnumerable<TEntity> entities, CancellationToken ct = default)
+    public Task UpdateRangeAsync(IEnumerable<TEntity> entities, CancellationToken ct = default, bool autoSave = true)
     {
         UpdatedItems.AddRange(entities);
         return Task.CompletedTask;

@@ -83,15 +83,21 @@ public class Repository<TEntity>(PaymentDbContext dbContext) : IRepository<TEnti
         }
     }
 
-    public async Task AddRangeAsync(IEnumerable<TEntity> entities, CancellationToken ct = default)
+    public async Task AddRangeAsync(IEnumerable<TEntity> entities, CancellationToken ct = default, bool autoSave = true)
     {
         await _dbSet.AddRangeAsync(entities, ct);
-        await dbContext.SaveChangesAsync(ct);
+        if (autoSave)
+        {
+            await dbContext.SaveChangesAsync(ct);
+        }
     }
 
-    public async Task UpdateRangeAsync(IEnumerable<TEntity> entities, CancellationToken ct = default)
+    public async Task UpdateRangeAsync(IEnumerable<TEntity> entities, CancellationToken ct = default, bool autoSave = true)
     {
         _dbSet.UpdateRange(entities);
-        await dbContext.SaveChangesAsync(ct);
+        if (autoSave)
+        {
+            await dbContext.SaveChangesAsync(ct);
+        }
     }
 }

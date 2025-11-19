@@ -11,8 +11,8 @@ public interface IRepository<TEntity> where TEntity : class
     Task<TEntity> AddAsync(TEntity entity, CancellationToken ct = default, bool autoSave = true);
     Task UpdateAsync(TEntity entity, CancellationToken ct = default, bool autoSave = true);
     Task DeleteAsync(TEntity entity, CancellationToken ct = default, bool autoSave = true);
-    Task AddRangeAsync(IEnumerable<TEntity> entities, CancellationToken ct = default);
-    Task UpdateRangeAsync(IEnumerable<TEntity> entities, CancellationToken ct = default);
+    Task AddRangeAsync(IEnumerable<TEntity> entities, CancellationToken ct = default, bool autoSave = true);
+    Task UpdateRangeAsync(IEnumerable<TEntity> entities, CancellationToken ct = default, bool autoSave = true);
     IQueryable<TEntity> GetQueryable();
     Task<(IReadOnlyList<TEntity> Items, int Total)> GetPagedAsync(
         IQueryable<TEntity> query,

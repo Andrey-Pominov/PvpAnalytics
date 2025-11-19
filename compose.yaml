@@ -43,6 +43,27 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
+  payment:
+    image: paymentservice
+    build:
+      context: .
+      dockerfile: Services/PaymentService/PaymentService.Api/Dockerfile
+    ports:
+      - "8082:8082"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8082
+      - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Username=pvp;Password=pvp123;Database=paymentdb
+      - Jwt__Issuer=PvpAnalytics.Auth
+      - Jwt__Audience=PvpAnalytics.Api
+      - Jwt__SigningKey=${JWT_SIGNING_KEY?JWT_SIGNING_KEY not set}
+      - Jwt__AccessTokenMinutes=60
+      - Jwt__RefreshTokenDays=7
+      - Cors__AllowedOrigins=http://localhost:3000,https://localhost:8080,http://localhost:3001
+      - EfMigrations__Skip=false
+    depends_on:
+      - db
+
   ui:
     image: nginx:stable-alpine
     ports:
