@@ -13,14 +13,9 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.9" />
-      <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="9.0.9" />
   </ItemGroup>
-
-    <ItemGroup>
-        <Reference Include="Microsoft.Extensions.Configuration.Abstractions">
-            <HintPath>..\..\..\..\.dotnet\packs\Microsoft.AspNetCore.App.Ref\9.0.9\ref\net9.0\Microsoft.Extensions.Configuration.Abstractions.dll</HintPath>
-        </Reference>
-    </ItemGroup>
 
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>

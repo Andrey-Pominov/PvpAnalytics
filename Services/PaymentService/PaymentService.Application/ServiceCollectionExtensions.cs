@@ -9,7 +9,7 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddApplication(this IServiceCollection services, IConfiguration configuration)
     {
-        services.AddScoped<ICrudService<Payment>, PaymentService>();
+        services.AddScoped<ICrudService<Payment>, Services.PaymentService>();
         
         return services;
     }
