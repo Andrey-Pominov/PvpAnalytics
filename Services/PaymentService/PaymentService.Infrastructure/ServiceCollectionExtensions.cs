@@ -13,7 +13,17 @@ public static class ServiceCollectionExtensions
     {
         services.AddDbContext<PaymentDbContext>(options =>
         {
-            options.UseNpgsql(configuration.GetConnectionString("DefaultConnection"));
+            // Check if we're in test mode (InMemory database requested)
+            var useInMemory = configuration.GetSection("UseInMemoryDatabase").Get<bool>();
+            if (useInMemory)
+            {
+                var dbName = configuration.GetSection("InMemoryDatabaseName").Value ?? "PaymentTestDb";
+                options.UseInMemoryDatabase(dbName);
+            }
+            else
+            {
+                options.UseNpgsql(configuration.GetConnectionString("DefaultConnection"));
+            }
 
             options.ConfigureWarnings(warnings =>
                 warnings.Log(RelationalEventId.PendingModelChangesWarning));

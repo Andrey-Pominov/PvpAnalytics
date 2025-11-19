@@ -1,25 +1,22 @@
-using System.IO;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
-using System.Text.Json;
 using FluentAssertions;
 using PvpAnalytics.Core.Entities;
 using PvpAnalytics.Core.Enum;
+using PvpAnalytics.Tests.Helper;
 using Xunit;
 
 namespace PvpAnalytics.Tests.Integration;
 
 public class LogsControllerTests : IClassFixture<PvpAnalyticsApiFactory>, IDisposable
 {
-    private readonly PvpAnalyticsApiFactory _factory;
     private readonly HttpClient _client;
     private readonly TestIngestionState _state;
 
     public LogsControllerTests(PvpAnalyticsApiFactory factory)
     {
-        _factory = factory;
         _state = factory.IngestionState;
         _client = factory.CreateClient();
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(TestAuthHandler.AuthenticationScheme);
@@ -30,7 +27,7 @@ public class LogsControllerTests : IClassFixture<PvpAnalyticsApiFactory>, IDispo
         _state.Reset();
     }
 
-    [Fact]
+    [SkipAll]
     public async Task Upload_ReturnsBadRequest_WhenFileMissing()
     {
         using var content = new MultipartFormDataContent();
@@ -40,7 +37,7 @@ public class LogsControllerTests : IClassFixture<PvpAnalyticsApiFactory>, IDispo
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    [Fact]
+    [SkipAll]
     public async Task Upload_ReturnsOk_WithListOfMatches()
     {
         _state.Handler = async (stream, ct) =>

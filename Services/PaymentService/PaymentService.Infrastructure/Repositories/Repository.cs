@@ -1,4 +1,5 @@
-﻿using System.Linq.Expressions;
+﻿using System.Linq;
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using PaymentService.Core.Repositories;
 
@@ -24,6 +25,26 @@ public class Repository<TEntity>(PaymentDbContext dbContext) : IRepository<TEnti
         return await _dbSet.AsNoTracking().Where(predicate).ToListAsync(ct);
     }
 
+    public IQueryable<TEntity> GetQueryable()
+    {
+        return _dbSet.AsNoTracking();
+    }
+
+    public async Task<(IReadOnlyList<TEntity> Items, int Total)> GetPagedAsync(
+        IQueryable<TEntity> query,
+        int page,
+        int pageSize,
+        CancellationToken ct = default)
+    {
+        var total = await query.CountAsync(ct);
+        var items = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(ct);
+        
+        return (items, total);
+    }
+
     public async Task<TEntity> AddAsync(TEntity entity, CancellationToken ct = default, bool autoSave = true)
     {
         await _dbSet.AddAsync(entity, ct);
@@ -36,7 +57,17 @@ public class Repository<TEntity>(PaymentDbContext dbContext) : IRepository<TEnti
 
     public async Task UpdateAsync(TEntity entity, CancellationToken ct = default, bool autoSave = true)
     {
-        _dbSet.Update(entity);
+        // Check if entity is already tracked (from GetByIdAsync/FindAsync)
+        var entry = dbContext.Entry(entity);
+        if (entry.State == EntityState.Detached)
+        {
+            // Entity not tracked - attach and mark as modified
+            _dbSet.Attach(entity);
+            entry.State = EntityState.Modified;
+        }
+        // If already tracked, EF Core will detect property changes automatically
+        // No need to mark entire entity as modified - only changed properties will be saved
+        
         if (autoSave)
         {
             await dbContext.SaveChangesAsync(ct);

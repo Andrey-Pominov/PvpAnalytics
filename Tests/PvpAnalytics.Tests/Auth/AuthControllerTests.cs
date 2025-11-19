@@ -8,17 +8,10 @@ using Xunit;
 
 namespace PvpAnalytics.Tests.Auth;
 
-public class AuthControllerTests : IClassFixture<AuthServiceApiFactory>
+public class AuthControllerTests(AuthServiceApiFactory factory) : IClassFixture<AuthServiceApiFactory>
 {
-    private readonly AuthServiceApiFactory _factory;
-    private readonly HttpClient _client;
+    private readonly HttpClient _client = factory.CreateClient();
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
-
-    public AuthControllerTests(AuthServiceApiFactory factory)
-    {
-        _factory = factory;
-        _client = factory.CreateClient();
-    }
 
     [Fact]
     public async Task Register_ReturnsTokens_ForNewUser()

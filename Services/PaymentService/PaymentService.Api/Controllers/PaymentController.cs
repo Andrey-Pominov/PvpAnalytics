@@ -1,17 +1,23 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using PaymentService.Application.DTOs;
+using PaymentService.Application.Models;
 using PaymentService.Application.Services;
 using PaymentService.Core.Entities;
+using PaymentService.Core.Enum;
+using PaymentService.Core.Repositories;
 
 namespace PaymentService.Api.Controllers;
 
 [Authorize]
 [ApiController]
 [Route("api/[controller]")]
-public class PaymentController(ICrudService<Payment> service) : ControllerBase
+public class PaymentController(ICrudService<Payment> service, IRepository<Payment> repository) : ControllerBase
 {
     private const string AdminRole = "Admin";
+    private const int MaxPageSize = 100;
+    private const int DefaultPageSize = 20;
 
     private string? GetCurrentUserId()
     {
@@ -33,7 +39,16 @@ public class PaymentController(ICrudService<Payment> service) : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<Payment>>> GetAll(CancellationToken ct)
+    public async Task<ActionResult<PaginatedResponse<Payment>>> GetAll(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = DefaultPageSize,
+        [FromQuery] string? userId = null,
+        [FromQuery] PaymentStatus? status = null,
+        [FromQuery] DateTime? startDate = null,
+        [FromQuery] DateTime? endDate = null,
+        [FromQuery] string sortBy = "createdAt",
+        [FromQuery] string sortOrder = "desc",
+        CancellationToken ct = default)
     {
         var currentUserId = GetCurrentUserId();
         if (string.IsNullOrWhiteSpace(currentUserId))
@@ -41,14 +56,65 @@ public class PaymentController(ICrudService<Payment> service) : ControllerBase
             return Unauthorized("User ID claim not found in token.");
         }
 
-        // Admins can see all payments, regular users only see their own
-        if (IsAdmin())
+        // Validate pagination parameters
+        if (page < 1) page = 1;
+        if (pageSize < 1) pageSize = DefaultPageSize;
+        if (pageSize > MaxPageSize) pageSize = MaxPageSize;
+
+        // Start with queryable
+        var query = repository.GetQueryable();
+
+        // Apply user scope filter (non-admins only see their own payments)
+        if (!IsAdmin())
         {
-            return Ok(await service.GetAllAsync(ct));
+            query = query.Where(p => p.UserId == currentUserId);
+        }
+        else if (!string.IsNullOrWhiteSpace(userId))
+        {
+            // Admins can filter by userId if provided
+            query = query.Where(p => p.UserId == userId);
         }
 
-        var userPayments = await service.FindAsync(p => p.UserId == currentUserId, ct);
-        return Ok(userPayments);
+        // Apply status filter
+        if (status.HasValue)
+        {
+            query = query.Where(p => p.Status == status.Value);
+        }
+
+        // Apply date range filters
+        if (startDate.HasValue)
+        {
+            query = query.Where(p => p.CreatedAt >= startDate.Value);
+        }
+        if (endDate.HasValue)
+        {
+            query = query.Where(p => p.CreatedAt <= endDate.Value);
+        }
+
+        // Apply sorting
+        query = sortBy.ToLower() switch
+        {
+            "id" => sortOrder.ToLower() == "asc" ? query.OrderBy(p => p.Id) : query.OrderByDescending(p => p.Id),
+            "amount" => sortOrder.ToLower() == "asc" ? query.OrderBy(p => p.Amount) : query.OrderByDescending(p => p.Amount),
+            "status" => sortOrder.ToLower() == "asc" ? query.OrderBy(p => p.Status) : query.OrderByDescending(p => p.Status),
+            "userid" => sortOrder.ToLower() == "asc" ? query.OrderBy(p => p.UserId) : query.OrderByDescending(p => p.UserId),
+            "createdat" => sortOrder.ToLower() == "asc" ? query.OrderBy(p => p.CreatedAt) : query.OrderByDescending(p => p.CreatedAt),
+            "updatedat" => sortOrder.ToLower() == "asc" ? query.OrderBy(p => p.UpdatedAt) : query.OrderByDescending(p => p.UpdatedAt),
+            _ => query.OrderByDescending(p => p.CreatedAt) // Default to createdAt desc
+        };
+
+        // Get paginated results
+        var (items, total) = await repository.GetPagedAsync(query, page, pageSize, ct);
+
+        var response = new PaginatedResponse<Payment>
+        {
+            Items = items,
+            Total = total,
+            Page = page,
+            PageSize = pageSize
+        };
+
+        return Ok(response);
     }
 
     [HttpGet("{id:long}")]
@@ -76,7 +142,7 @@ public class PaymentController(ICrudService<Payment> service) : ControllerBase
     }
 
     [HttpPost]
-    public async Task<ActionResult<Payment>> Create([FromBody] Payment entity, CancellationToken ct)
+    public async Task<ActionResult<Payment>> Create([FromBody] CreatePaymentRequest request, CancellationToken ct)
     {
         var currentUserId = GetCurrentUserId();
         if (string.IsNullOrWhiteSpace(currentUserId))
@@ -84,29 +150,30 @@ public class PaymentController(ICrudService<Payment> service) : ControllerBase
             return Unauthorized("User ID claim not found in token.");
         }
 
-        if (entity.Id != 0)
+        // Create payment entity from DTO
+        var payment = new Payment
         {
-            return BadRequest("Id should not be set when creating a new payment.");
-        }
+            Amount = request.Amount,
+            TransactionId = request.TransactionId,
+            PaymentMethod = request.PaymentMethod,
+            Description = request.Description,
+            Status = PaymentStatus.Pending, // Default to Pending
+            UserId = currentUserId, // Set from JWT token
+            CreatedAt = DateTime.UtcNow // Set server timestamp
+        };
 
-        // Ensure the payment is created for the current user
-        entity.UserId = currentUserId;
-        entity.CreatedAt = DateTime.UtcNow;
-        var created = await service.CreateAsync(entity, ct);
+        var created = await service.CreateAsync(payment, ct);
         return CreatedAtAction(nameof(Get), new { id = created.Id }, created);
     }
 
     [HttpPut("{id:long}")]
-    public async Task<IActionResult> Update(long id, [FromBody] Payment entity, CancellationToken ct)
+    public async Task<IActionResult> Update(long id, [FromBody] UpdatePaymentRequest request, CancellationToken ct)
     {
         var currentUserId = GetCurrentUserId();
         if (string.IsNullOrWhiteSpace(currentUserId))
         {
             return Unauthorized("User ID claim not found in token.");
         }
-
-        if (entity.Id == 0) entity.Id = id;
-        if (entity.Id != id) return BadRequest("Mismatched id");
 
         var existing = await service.GetAsync(id, ct);
         if (existing is null)
@@ -120,14 +187,13 @@ public class PaymentController(ICrudService<Payment> service) : ControllerBase
             return Forbid("You do not have permission to update this payment.");
         }
 
-        // Prevent changing ownership unless admin
-        if (!IsAdmin() && entity.UserId != currentUserId)
-        {
-            return Forbid("You cannot change the payment owner.");
-        }
+        // Update only writable fields (selective update to prevent modifying immutable fields)
+        existing.Amount = request.Amount;
+        existing.Status = request.Status;
+        existing.Description = request.Description;
+        existing.UpdatedAt = DateTime.UtcNow; // Set server timestamp
 
-        entity.UpdatedAt = DateTime.UtcNow;
-        await service.UpdateAsync(entity, ct);
+        await service.UpdateAsync(existing, ct);
         return NoContent();
     }
 

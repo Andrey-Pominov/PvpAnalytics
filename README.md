@@ -2,6 +2,8 @@
 
 **Author:** Rmpriest
 
+**Discord:** consonante_priest
+
 PvP combat analytics platform for World of Warcraft combat logs. A microservices-based solution that parses arena matches, stores player data, and provides analytics through REST APIs.
 
 ## Table of Contents
@@ -22,6 +24,7 @@ PvpAnalytics is a microservices platform that processes World of Warcraft combat
 
 - **AuthService**: Handles user authentication and authorization
 - **PvpAnalytics Service**: Processes combat logs and provides analytics APIs
+- **PaymentService**: Handles payment transactions and payment management
 - **UI**: React-based frontend dashboard
 
 ### Key Features
@@ -54,6 +57,7 @@ PvpAnalytics is a microservices platform that processes World of Warcraft combat
 3. Access the services:
    - Auth API: `http://localhost:8081`
    - Analytics API: `http://localhost:8080`
+   - Payment API: `http://localhost:8082`
    - UI: `http://localhost:3000`
 
 ### Local Development
@@ -76,11 +80,18 @@ PvpAnalytics/
 │   │   └── AuthService.Infrastructure/
 │   │   └── README.md            # Service-specific documentation
 │   │
-│   └── PvpAnalytics/            # Analytics microservice
-│       ├── PvpAnalytics.Api/
-│       ├── PvpAnalytics.Application/
-│       ├── PvpAnalytics.Core/
-│       └── PvpAnalytics.Infrastructure/
+│   ├── PvpAnalytics/            # Analytics microservice
+│   │   ├── PvpAnalytics.Api/
+│   │   ├── PvpAnalytics.Application/
+│   │   ├── PvpAnalytics.Core/
+│   │   └── PvpAnalytics.Infrastructure/
+│   │   └── README.md            # Service-specific documentation
+│   │
+│   └── PaymentService/          # Payment processing microservice
+│       ├── PaymentService.Api/
+│       ├── PaymentService.Application/
+│       ├── PaymentService.Core/
+│       └── PaymentService.Infrastructure/
 │       └── README.md            # Service-specific documentation
 │
 ├── Shared/
@@ -132,6 +143,23 @@ Core analytics service for processing combat logs and providing data APIs.
 - Full CRUD APIs for Players, Matches, MatchResults, CombatLogEntries
 - `POST /api/logs/upload` - Upload and process combat log files
 
+### PaymentService
+
+Payment processing microservice for handling payment transactions and payment management.
+
+**Documentation:** See [Services/PaymentService/README.md](Services/PaymentService/README.md)
+
+**Key Features:**
+- Payment transaction management
+- Payment status tracking
+- User-scoped payment access
+- PostgreSQL database
+
+**Endpoints:**
+- Full CRUD APIs for Payments
+- User-scoped access (users see only their payments, admins see all)
+- Payment status management
+
 ## Architecture
 
 ### Clean Architecture
@@ -140,7 +168,7 @@ Each service follows Clean Architecture principles:
 
 ```
 ┌─────────────────────────────────┐
-│   API Layer (Controllers)      │  ← HTTP endpoints
+│   API Layer (Controllers)       │  ← HTTP endpoints
 ├─────────────────────────────────┤
 │   Application Layer (Services)  │  ← Business logic
 ├─────────────────────────────────┤
@@ -186,6 +214,7 @@ Authentication is handled by the **AuthService** microservice. See [Services/Aut
 For detailed API documentation, see:
 - **AuthService APIs**: [Services/AuthService/README.md](Services/AuthService/README.md#api-endpoints)
 - **PvpAnalytics APIs**: [Services/PvpAnalytics/README.md](Services/PvpAnalytics/README.md#api-endpoints)
+- **PaymentService APIs**: [Services/PaymentService/README.md](Services/PaymentService/README.md#api-endpoints)
 
 **Quick Reference:**
 
@@ -200,6 +229,13 @@ For detailed API documentation, see:
 - `GET /api/matches` - List matches
 - `POST /api/logs/upload` - Upload combat log file
 - Full CRUD for Players, Matches, MatchResults, CombatLogEntries
+
+**PaymentService** (`http://localhost:8082/api/payment`):
+- `GET /api/payment` - List payments (with pagination, filtering, sorting)
+- `GET /api/payment/{id}` - Get payment by ID
+- `POST /api/payment` - Create payment
+- `PUT /api/payment/{id}` - Update payment
+- `DELETE /api/payment/{id}` - Delete payment
 
 **OpenAPI Documentation:**
 - Available at `/openapi/v1.json` in Development mode
@@ -242,6 +278,7 @@ WowApi__ClientSecret=your-client-secret
 **Services:**
 - `auth` - AuthService API (port 8081)
 - `pvpanalytics` - PvpAnalytics API (port 8080)
+- `payment` - PaymentService API (port 8082)
 - `ui` - Nginx serving React UI (port 3000)
 - `db` - PostgreSQL for analytics (port 5442)
 - `auth-sql` - SQL Server for authentication (port 1433)
@@ -251,6 +288,7 @@ WowApi__ClientSecret=your-client-secret
 For local development setup, see:
 - **AuthService**: [Services/AuthService/README.md](Services/AuthService/README.md#running-locally)
 - **PvpAnalytics**: [Services/PvpAnalytics/README.md](Services/PvpAnalytics/README.md#running-locally)
+- **PaymentService**: [Services/PaymentService/README.md](Services/PaymentService/README.md#running-locally)
 
 ## Development
 
@@ -258,34 +296,11 @@ For local development setup, see:
 
 The solution uses a service-oriented folder structure:
 
-- **Services/** - Individual microservices (AuthService, PvpAnalytics)
+- **Services/** - Individual microservices (AuthService, PvpAnalytics, PaymentService)
 - **Shared/** - Shared code and utilities
 - **Workers/** - Background worker services
 - **Tests/** - Test projects
 - **ui/** - Frontend application
-
-### Adding a New Service
-
-To add a new service (e.g., PaymentTransaction):
-
-1. Create folder structure:
-   ```
-   Services/PaymentTransaction/
-   ├── PaymentTransaction.Api/
-   ├── PaymentTransaction.Application/
-   ├── PaymentTransaction.Core/
-   └── PaymentTransaction.Infrastructure/
-   ```
-
-2. Add projects to solution:
-   ```bash
-   dotnet sln add Services/PaymentTransaction/PaymentTransaction.Api/PaymentTransaction.Api.csproj
-   # ... add other projects
-   ```
-
-3. Create service-specific README.md in the service folder
-
-4. Update `compose.yaml` if the service needs Docker support
 
 ### Log Upload & Parsing
 
@@ -339,6 +354,7 @@ dotnet test
 
 - **AuthService**: [Services/AuthService/README.md](Services/AuthService/README.md)
 - **PvpAnalytics Service**: [Services/PvpAnalytics/README.md](Services/PvpAnalytics/README.md)
+- **PaymentService**: [Services/PaymentService/README.md](Services/PaymentService/README.md)
 - **Spell Maintenance**: [SPELL_MAINTENANCE.md](SPELL_MAINTENANCE.md)
 
 ## License

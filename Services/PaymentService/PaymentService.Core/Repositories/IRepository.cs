@@ -1,4 +1,5 @@
-﻿using System.Linq.Expressions;
+﻿using System.Linq;
+using System.Linq.Expressions;
 
 namespace PaymentService.Core.Repositories;
 
@@ -12,4 +13,10 @@ public interface IRepository<TEntity> where TEntity : class
     Task DeleteAsync(TEntity entity, CancellationToken ct = default, bool autoSave = true);
     Task AddRangeAsync(IEnumerable<TEntity> entities, CancellationToken ct = default);
     Task UpdateRangeAsync(IEnumerable<TEntity> entities, CancellationToken ct = default);
+    IQueryable<TEntity> GetQueryable();
+    Task<(IReadOnlyList<TEntity> Items, int Total)> GetPagedAsync(
+        IQueryable<TEntity> query,
+        int page,
+        int pageSize,
+        CancellationToken ct = default);
 }
