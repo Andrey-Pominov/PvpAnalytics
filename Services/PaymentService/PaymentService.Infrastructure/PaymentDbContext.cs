@@ -16,6 +16,9 @@ public class PaymentDbContext(DbContextOptions<PaymentDbContext> options) : DbCo
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Amount).HasPrecision(18, 2);
             entity.Property(e => e.Status).HasConversion<int>();
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("NOW()")
+                .ValueGeneratedOnAdd();
             entity.HasIndex(e => e.TransactionId).IsUnique();
             entity.HasIndex(e => e.UserId);
             entity.HasIndex(e => e.CreatedAt);

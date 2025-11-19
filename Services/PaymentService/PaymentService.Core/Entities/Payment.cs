@@ -8,7 +8,7 @@ public class Payment
     public long Id { get; set; }
     
     [Required]
-    [Range(0.01, double.MaxValue, ErrorMessage = "Amount must be greater than 0")]
+    [Range(typeof(decimal), "0.01", "999999999.99", ErrorMessage = "Amount must be between 0.01 and 999,999,999.99")]
     public decimal Amount { get; set; }
     
     [Required]
@@ -26,7 +26,7 @@ public class Payment
     [StringLength(50)]
     public string PaymentMethod { get; set; } = string.Empty;
     
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime CreatedAt { get; set; }
     
     public DateTime? UpdatedAt { get; set; }
     

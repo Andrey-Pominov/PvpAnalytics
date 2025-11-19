@@ -17,10 +17,28 @@ builder.Services.AddApplication(builder.Configuration);
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
 var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>() ?? 
                  throw new InvalidOperationException("Jwt configuration section is missing.");
+
+// Validate JWT signing key with clear error messages
+const string placeholderKey = "DEV_PLACEHOLDER_KEY_MUST_BE_REPLACED";
 if (string.IsNullOrWhiteSpace(jwtOptions.SigningKey))
 {
     throw new InvalidOperationException(
-        "JWT signing key is not configured. Set the 'Jwt__SigningKey' environment variable or configure it in appsettings.json.");
+        "JWT signing key is not configured. " +
+        "Please provide a valid signing key using one of the following methods:\n" +
+        "  1. User Secrets: dotnet user-secrets set \"Jwt:SigningKey\" \"your-secret-key-here\"\n" +
+        "  2. Environment Variable: set Jwt__SigningKey=your-secret-key-here\n" +
+        "  3. appsettings.Development.json (local only, never commit real keys to source control)");
+}
+
+if (jwtOptions.SigningKey.Equals(placeholderKey, StringComparison.OrdinalIgnoreCase))
+{
+    throw new InvalidOperationException(
+        "JWT signing key is still set to the placeholder value. " +
+        "You must replace 'DEV_PLACEHOLDER_KEY_MUST_BE_REPLACED' with a real signing key.\n" +
+        "Please provide a valid signing key using one of the following methods:\n" +
+        "  1. User Secrets: dotnet user-secrets set \"Jwt:SigningKey\" \"your-secret-key-here\"\n" +
+        "  2. Environment Variable: set Jwt__SigningKey=your-secret-key-here\n" +
+        "  3. appsettings.Development.json (local only, never commit real keys to source control)");
 }
 
 // Read CORS origins from configuration
