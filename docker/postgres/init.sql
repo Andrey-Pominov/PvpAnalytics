@@ -7,15 +7,15 @@ GRANT ALL PRIVILEGES ON DATABASE authdb TO auth;
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'pvp') THEN
-        CREATE ROLE pvp WITH PASSWORD 'pvp123' LOGIN;
+        CREATE ROLE pvp WITH PASSWORD 'pvp_password' LOGIN;
     ELSE
         -- Ensure password and login are set correctly
-        ALTER ROLE pvp WITH PASSWORD 'pvp123' LOGIN;
+        ALTER ROLE pvp WITH PASSWORD 'pvp_password' LOGIN;
     END IF;
 END
 $$;
 
 -- Create paymentdb database owned by pvp
-CREATE DATABASE paymentdb OWNER pvp;
+CREATE DATABASE IF NOT EXISTS paymentdb OWNER pvp;
 GRANT ALL PRIVILEGES ON DATABASE paymentdb TO pvp;
 
