@@ -1,5 +1,6 @@
 using System.Text;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using PvpAnalytics.Application.Services;
 using PvpAnalytics.Core.Entities;
 using PvpAnalytics.Core.Enum;
@@ -14,10 +15,12 @@ public class CombatLogIngestionService(
     IRepository<MatchResult> resultRepo,
     IRepository<CombatLogEntry> entryRepo,
     IWowApiService wowApiService,
-    ILogger<CombatLogIngestionService> logger)
+    ILogger<CombatLogIngestionService> logger,
+    ILoggerFactory loggerFactory)
     : ICombatLogIngestionService
 {
     private readonly ILogger<CombatLogIngestionService> _logger = logger;
+    private readonly ILoggerFactory _loggerFactory = loggerFactory;
     private readonly PlayerCache _playerCache = new PlayerCache(playerRepo);
 
     private readonly Dictionary<string, string>
@@ -26,6 +29,7 @@ public class CombatLogIngestionService(
     /// <summary>
     /// Ingests combat-log text from the provided stream and persists arena matches, combat entries, players, and match results.
     /// Processes multiple matches: starts recording on ARENA_MATCH_START, stops on ZONE_CHANGE, saves all matches found.
+    /// Automatically detects format (Traditional or Lua Table) and routes to appropriate parser.
     /// </summary>
     /// <param name="fileStream">A readable stream containing the combat log text (UTF-8 or BOM-detected).</param>
     /// <param name="ct">Token to observe for cancellation.</param>
@@ -36,6 +40,26 @@ public class CombatLogIngestionService(
     public async Task<List<Match>> IngestAsync(Stream fileStream, CancellationToken ct = default)
     {
         _logger.LogInformation("Combat log ingestion started.");
+
+        // Detect format and route to appropriate service
+        var format = CombatLogFormatDetector.DetectFormat(fileStream);
+        
+        if (format == CombatLogFormat.LuaTable)
+        {
+            _logger.LogInformation("Detected Lua table format, routing to Lua parser.");
+            var luaLogger = _loggerFactory.CreateLogger<LuaCombatLogIngestionService>();
+            var luaService = new LuaCombatLogIngestionService(
+                playerRepo,
+                matchRepo,
+                resultRepo,
+                entryRepo,
+                wowApiService,
+                luaLogger);
+            return await luaService.IngestAsync(fileStream, ct);
+        }
+
+        // Continue with traditional format parsing
+        _logger.LogInformation("Detected traditional format, using standard parser.");
         using var reader = new StreamReader(fileStream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true,
             leaveOpen: true);
 
