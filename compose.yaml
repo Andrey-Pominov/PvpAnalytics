@@ -53,7 +53,7 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:8082
-      - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Username=${POSTGRES_USER?POSTGRES_USER not set};Password=${POSTGRES_PASSWORD?POSTGRES_PASSWORD not set};Database=${POSTGES_PAYMENT_DB?POSTGES_PAYMENT_DB not set}
+      - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Username=${POSTGRES_USER?POSTGRES_USER not set};Password=${POSTGRES_PASSWORD?POSTGRES_PASSWORD not set};Database=${POSTGRES_PAYMENT_DB?POSTGRES_PAYMENT_DB not set}
       - Jwt__Issuer=PvpAnalytics.Auth
       - Jwt__Audience=PvpAnalytics.Api
       - Jwt__SigningKey=${JWT_SIGNING_KEY?JWT_SIGNING_KEY not set}
@@ -80,7 +80,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER?POSTGRES_USER not set}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD?POSTGRES_PASSWORD not set} 
       POSTGRES_DB: ${POSTGRES_DB?POSTGRES_DB not set}
-      POSTGES_PAYMENT_DB: ${POSTGES_PAYMENT_DB?POSTGES_PAYMENT_DB not set}
+      POSTGRES_PAYMENT_DB: ${POSTGRES_PAYMENT_DB?POSTGRES_PAYMENT_DB not set}
     ports:
       - "5442:5432"
     volumes:
