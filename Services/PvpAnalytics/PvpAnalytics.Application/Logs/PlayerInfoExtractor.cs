@@ -87,7 +87,7 @@ public static class PlayerInfoExtractor
     /// </summary>
     public static string DetermineSpecForMatch(HashSet<string> spells)
     {
-        if (spells.Count == 0)
+        if (spells == null || spells.Count == 0)
             return string.Empty;
 
         return PlayerAttributeMappings.DetermineSpec(spells) ?? string.Empty;

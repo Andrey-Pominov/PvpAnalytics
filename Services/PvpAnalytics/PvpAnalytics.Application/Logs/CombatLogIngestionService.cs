@@ -122,7 +122,6 @@ public class CombatLogIngestionService(
                         bufferedEntries.Clear();
                         playerSpells.Clear();
                         playersByKey.Clear();
-                        _playerCache.ClearPending();
                         matchStart = null;
                         matchEnd = null;
                         currentArenaMatchId = null;
@@ -280,11 +279,18 @@ public class CombatLogIngestionService(
             }
         }
 
+        // Capture pending player names before persisting (for enrichment)
+        var pendingPlayerNames = _playerCache.GetPendingCreates().Keys.ToList();
+
         // Batch persist all pending creates and updates at file end
         await _playerCache.BatchPersistAsync(ct);
 
         // Enrich players with WoW API data if missing information
-        await EnrichPlayersWithWowApiAsync(ct);
+        // Pass the names of players that were just created so enrichment can find them in cache
+        await EnrichPlayersWithWowApiAsync(pendingPlayerNames, ct);
+
+        // Persist any updates from enrichment
+        await _playerCache.BatchPersistAsync(ct);
 
         _logger.LogInformation("Combat log ingestion completed. Persisted {MatchCount} match(es).",
             allPersistedMatches.Count);
@@ -333,12 +339,14 @@ public class CombatLogIngestionService(
         return Task.CompletedTask;
     }
 
-    private async Task EnrichPlayersWithWowApiAsync(CancellationToken ct)
+    private async Task EnrichPlayersWithWowApiAsync(List<string> playerNamesToEnrich, CancellationToken ct)
     {
-        var pendingCreates = _playerCache.GetPendingCreates();
-        var playersToEnrich = pendingCreates.Select(kvp => kvp.Value)
-            .Select(pending => _playerCache.GetCached(pending.Name)).OfType<Player>().Where(cached =>
-                (string.IsNullOrWhiteSpace(cached.Class) || string.IsNullOrWhiteSpace(cached.Faction))).ToList();
+        // Get players from cache that were just created and need enrichment
+        var playersToEnrich = playerNamesToEnrich
+            .Select(name => _playerCache.GetCached(name))
+            .OfType<Player>()
+            .Where(cached => string.IsNullOrWhiteSpace(cached.Class) || string.IsNullOrWhiteSpace(cached.Faction))
+            .ToList();
 
         foreach (var player in playersToEnrich)
         {

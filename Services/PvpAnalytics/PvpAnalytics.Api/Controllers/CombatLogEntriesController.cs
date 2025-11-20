@@ -9,7 +9,7 @@ namespace PvpAnalytics.Api.Controllers;
 [Route("api/[controller]")]
 public class CombatLogEntriesController(ICrudService<CombatLogEntry> service) : ControllerBase
 {
-    [Authorize]
+    [AllowAnonymous]
     [HttpGet]
     public async Task<ActionResult<IEnumerable<CombatLogEntry>>> GetAll(CancellationToken ct)
         => Ok(await service.GetAllAsync(ct));
