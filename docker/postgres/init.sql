@@ -6,11 +6,11 @@ GRANT ALL PRIVILEGES ON DATABASE authdb TO auth;
 -- Create pvp role if it doesn't exist (may already exist from POSTGRES_USER)
 DO $$
 BEGIN
-    IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'pvp') THEN
-        CREATE ROLE pvp WITH PASSWORD 'pvp_password' LOGIN;
+    IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'POSTGRES_USER') THEN
+        CREATE ROLE pvp WITH PASSWORD 'POSTGRES_PASSWORD' LOGIN;
     ELSE
         -- Ensure password and login are set correctly
-        ALTER ROLE pvp WITH PASSWORD 'pvp_password' LOGIN;
+        ALTER ROLE pvp WITH PASSWORD 'POSTGRES_PASSWORD' LOGIN;
     END IF;
 END
 $$;
