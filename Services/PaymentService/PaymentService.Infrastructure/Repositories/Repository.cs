@@ -10,9 +10,9 @@ public class Repository<TEntity>(PaymentDbContext dbContext) : IRepository<TEnti
 {
     private readonly DbSet<TEntity> _dbSet = dbContext.Set<TEntity>();
 
-    public Task<TEntity?> GetByIdAsync(long id, CancellationToken ct = default)
+    public Task<TEntity?> GetByIdAsync(object[] keyValues, CancellationToken ct = default)
     {
-        return _dbSet.FindAsync([id], ct).AsTask();
+        return _dbSet.FindAsync(keyValues, ct).AsTask();
     }
 
     public async Task<IReadOnlyList<TEntity>> ListAsync(CancellationToken ct = default)

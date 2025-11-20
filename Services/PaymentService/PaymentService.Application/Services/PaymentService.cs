@@ -6,7 +6,7 @@ namespace PaymentService.Application.Services;
 
 public class PaymentService(IRepository<Payment> repository) : ICrudService<Payment>
 {
-    public Task<Payment?> GetAsync(long id, CancellationToken ct = default) => repository.GetByIdAsync(id, ct);
+    public Task<Payment?> GetAsync(object[] keyValues, CancellationToken ct = default) => repository.GetByIdAsync(keyValues, ct);
     public Task<IReadOnlyList<Payment>> GetAllAsync(CancellationToken ct = default) => repository.ListAsync(ct);
     public Task<IReadOnlyList<Payment>> FindAsync(Expression<Func<Payment, bool>> predicate, CancellationToken ct = default) => repository.ListAsync(predicate, ct);
     public Task<Payment> CreateAsync(Payment entity, CancellationToken ct = default) => repository.AddAsync(entity, ct);

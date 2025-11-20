@@ -5,7 +5,13 @@ namespace PaymentService.Core.Repositories;
 
 public interface IRepository<TEntity> where TEntity : class
 {
-    Task<TEntity?> GetByIdAsync(long id, CancellationToken ct = default);
+    /// <summary>
+    /// Gets an entity by its primary key(s).
+    /// </summary>
+    /// <param name="keyValues">The primary key value(s). For composite keys, provide all key values in the order they are defined in the entity configuration.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The entity if found, otherwise null.</returns>
+    Task<TEntity?> GetByIdAsync(object[] keyValues, CancellationToken ct = default);
     Task<IReadOnlyList<TEntity>> ListAsync(CancellationToken ct = default);
     Task<IReadOnlyList<TEntity>> ListAsync(Expression<Func<TEntity, bool>> predicate, CancellationToken ct = default);
     Task<TEntity> AddAsync(TEntity entity, CancellationToken ct = default, bool autoSave = true);

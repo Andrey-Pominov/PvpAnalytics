@@ -126,7 +126,7 @@ public class PaymentController(ICrudService<Payment> service, IRepository<Paymen
             return Unauthorized("User ID claim not found in token.");
         }
 
-        var entity = await service.GetAsync(id, ct);
+        var entity = await service.GetAsync([id], ct);
         if (entity is null)
         {
             return NotFound();
@@ -175,7 +175,7 @@ public class PaymentController(ICrudService<Payment> service, IRepository<Paymen
             return Unauthorized("User ID claim not found in token.");
         }
 
-        var existing = await service.GetAsync(id, ct);
+        var existing = await service.GetAsync([id], ct);
         if (existing is null)
         {
             return NotFound();
@@ -206,7 +206,7 @@ public class PaymentController(ICrudService<Payment> service, IRepository<Paymen
             return Unauthorized("User ID claim not found in token.");
         }
 
-        var existing = await service.GetAsync(id, ct);
+        var existing = await service.GetAsync([id], ct);
         if (existing is null)
         {
             return NotFound();
