@@ -59,7 +59,7 @@ public static class PlayerInfoExtractor
     /// </summary>
     public static void UpdatePlayerFromSpells(Player player, HashSet<string> spells)
     {
-        if (spells == null || spells.Count == 0)
+        if (spells.Count == 0)
             return;
 
         // Determine class if not set
@@ -73,13 +73,11 @@ public static class PlayerInfoExtractor
         }
 
         // Determine faction/race if not set
-        if (string.IsNullOrWhiteSpace(player.Faction))
+        if (!string.IsNullOrWhiteSpace(player.Faction)) return;
+        var detectedFaction = PlayerAttributeMappings.DetermineFaction(spells);
+        if (!string.IsNullOrWhiteSpace(detectedFaction))
         {
-            var detectedFaction = PlayerAttributeMappings.DetermineFaction(spells);
-            if (!string.IsNullOrWhiteSpace(detectedFaction))
-            {
-                player.Faction = detectedFaction;
-            }
+            player.Faction = detectedFaction;
         }
     }
 
@@ -89,7 +87,7 @@ public static class PlayerInfoExtractor
     /// </summary>
     public static string DetermineSpecForMatch(HashSet<string> spells)
     {
-        if (spells == null || spells.Count == 0)
+        if (spells.Count == 0)
             return string.Empty;
 
         return PlayerAttributeMappings.DetermineSpec(spells) ?? string.Empty;

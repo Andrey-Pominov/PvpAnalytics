@@ -5,15 +5,16 @@ using PvpAnalytics.Core.Entities;
 
 namespace PvpAnalytics.Api.Controllers;
 
-[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class CombatLogEntriesController(ICrudService<CombatLogEntry> service) : ControllerBase
 {
+    [Authorize]
     [HttpGet]
     public async Task<ActionResult<IEnumerable<CombatLogEntry>>> GetAll(CancellationToken ct)
         => Ok(await service.GetAllAsync(ct));
 
+    [Authorize]
     [HttpGet("{id:long}")]
     public async Task<ActionResult<CombatLogEntry>> Get(long id, CancellationToken ct)
     {
@@ -21,6 +22,7 @@ public class CombatLogEntriesController(ICrudService<CombatLogEntry> service) : 
         return entity is null ? NotFound() : Ok(entity);
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpPost]
     public async Task<ActionResult<CombatLogEntry>> Create([FromBody] CombatLogEntry entity, CancellationToken ct)
     {
@@ -28,6 +30,7 @@ public class CombatLogEntriesController(ICrudService<CombatLogEntry> service) : 
         return CreatedAtAction(nameof(Get), new { id = created.Id }, created);
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpPut("{id:long}")]
     public async Task<IActionResult> Update(long id, [FromBody] CombatLogEntry entity, CancellationToken ct)
     {
@@ -39,6 +42,7 @@ public class CombatLogEntriesController(ICrudService<CombatLogEntry> service) : 
         return NoContent();
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpDelete("{id:long}")]
     public async Task<IActionResult> Delete(long id, CancellationToken ct)
     {

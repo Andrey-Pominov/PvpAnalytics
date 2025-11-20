@@ -7,25 +7,19 @@ namespace PvpAnalytics.Application.Logs;
 /// Manages player caching and batching during combat log ingestion.
 /// Tracks pending creates, updates, and provides batch lookup capabilities.
 /// </summary>
-public class PlayerCache
+public class PlayerCache(IRepository<Player> playerRepo)
 {
-    private readonly IRepository<Player> _playerRepo;
     private readonly Dictionary<string, Player> _cache = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, PendingPlayer> _pendingCreates = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<Player> _pendingUpdates = new();
     private readonly HashSet<string> _lookedUpNames = new(StringComparer.OrdinalIgnoreCase);
-
-    public PlayerCache(IRepository<Player> playerRepo)
-    {
-        _playerRepo = playerRepo;
-    }
 
     /// <summary>
     /// Gets a player from cache or returns null if not found.
     /// </summary>
     public Player? GetCached(string name)
     {
-        return _cache.TryGetValue(name, out var player) ? player : null;
+        return _cache.GetValueOrDefault(name);
     }
 
     /// <summary>
@@ -41,11 +35,9 @@ public class PlayerCache
     /// </summary>
     public PendingPlayer GetOrAddPending(string name, string realm)
     {
-        if (!_pendingCreates.TryGetValue(name, out var pending))
-        {
-            pending = new PendingPlayer { Name = name, Realm = realm };
-            _pendingCreates[name] = pending;
-        }
+        if (_pendingCreates.TryGetValue(name, out var pending)) return pending;
+        pending = new PendingPlayer { Name = name, Realm = realm };
+        _pendingCreates[name] = pending;
         return pending;
     }
 
@@ -73,17 +65,14 @@ public class PlayerCache
     /// <summary>
     /// Gets names that need to be looked up from the database.
     /// </summary>
-    public IReadOnlyCollection<string> GetNamesToLookup()
+    private IReadOnlyCollection<string> GetNamesToLookup()
     {
         var namesToLookup = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         
         // Add pending creates that haven't been looked up
-        foreach (var name in _pendingCreates.Keys)
+        foreach (var name in _pendingCreates.Keys.Where(name => !_cache.ContainsKey(name) && !_lookedUpNames.Contains(name)))
         {
-            if (!_cache.ContainsKey(name) && !_lookedUpNames.Contains(name))
-            {
-                namesToLookup.Add(name);
-            }
+            namesToLookup.Add(name);
         }
 
         return namesToLookup;
@@ -108,7 +97,7 @@ public class PlayerCache
             var chunk = nameList.Skip(i).Take(chunkSize).ToList();
             
             // Query for players matching any name in the chunk
-            var existingPlayers = await _playerRepo.ListAsync(
+            var existingPlayers = await playerRepo.ListAsync(
                 p => chunk.Contains(p.Name), 
                 ct);
 
@@ -160,7 +149,7 @@ public class PlayerCache
 
         if (playersToCreate.Count > 0)
         {
-            await _playerRepo.AddRangeAsync(playersToCreate, ct);
+            await playerRepo.AddRangeAsync(playersToCreate, ct);
             
             // Add created players to cache
             foreach (var player in playersToCreate)
@@ -172,7 +161,7 @@ public class PlayerCache
         // Update existing players
         if (_pendingUpdates.Count > 0)
         {
-            await _playerRepo.UpdateRangeAsync(_pendingUpdates, ct);
+            await playerRepo.UpdateRangeAsync(_pendingUpdates, ct);
         }
 
         // Clear pending operations

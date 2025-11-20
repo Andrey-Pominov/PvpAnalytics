@@ -5,15 +5,16 @@ using PvpAnalytics.Core.Entities;
 
 namespace PvpAnalytics.Api.Controllers;
 
-[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class MatchResultsController(ICrudService<MatchResult> service) : ControllerBase
 {
+    [AllowAnonymous]
     [HttpGet]
     public async Task<ActionResult<IEnumerable<MatchResult>>> GetAll(CancellationToken ct)
         => Ok(await service.GetAllAsync(ct));
 
+    [Authorize]
     [HttpGet("{id:long}")]
     public async Task<ActionResult<MatchResult>> Get(long id, CancellationToken ct)
     {
@@ -21,6 +22,7 @@ public class MatchResultsController(ICrudService<MatchResult> service) : Control
         return entity is null ? NotFound() : Ok(entity);
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpPost]
     public async Task<ActionResult<MatchResult>> Create([FromBody] MatchResult entity, CancellationToken ct)
     {
@@ -28,6 +30,7 @@ public class MatchResultsController(ICrudService<MatchResult> service) : Control
         return CreatedAtAction(nameof(Get), new { id = created.Id }, created);
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpPut("{id:long}")]
     public async Task<IActionResult> Update(long id, [FromBody] MatchResult entity, CancellationToken ct)
     {
@@ -39,6 +42,7 @@ public class MatchResultsController(ICrudService<MatchResult> service) : Control
         return NoContent();
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpDelete("{id:long}")]
     public async Task<IActionResult> Delete(long id, CancellationToken ct)
     {
@@ -48,5 +52,3 @@ public class MatchResultsController(ICrudService<MatchResult> service) : Control
         return NoContent();
     }
 }
-
-

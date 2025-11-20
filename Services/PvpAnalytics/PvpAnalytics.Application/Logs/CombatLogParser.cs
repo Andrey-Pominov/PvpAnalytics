@@ -3,7 +3,7 @@ using PvpAnalytics.Core.Logs;
 
 namespace PvpAnalytics.Application.Logs;
 
-public class CombatLogParser
+public abstract class CombatLogParser
 {
     private static readonly string[] TimestampFormats = { "M/d/yyyy H:mm:ss.ffff", "M/d H:mm:ss.fff", "M/d H:mm:ss" };
 
@@ -24,30 +24,32 @@ public class CombatLogParser
         if (fields.Length == 0) return null;
         var evt = fields[CombatLogFieldMappings.Common.Event].Trim();
 
-        if (evt == CombatLogEventTypes.ZoneChange)
+        switch (evt)
         {
-            var zoneId = ParseInt(SafeField(fields, CombatLogFieldMappings.ZoneChange.ZoneId));
-            var zoneName = SafeField(fields, CombatLogFieldMappings.ZoneChange.ZoneName);
-            return new ParsedCombatLogEvent
+            case CombatLogEventTypes.ZoneChange:
             {
-                Timestamp = ts,
-                EventType = evt,
-                ZoneId = zoneId,
-                ZoneName = zoneName
-            };
-        }
-
-        if (evt == CombatLogEventTypes.ArenaMatchStart)
-        {
-            var arenaMatchId = SafeField(fields, CombatLogFieldMappings.ArenaMatchStart.ArenaMatchId);
-            var zoneId = ParseInt(SafeField(fields, CombatLogFieldMappings.ArenaMatchStart.ZoneId));
-            return new ParsedCombatLogEvent
+                var zoneId = ParseInt(SafeField(fields, CombatLogFieldMappings.ZoneChange.ZoneId));
+                var zoneName = SafeField(fields, CombatLogFieldMappings.ZoneChange.ZoneName);
+                return new ParsedCombatLogEvent
+                {
+                    Timestamp = ts,
+                    EventType = evt,
+                    ZoneId = zoneId,
+                    ZoneName = zoneName
+                };
+            }
+            case CombatLogEventTypes.ArenaMatchStart:
             {
-                Timestamp = ts,
-                EventType = evt,
-                ArenaMatchId = TrimQuotes(arenaMatchId),
-                ZoneId = zoneId
-            };
+                var arenaMatchId = SafeField(fields, CombatLogFieldMappings.ArenaMatchStart.ArenaMatchId);
+                var zoneId = ParseInt(SafeField(fields, CombatLogFieldMappings.ArenaMatchStart.ZoneId));
+                return new ParsedCombatLogEvent
+                {
+                    Timestamp = ts,
+                    EventType = evt,
+                    ArenaMatchId = TrimQuotes(arenaMatchId),
+                    ZoneId = zoneId
+                };
+            }
         }
 
         var sourceGuid = SafeField(fields, CombatLogFieldMappings.Common.SourceGuid);
