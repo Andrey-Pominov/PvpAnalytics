@@ -6,19 +6,16 @@ using Microsoft.Extensions.Options;
 
 namespace PvpAnalytics.Tests.Integration;
 
-public sealed class TestAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions>
+public sealed class TestAuthHandler(
+    IOptionsMonitor<AuthenticationSchemeOptions> options,
+    ILoggerFactory logger,
+    UrlEncoder encoder,
+    ISystemClock clock)
+    : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder, clock)
 {
     public const string AuthenticationScheme = "Test";
 
 #pragma warning disable CS0618 // Type or member is obsolete
-    public TestAuthHandler(
-        IOptionsMonitor<AuthenticationSchemeOptions> options,
-        ILoggerFactory logger,
-        UrlEncoder encoder,
-        ISystemClock clock)
-        : base(options, logger, encoder, clock)
-    {
-    }
 #pragma warning restore CS0618 // Type or member is obsolete
 
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()

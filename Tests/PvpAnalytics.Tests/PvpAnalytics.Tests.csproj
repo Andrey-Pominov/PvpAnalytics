@@ -12,6 +12,7 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.9" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.9" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="Testcontainers.PostgreSql" Version="4.1.0" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -28,6 +29,10 @@
     <ProjectReference Include="..\..\Services\AuthService\AuthService.Application\AuthService.Application.csproj" />
     <ProjectReference Include="..\..\Services\AuthService\AuthService.Infrastructure\AuthService.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Services\AuthService\AuthService.Core\AuthService.Core.csproj" />
+    <ProjectReference Include="..\..\Services\PaymentService\PaymentService.Api\PaymentService.Api.csproj" />
+    <ProjectReference Include="..\..\Services\PaymentService\PaymentService.Application\PaymentService.Application.csproj" />
+    <ProjectReference Include="..\..\Services\PaymentService\PaymentService.Infrastructure\PaymentService.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Services\PaymentService\PaymentService.Core\PaymentService.Core.csproj" />
     <ProjectReference Include="..\..\Shared\PvpAnalytics.Shared\PvpAnalytics.Shared.csproj" />
   </ItemGroup>
 

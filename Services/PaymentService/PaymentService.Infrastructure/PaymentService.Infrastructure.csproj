@@ -1,0 +1,28 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\PaymentService.Core\PaymentService.Core.csproj" />
+    <ProjectReference Include="..\PaymentService.Application\PaymentService.Application.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Data\" />
+    <Folder Include="Migrations\" />
+    <Folder Include="Services\" />
+  </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.9" />
+      <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.9" />
+      <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
+      <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="9.0.9" />
+      <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="9.0.0" />
+    </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

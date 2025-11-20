@@ -11,7 +11,7 @@ using PvpAnalytics.Shared.Security;
 
 namespace PvpAnalytics.Tests.Integration;
 
-public sealed class PvpAnalyticsApiFactory : WebApplicationFactory<PvpAnalytics.Api.Program>
+public sealed class PvpAnalyticsApiFactory : WebApplicationFactory<Api.Program>
 {
     public TestIngestionState IngestionState { get; } = new();
 
