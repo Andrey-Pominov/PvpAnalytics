@@ -5,15 +5,16 @@ using PvpAnalytics.Core.Entities;
 
 namespace PvpAnalytics.Api.Controllers;
 
-[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class PlayersController(ICrudService<Player> service) : ControllerBase
 {
+    [AllowAnonymous]
     [HttpGet]
     public async Task<ActionResult<IEnumerable<Player>>> GetAll(CancellationToken ct)
         => Ok(await service.GetAllAsync(ct));
 
+    [Authorize]
     [HttpGet("{id:long}")]
     public async Task<ActionResult<Player>> Get(long id, CancellationToken ct)
     {
@@ -21,6 +22,7 @@ public class PlayersController(ICrudService<Player> service) : ControllerBase
         return entity is null ? NotFound() : Ok(entity);
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpPost]
     public async Task<ActionResult<Player>> Create([FromBody] Player entity, CancellationToken ct)
     {
@@ -28,6 +30,7 @@ public class PlayersController(ICrudService<Player> service) : ControllerBase
         return CreatedAtAction(nameof(Get), new { id = created.Id }, created);
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpPut("{id:long}")]
     public async Task<IActionResult> Update(long id, [FromBody] Player entity, CancellationToken ct)
     {
@@ -39,6 +42,7 @@ public class PlayersController(ICrudService<Player> service) : ControllerBase
         return NoContent();
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpDelete("{id:long}")]
     public async Task<IActionResult> Delete(long id, CancellationToken ct)
     {
@@ -48,5 +52,3 @@ public class PlayersController(ICrudService<Player> service) : ControllerBase
         return NoContent();
     }
 }
-
-

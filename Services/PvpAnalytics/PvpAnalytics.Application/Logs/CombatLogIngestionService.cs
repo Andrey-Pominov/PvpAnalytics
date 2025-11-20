@@ -19,7 +19,10 @@ public class CombatLogIngestionService(
 {
     private readonly ILogger<CombatLogIngestionService> _logger = logger;
     private readonly PlayerCache _playerCache = new PlayerCache(playerRepo);
-    private readonly Dictionary<string, string> _playerRegions = new(StringComparer.OrdinalIgnoreCase); // Track region per player for WoW API
+
+    private readonly Dictionary<string, string>
+        _playerRegions = new(StringComparer.OrdinalIgnoreCase); // Track region per player for WoW API
+
     /// <summary>
     /// Ingests combat-log text from the provided stream and persists arena matches, combat entries, players, and match results.
     /// Processes multiple matches: starts recording on ARENA_MATCH_START, stops on ZONE_CHANGE, saves all matches found.
@@ -33,21 +36,20 @@ public class CombatLogIngestionService(
     public async Task<List<Match>> IngestAsync(Stream fileStream, CancellationToken ct = default)
     {
         _logger.LogInformation("Combat log ingestion started.");
-        using var reader = new StreamReader(fileStream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, leaveOpen: true);
-
-        var parser = new CombatLogParser();
+        using var reader = new StreamReader(fileStream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true,
+            leaveOpen: true);
 
         // Track all persisted matches
         var allPersistedMatches = new List<Match>();
-        
+
         // Current match buffers
         var playersByKey = new Dictionary<string, Player>(StringComparer.OrdinalIgnoreCase);
         var participants = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var bufferedEntries = new List<CombatLogEntry>();
-        var playerSpells = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase); // Track spells per player
+        var playerSpells =
+            new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase); // Track spells per player
         DateTime? matchStart = null;
         DateTime? matchEnd = null;
-        string? currentZoneName = null;
         int? currentZoneId = null;
         string? currentArenaMatchId = null;
         bool matchInProgress = false;
@@ -55,102 +57,94 @@ public class CombatLogIngestionService(
         while (await reader.ReadLineAsync(ct) is { } line)
         {
             if (string.IsNullOrWhiteSpace(line)) continue;
-            if (line.StartsWith("#")) continue; // header lines
+            if (line.StartsWith("#")) continue;
 
             var parsed = CombatLogParser.ParseLine(line);
             if (parsed == null) continue;
 
-            // Handle ARENA_MATCH_START - start recording a new match
-            if (parsed.EventType == CombatLogEventTypes.ArenaMatchStart)
+            switch (parsed.EventType)
             {
-                // Initialize new match buffers
-                matchStart = parsed.Timestamp;
-                currentArenaMatchId = parsed.ArenaMatchId;
-                matchInProgress = true;
-                participants.Clear();
-                bufferedEntries.Clear();
-                playerSpells.Clear(); // Reset spell tracking for new match
-                playersByKey.Clear(); // Clear match-specific player cache
-                
-                if (parsed.ZoneId.HasValue)
+                case CombatLogEventTypes.ArenaMatchStart:
                 {
-                    currentZoneId = parsed.ZoneId;
-                    currentZoneName = ArenaZoneIds.GetNameOrDefault(currentZoneId.Value);
-                }
-                
-                _logger.LogInformation("Arena match started: {ArenaMatchId} at {Timestamp}", currentArenaMatchId, matchStart);
-                continue;
-            }
-
-            // Handle ZONE_CHANGE - arena ended, finalize current match and stop recording
-            if (parsed.EventType == CombatLogEventTypes.ZoneChange)
-            {
-                // Finalize existing arena match if one is in progress
-                if (matchInProgress && currentArenaMatchId != null)
-                {
-                    matchEnd = parsed.Timestamp;
-                    
-                    // Batch lookup players from database before finalizing
-                    await _playerCache.BatchLookupAsync(ct);
-                    
-                    // Populate playersByKey from cache
-                    foreach (var name in participants)
-                    {
-                        var cached = _playerCache.GetCached(name);
-                        if (cached != null && !playersByKey.ContainsKey(name))
-                        {
-                            playersByKey[name] = cached;
-                        }
-                    }
-                    
-                    // Update players with discovered information from spells before finalizing
-                    await UpdatePlayersFromSpellsAsync(playersByKey, playerSpells, ct);
-                    
-                    var gameMode = GameModeHelper.GetGameModeFromParticipantCount(participants.Count, currentArenaMatchId);
-                    var arenaZone = currentZoneId.HasValue 
-                        ? ArenaZoneIds.GetArenaZone(currentZoneId.Value) 
-                        : ArenaZone.Unknown;
-                    var persistedMatch = await FinalizeAndPersistAsync(arenaZone, matchStart, matchEnd, participants, bufferedEntries, playersByKey, playerSpells, ct, gameMode, currentArenaMatchId);
-                    if (persistedMatch.Id > 0)
-                    {
-                        allPersistedMatches.Add(persistedMatch);
-                        _logger.LogInformation("Persisted match {MatchId} with arena match ID {ArenaMatchId}.", persistedMatch.Id, currentArenaMatchId);
-                    }
-
-                    // Reset match-specific buffers
+                    matchStart = parsed.Timestamp;
+                    currentArenaMatchId = parsed.ArenaMatchId;
+                    matchInProgress = true;
                     participants.Clear();
                     bufferedEntries.Clear();
                     playerSpells.Clear();
                     playersByKey.Clear();
-                    _playerCache.ClearPending();
-                    matchStart = null;
-                    matchEnd = null;
-                    currentArenaMatchId = null;
-                    matchInProgress = false;
-                }
 
-                // Update zone info but don't process events until next ARENA_MATCH_START
-                if (parsed.ZoneId.HasValue)
+                    if (parsed.ZoneId.HasValue)
+                    {
+                        currentZoneId = parsed.ZoneId;
+                        ArenaZoneIds.GetNameOrDefault(currentZoneId.Value);
+                    }
+
+                    _logger.LogInformation("Arena match started: {ArenaMatchId} at {Timestamp}", currentArenaMatchId,
+                        matchStart);
+                    continue;
+                }
+                case CombatLogEventTypes.ZoneChange:
                 {
-                    currentZoneId = parsed.ZoneId;
-                    currentZoneName = parsed.ZoneName ?? ArenaZoneIds.GetNameOrDefault(currentZoneId.Value);
-                }
+                    if (matchInProgress && currentArenaMatchId != null)
+                    {
+                        matchEnd = parsed.Timestamp;
 
-                continue; // Skip all events until next ARENA_MATCH_START
+                        await _playerCache.BatchLookupAsync(ct);
+
+                        foreach (var name in participants)
+                        {
+                            var cached = _playerCache.GetCached(name);
+                            if (cached != null)
+                            {
+                                playersByKey.TryAdd(name, cached);
+                            }
+                        }
+
+                        await UpdatePlayersFromSpellsAsync(playersByKey, playerSpells, ct);
+
+                        var gameMode =
+                            GameModeHelper.GetGameModeFromParticipantCount(participants.Count, currentArenaMatchId);
+                        var arenaZone = currentZoneId.HasValue
+                            ? ArenaZoneIds.GetArenaZone(currentZoneId.Value)
+                            : ArenaZone.Unknown;
+                        var persistedMatch = await FinalizeAndPersistAsync(arenaZone, matchStart, matchEnd,
+                            participants, bufferedEntries, playersByKey, playerSpells, ct, gameMode,
+                            currentArenaMatchId);
+                        if (persistedMatch.Id > 0)
+                        {
+                            allPersistedMatches.Add(persistedMatch);
+                            _logger.LogInformation("Persisted match {MatchId} with arena match ID {ArenaMatchId}.",
+                                persistedMatch.Id, currentArenaMatchId);
+                        }
+
+                        participants.Clear();
+                        bufferedEntries.Clear();
+                        playerSpells.Clear();
+                        playersByKey.Clear();
+                        matchStart = null;
+                        matchEnd = null;
+                        currentArenaMatchId = null;
+                        matchInProgress = false;
+                    }
+
+                    if (parsed.ZoneId.HasValue)
+                    {
+                        currentZoneId = parsed.ZoneId;
+                        _ = parsed.ZoneName ?? ArenaZoneIds.GetNameOrDefault(currentZoneId.Value);
+                    }
+
+                    continue;
+                }
             }
 
-            // Only process combat events when a match is in progress
             if (!matchInProgress)
-                continue; // Skip events between ZONE_CHANGE and next ARENA_MATCH_START
+                continue;
 
-            // Track spells for player attribute detection
             var srcName = parsed.SourceName;
             var tgtName = parsed.TargetName;
             var spellName = parsed.SpellName;
 
-            // Track spells from source player (for class/spec/faction detection)
-            // Track from all event types: SPELL_AURA_APPLIED, SPELL_CAST_SUCCESS, SPELL_DAMAGE, SPELL_HEAL, etc.
-            // The source is always the caster, so tracking source spells identifies the player's class/spec/faction
             if (!string.IsNullOrEmpty(srcName) && !string.IsNullOrEmpty(spellName))
             {
                 var (playerName, _) = PlayerInfoExtractor.ParsePlayerName(srcName);
@@ -161,25 +155,21 @@ public class CombatLogIngestionService(
                         spells = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                         playerSpells[playerName] = spells;
                     }
+
                     spells.Add(spellName);
                 }
             }
 
-            // Cache players during parsing (will be batch looked up and created later)
             if (!string.IsNullOrEmpty(srcName))
             {
                 var (playerName, realm) = PlayerInfoExtractor.ParsePlayerName(srcName);
                 var region = ExtractRegion(srcName);
                 if (!string.IsNullOrEmpty(playerName))
                 {
-                    // Check cache first
                     var cached = _playerCache.GetCached(playerName);
                     if (cached != null)
                     {
-                        if (!playersByKey.ContainsKey(playerName))
-                        {
-                            playersByKey[playerName] = cached;
-                        }
+                        playersByKey.TryAdd(playerName, cached);
                         participants.Add(playerName);
                     }
                     else
@@ -192,11 +182,13 @@ public class CombatLogIngestionService(
                             {
                                 _playerRegions[playerName] = region;
                             }
+
                             participants.Add(playerName);
                         }
                     }
                 }
             }
+
             if (!string.IsNullOrEmpty(tgtName))
             {
                 var (playerName, realm) = PlayerInfoExtractor.ParsePlayerName(tgtName);
@@ -207,10 +199,7 @@ public class CombatLogIngestionService(
                     var cached = _playerCache.GetCached(playerName);
                     if (cached != null)
                     {
-                        if (!playersByKey.ContainsKey(playerName))
-                        {
-                            playersByKey[playerName] = cached;
-                        }
+                        playersByKey.TryAdd(playerName, cached);
                         participants.Add(playerName);
                     }
                     else
@@ -223,6 +212,7 @@ public class CombatLogIngestionService(
                             {
                                 _playerRegions[playerName] = region;
                             }
+
                             participants.Add(playerName);
                         }
                     }
@@ -231,11 +221,19 @@ public class CombatLogIngestionService(
 
             matchEnd = parsed.Timestamp;
 
-            var (sourceName, _) = !string.IsNullOrEmpty(srcName) ? PlayerInfoExtractor.ParsePlayerName(srcName) : (string.Empty, string.Empty);
-            var (targetName, _) = !string.IsNullOrEmpty(tgtName) ? PlayerInfoExtractor.ParsePlayerName(tgtName) : (string.Empty, string.Empty);
+            var (sourceName, _) = !string.IsNullOrEmpty(srcName)
+                ? PlayerInfoExtractor.ParsePlayerName(srcName)
+                : (string.Empty, string.Empty);
+            var (targetName, _) = !string.IsNullOrEmpty(tgtName)
+                ? PlayerInfoExtractor.ParsePlayerName(tgtName)
+                : (string.Empty, string.Empty);
 
-            var source = !string.IsNullOrEmpty(sourceName) && playersByKey.TryGetValue(sourceName, out var src) ? src : null;
-            var target = !string.IsNullOrEmpty(targetName) && playersByKey.TryGetValue(targetName, out var tgt) ? tgt : null;
+            var source = !string.IsNullOrEmpty(sourceName) && playersByKey.TryGetValue(sourceName, out var src)
+                ? src
+                : null;
+            var target = !string.IsNullOrEmpty(targetName) && playersByKey.TryGetValue(targetName, out var tgt)
+                ? tgt
+                : null;
 
             if (source is { Id: > 0 })
             {
@@ -252,44 +250,50 @@ public class CombatLogIngestionService(
             }
         }
 
-        // EOF: finalize if match still in progress
         if (matchInProgress && currentArenaMatchId != null)
         {
-            // Batch lookup players from database before finalizing
             await _playerCache.BatchLookupAsync(ct);
-            
-            // Populate playersByKey from cache
+
             foreach (var name in participants)
             {
                 var cached = _playerCache.GetCached(name);
-                if (cached != null && !playersByKey.ContainsKey(name))
+                if (cached != null)
                 {
-                    playersByKey[name] = cached;
+                    playersByKey.TryAdd(name, cached);
                 }
             }
-            
-            // Update players with discovered information from spells before finalizing
+
             await UpdatePlayersFromSpellsAsync(playersByKey, playerSpells, ct);
-            
+
             var gameMode = GameModeHelper.GetGameModeFromParticipantCount(participants.Count, currentArenaMatchId);
-            var arenaZone = currentZoneId.HasValue 
-                ? ArenaZoneIds.GetArenaZone(currentZoneId.Value) 
+            var arenaZone = currentZoneId.HasValue
+                ? ArenaZoneIds.GetArenaZone(currentZoneId.Value)
                 : ArenaZone.Unknown;
-            var persistedMatch = await FinalizeAndPersistAsync(arenaZone, matchStart, matchEnd, participants, bufferedEntries, playersByKey, playerSpells, ct, gameMode, currentArenaMatchId);
+            var persistedMatch = await FinalizeAndPersistAsync(arenaZone, matchStart, matchEnd, participants,
+                bufferedEntries, playersByKey, playerSpells, ct, gameMode, currentArenaMatchId);
             if (persistedMatch.Id > 0)
             {
                 allPersistedMatches.Add(persistedMatch);
-                _logger.LogInformation("Persisted final match {MatchId} with arena match ID {ArenaMatchId}.", persistedMatch.Id, currentArenaMatchId);
+                _logger.LogInformation("Persisted final match {MatchId} with arena match ID {ArenaMatchId}.",
+                    persistedMatch.Id, currentArenaMatchId);
             }
         }
 
+        // Capture pending player names before persisting (for enrichment)
+        var pendingPlayerNames = _playerCache.GetPendingCreates().Keys.ToList();
+
         // Batch persist all pending creates and updates at file end
         await _playerCache.BatchPersistAsync(ct);
-        
-        // Enrich players with WoW API data if missing information
-        await EnrichPlayersWithWowApiAsync(ct);
 
-        _logger.LogInformation("Combat log ingestion completed. Persisted {MatchCount} match(es).", allPersistedMatches.Count);
+        // Enrich players with WoW API data if missing information
+        // Pass the names of players that were just created so enrichment can find them in cache
+        await EnrichPlayersWithWowApiAsync(pendingPlayerNames, ct);
+
+        // Persist any updates from enrichment
+        await _playerCache.BatchPersistAsync(ct);
+
+        _logger.LogInformation("Combat log ingestion completed. Persisted {MatchCount} match(es).",
+            allPersistedMatches.Count);
         return allPersistedMatches;
     }
 
@@ -304,9 +308,10 @@ public class CombatLogIngestionService(
         {
             if (trimmed.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
             {
-                return suffix.Substring(1).ToLowerInvariant(); // Remove leading dash and lowercase
+                return suffix[1..].ToLowerInvariant();
             }
         }
+
         return "eu"; // Default to EU
     }
 
@@ -315,72 +320,51 @@ public class CombatLogIngestionService(
         Dictionary<string, HashSet<string>> playerSpells,
         CancellationToken ct)
     {
-        foreach (var kvp in playerSpells)
+        foreach (var (playerName, spells) in playerSpells)
         {
-            var playerName = kvp.Key;
-            var spells = kvp.Value;
-
             if (!playersByKey.TryGetValue(playerName, out var player) || spells.Count == 0)
                 continue;
 
-            // Check if player needs updates
             var originalClass = player.Class;
             var originalFaction = player.Faction;
 
-            // Update player with spell analysis
             PlayerInfoExtractor.UpdatePlayerFromSpells(player, spells);
 
-            // Check if any attributes were updated
-            if (player.Class != originalClass || player.Faction != originalFaction)
-            {
-                // Mark for batch update
-                _playerCache.MarkForUpdate(player);
-                _logger.LogDebug("Marked player {PlayerName} for update: Class={Class}, Faction={Faction}", 
-                    player.Name, player.Class, player.Faction);
-            }
+            if (player.Class == originalClass && player.Faction == originalFaction) continue;
+            _playerCache.MarkForUpdate(player);
+            _logger.LogDebug("Marked player {PlayerName} for update: Class={Class}, Faction={Faction}",
+                player.Name, player.Class, player.Faction);
         }
+
         return Task.CompletedTask;
     }
 
-    private async Task EnrichPlayersWithWowApiAsync(CancellationToken ct)
+    private async Task EnrichPlayersWithWowApiAsync(List<string> playerNamesToEnrich, CancellationToken ct)
     {
-        var pendingCreates = _playerCache.GetPendingCreates();
-        var playersToEnrich = new List<Player>();
+        // Get players from cache that were just created and need enrichment
+        var playersToEnrich = playerNamesToEnrich
+            .Select(name => _playerCache.GetCached(name))
+            .OfType<Player>()
+            .Where(cached => string.IsNullOrWhiteSpace(cached.Class) || string.IsNullOrWhiteSpace(cached.Faction))
+            .ToList();
 
-        // Collect players that need enrichment
-        foreach (var kvp in pendingCreates)
-        {
-            var pending = kvp.Value;
-            var cached = _playerCache.GetCached(pending.Name);
-            if (cached != null && (
-                string.IsNullOrWhiteSpace(cached.Class) ||
-                string.IsNullOrWhiteSpace(cached.Faction)))
-            {
-                playersToEnrich.Add(cached);
-            }
-        }
-
-        // Also check already cached players that might need enrichment
-        // (This would require exposing cache contents, but for now we'll focus on pending creates)
-
-        // Enrich players with WoW API
         foreach (var player in playersToEnrich)
         {
             try
             {
-                var region = _playerRegions.TryGetValue(player.Name, out var r) ? r : "eu";
+                var region = _playerRegions.GetValueOrDefault(player.Name, "eu");
                 var apiData = await wowApiService.GetPlayerDataAsync(player.Realm, player.Name, region, ct);
-                
+
                 if (apiData != null)
                 {
                     var needsUpdate = false;
-                    
+
                     if (string.IsNullOrWhiteSpace(player.Class) && !string.IsNullOrWhiteSpace(apiData.Class))
                     {
                         player.Class = apiData.Class;
                         needsUpdate = true;
                     }
-                    
+
                     if (string.IsNullOrWhiteSpace(player.Faction) && !string.IsNullOrWhiteSpace(apiData.Faction))
                     {
                         player.Faction = apiData.Faction;
@@ -403,7 +387,7 @@ public class CombatLogIngestionService(
     }
 
     private async Task<Match> FinalizeAndPersistAsync(
-        Core.Enum.ArenaZone arenaZone,
+        ArenaZone arenaZone,
         DateTime? start,
         DateTime? end,
         HashSet<string> participants,
@@ -411,7 +395,7 @@ public class CombatLogIngestionService(
         Dictionary<string, Player> playersByKey,
         Dictionary<string, HashSet<string>> playerSpells,
         CancellationToken ct,
-        Core.Enum.GameMode gameMode,
+        GameMode gameMode,
         string arenaMatchId)
     {
         var match = new Match
@@ -426,7 +410,8 @@ public class CombatLogIngestionService(
         };
         match = await matchRepo.AddAsync(match, ct);
 
-        _logger.LogDebug("Persisted match {MatchId} with {ParticipantCount} participants.", match.Id, participants.Count);
+        _logger.LogDebug("Persisted match {MatchId} with {ParticipantCount} participants.", match.Id,
+            participants.Count);
 
         foreach (var e in entries)
         {
@@ -439,7 +424,6 @@ public class CombatLogIngestionService(
             if (!playersByKey.TryGetValue(name, out var player))
                 continue;
 
-            // Determine spec for this match from spell analysis
             var matchSpec = string.Empty;
             if (playerSpells.TryGetValue(name, out var spells))
             {
@@ -462,13 +446,10 @@ public class CombatLogIngestionService(
     }
 
 
-    
-
-    private static string ComputeMatchHash(IEnumerable<string> playerKeys, DateTime? start, DateTime? end, string? arenaMatchId = null)
+    private static string ComputeMatchHash(IEnumerable<string> playerKeys, DateTime? start, DateTime? end,
+        string? arenaMatchId = null)
     {
         var baseStr = string.Join('|', playerKeys.OrderBy(x => x)) + $"|{start:O}|{end:O}|{arenaMatchId}";
         return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(baseStr)));
     }
-
 }
-

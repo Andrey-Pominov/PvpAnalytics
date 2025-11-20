@@ -42,7 +42,6 @@ public class LogsController(ICombatLogIngestionService ingestion, ILogger<LogsCo
             
             if (matches.Count > 0)
             {
-                // Return the list of matches, with the first match's location header if available
                 var firstMatch = matches[0];
                 if (firstMatch.Id > 0)
                 {

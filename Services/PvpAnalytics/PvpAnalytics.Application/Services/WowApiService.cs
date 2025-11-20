@@ -21,7 +21,8 @@ public class WowApiService(
     private string? _accessToken;
     private DateTime? _tokenExpiry;
 
-    public async Task<WowPlayerData?> GetPlayerDataAsync(string realm, string name, string region, CancellationToken ct = default)
+    public async Task<WowPlayerData?> GetPlayerDataAsync(string realm, string name, string region,
+        CancellationToken ct = default)
     {
         try
         {
@@ -39,18 +40,20 @@ public class WowApiService(
             var nameSlug = name.ToLowerInvariant();
 
             // Determine base URL based on region
-            var baseUrl = region.ToLowerInvariant() == "eu" 
-                ? "https://eu.api.blizzard.com" 
+            var baseUrl = region.Equals("eu"
+                , StringComparison.InvariantCultureIgnoreCase)
+                ? "https://eu.api.blizzard.com"
                 : "https://us.api.blizzard.com";
 
-            // Fetch character profile
-            var profileUrl = $"{baseUrl}/profile/wow/character/{realmSlug}/{nameSlug}?namespace=profile-{region}&locale=en_US";
-            
+            var profileUrl =
+                $"{baseUrl}/profile/wow/character/{realmSlug}/{nameSlug}?namespace=profile-{region}&locale=en_US";
+
             using var request = new HttpRequestMessage(HttpMethod.Get, profileUrl);
-            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _accessToken);
+            request.Headers.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _accessToken);
 
             var response = await httpClient.SendAsync(request, ct);
-            
+
             if (!response.IsSuccessStatusCode)
             {
                 if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
@@ -58,32 +61,32 @@ public class WowApiService(
                     _logger.LogDebug("Player {Name} on realm {Realm} not found in WoW API", name, realm);
                     return null;
                 }
-                
-                _logger.LogWarning("WoW API returned status {StatusCode} for {Name} on {Realm}", 
+
+                _logger.LogWarning("WoW API returned status {StatusCode} for {Name} on {Realm}",
                     response.StatusCode, name, realm);
                 return null;
             }
 
             var profileData = await response.Content.ReadFromJsonAsync<JsonElement>(ct);
-            
-            // Fetch character media/summary for additional info
-            var summaryUrl = $"{baseUrl}/profile/wow/character/{realmSlug}/{nameSlug}/character-media?namespace=profile-{region}&locale=en_US";
+
+            var summaryUrl =
+                $"{baseUrl}/profile/wow/character/{realmSlug}/{nameSlug}/character-media?namespace=profile-{region}&locale=en_US";
             using var summaryRequest = new HttpRequestMessage(HttpMethod.Get, summaryUrl);
-            summaryRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _accessToken);
-            
+            summaryRequest.Headers.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _accessToken);
+
             var summaryResponse = await httpClient.SendAsync(summaryRequest, ct);
-            JsonElement? summaryData = null;
             if (summaryResponse.IsSuccessStatusCode)
             {
-                summaryData = await summaryResponse.Content.ReadFromJsonAsync<JsonElement>(ct);
+                await summaryResponse.Content.ReadFromJsonAsync<JsonElement>(ct);
             }
 
             // Parse the response
             var playerData = new WowPlayerData
             {
                 Name = profileData.TryGetProperty("name", out var nameProp) ? nameProp.GetString() : name,
-                Realm = profileData.TryGetProperty("realm", out var realmProp) 
-                    ? realmProp.TryGetProperty("slug", out var realmSlugProp) ? realmSlugProp.GetString() : realm 
+                Realm = profileData.TryGetProperty("realm", out var realmProp)
+                    ? realmProp.TryGetProperty("slug", out var realmSlugProp) ? realmSlugProp.GetString() : realm
                     : realm,
                 Level = profileData.TryGetProperty("level", out var levelProp) ? levelProp.GetInt32() : null,
             };
@@ -106,9 +109,17 @@ public class WowApiService(
                     // Infer faction from race (simplified - would need full race list)
                     if (playerData.Race != null)
                     {
-                        var allianceRaces = new[] { "Human", "Dwarf", "Night Elf", "Gnome", "Draenei", "Worgen", "Pandaren", "Void Elf", "Lightforged Draenei", "Dark Iron Dwarf", "Kul Tiran", "Mechagnome", "Dracthyr" };
-                        var hordeRaces = new[] { "Orc", "Undead", "Tauren", "Troll", "Blood Elf", "Goblin", "Pandaren", "Nightborne", "Highmountain Tauren", "Mag'har Orc", "Zandalari Troll", "Vulpera", "Dracthyr" };
-                        
+                        var allianceRaces = new[]
+                        {
+                            "Human", "Dwarf", "Night Elf", "Gnome", "Draenei", "Worgen", "Pandaren", "Void Elf",
+                            "Lightforged Draenei", "Dark Iron Dwarf", "Kul Tiran", "Mechagnome", "Dracthyr"
+                        };
+                        var hordeRaces = new[]
+                        {
+                            "Orc", "Undead", "Tauren", "Troll", "Blood Elf", "Goblin", "Pandaren", "Nightborne",
+                            "Highmountain Tauren", "Mag'har Orc", "Zandalari Troll", "Vulpera", "Dracthyr"
+                        };
+
                         if (allianceRaces.Any(r => playerData.Race.Contains(r, StringComparison.OrdinalIgnoreCase)))
                             playerData.Faction = "Alliance";
                         else if (hordeRaces.Any(r => playerData.Race.Contains(r, StringComparison.OrdinalIgnoreCase)))
@@ -129,7 +140,8 @@ public class WowApiService(
     private async Task EnsureAccessTokenAsync(string region, CancellationToken ct)
     {
         // Check if we have a valid token
-        if (!string.IsNullOrEmpty(_accessToken) && _tokenExpiry.HasValue && _tokenExpiry.Value > DateTime.UtcNow.AddMinutes(5))
+        if (!string.IsNullOrEmpty(_accessToken) && _tokenExpiry.HasValue &&
+            _tokenExpiry.Value > DateTime.UtcNow.AddMinutes(5))
         {
             return; // Token is still valid
         }
@@ -137,25 +149,24 @@ public class WowApiService(
         try
         {
             // Determine OAuth URL based on region
-            var oauthUrl = region.ToLowerInvariant() == "eu"
+            var oauthUrl = region.Equals("eu"
+                , StringComparison.InvariantCultureIgnoreCase)
                 ? "https://eu.battle.net/oauth/token"
                 : "https://us.battle.net/oauth/token";
 
-            var requestBody = new FormUrlEncodedContent(new[]
-            {
+            var requestBody = new FormUrlEncodedContent([
                 new KeyValuePair<string, string>("grant_type", "client_credentials")
-            });
+            ]);
 
-            var authValue = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{_options.ClientId}:{_options.ClientSecret}"));
-            
-            using var request = new HttpRequestMessage(HttpMethod.Post, oauthUrl)
-            {
-                Content = requestBody
-            };
+            var authValue =
+                Convert.ToBase64String(Encoding.UTF8.GetBytes($"{_options.ClientId}:{_options.ClientSecret}"));
+
+            using var request = new HttpRequestMessage(HttpMethod.Post, oauthUrl);
+            request.Content = requestBody;
             request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", authValue);
 
             var response = await httpClient.SendAsync(request, ct);
-            
+
             if (!response.IsSuccessStatusCode)
             {
                 _logger.LogError("Failed to obtain OAuth token. Status: {StatusCode}", response.StatusCode);
@@ -165,11 +176,10 @@ public class WowApiService(
             }
 
             var tokenData = await response.Content.ReadFromJsonAsync<JsonElement>(ct);
-            
+
             if (tokenData.TryGetProperty("access_token", out var tokenProp))
             {
                 _accessToken = tokenProp.GetString();
-                // Tokens typically expire in 1 hour, but we'll refresh 5 minutes early
                 _tokenExpiry = DateTime.UtcNow.AddMinutes(55);
                 _logger.LogDebug("Obtained new OAuth token for WoW API");
             }
@@ -193,11 +203,9 @@ public class WowApiService(
         if (string.IsNullOrWhiteSpace(realm))
             return string.Empty;
 
-        // Convert realm name to slug format (lowercase, replace spaces with hyphens)
         return realm.ToLowerInvariant()
             .Replace(" ", "-")
             .Replace("'", "")
             .Replace("'", "");
     }
 }
-
