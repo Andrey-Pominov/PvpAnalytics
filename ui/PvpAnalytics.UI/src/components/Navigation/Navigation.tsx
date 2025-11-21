@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import SearchBar from '../SearchBar/SearchBar'
 import axios from 'axios'
 
@@ -7,6 +7,18 @@ const Navigation = () => {
   const location = useLocation()
   const navigate = useNavigate()
   const [searchLoading, setSearchLoading] = useState(false)
+  const abortControllerRef = useRef<AbortController | null>(null)
+  const searchTokenRef = useRef(0)
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+        abortControllerRef.current = null
+      }
+    }
+  }, [])
 
   const navItems = [
     { path: '/', label: 'Stats', icon: '📊' },
@@ -26,6 +38,16 @@ const Navigation = () => {
       return
     }
 
+    // Abort any previous search
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+
+    // Create new abort controller and increment search token
+    const abortController = new AbortController()
+    abortControllerRef.current = abortController
+    const currentToken = ++searchTokenRef.current
+
     const trimmedTerm = term.trim()
     const isNumericId = /^\d+$/.test(trimmedTerm)
     
@@ -38,14 +60,24 @@ const Navigation = () => {
         try {
           const { data: match } = await axios.get<{ id: number }>(`${baseUrl}/matches/${trimmedTerm}`, {
             validateStatus: (status) => status === 200 || status === 404,
+            signal: abortController.signal,
           })
+          
+          // Check if this search is still current and not aborted
+          if (currentToken !== searchTokenRef.current || abortController.signal.aborted) {
+            return
+          }
           
           if (match?.id) {
             // Match found - navigate to match detail page
             navigate(`/matches/${trimmedTerm}`)
             return
           }
-        } catch {
+        } catch (error) {
+          // Check if aborted or outdated
+          if (abortController.signal.aborted || currentToken !== searchTokenRef.current) {
+            return
+          }
           // Match not found or error - continue to player lookup
         }
         
@@ -53,25 +85,46 @@ const Navigation = () => {
         try {
           const { data: player } = await axios.get<{ id: number }>(`${baseUrl}/players/${trimmedTerm}`, {
             validateStatus: (status) => status === 200 || status === 404,
+            signal: abortController.signal,
           })
+          
+          // Check if this search is still current and not aborted
+          if (currentToken !== searchTokenRef.current || abortController.signal.aborted) {
+            return
+          }
           
           if (player?.id) {
             // Player found - navigate to player profile page
             navigate(`/players/${trimmedTerm}`)
             return
           }
-        } catch {
+        } catch (error) {
+          // Check if aborted or outdated
+          if (abortController.signal.aborted || currentToken !== searchTokenRef.current) {
+            return
+          }
           // Player not found or error
+          console.debug('Player lookup failed:', error)
         }
         
-        // Neither match nor player found - navigate to players page with search query
-        navigate(`/players?search=${encodeURIComponent(trimmedTerm)}`)
+        // Check if this search is still current and not aborted before navigating
+        if (currentToken === searchTokenRef.current && !abortController.signal.aborted) {
+          // Neither match nor player found - navigate to players page with search query
+          navigate(`/players?search=${encodeURIComponent(trimmedTerm)}`)
+        }
       } catch (error) {
+        // Check if aborted or outdated
+        if (abortController.signal.aborted || currentToken !== searchTokenRef.current) {
+          return
+        }
         console.error('Search error:', error)
         // On error, fallback to players page with search query
         navigate(`/players?search=${encodeURIComponent(trimmedTerm)}`)
       } finally {
-        setSearchLoading(false)
+        // Only update loading state if this is still the current search
+        if (currentToken === searchTokenRef.current && !abortController.signal.aborted) {
+          setSearchLoading(false)
+        }
       }
     } else {
       // Non-numeric search - navigate to players page with search query
@@ -113,4 +166,3 @@ const Navigation = () => {
 }
 
 export default Navigation
-

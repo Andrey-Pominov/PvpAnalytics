@@ -143,7 +143,6 @@ public static class ImportantAbilities
         "Intercept",
         "Concussive Shot",
         "Scatter Shot",
-        "Freezing Trap",
         "Kidney Shot",
         "Cheap Shot",
         "Gouge",

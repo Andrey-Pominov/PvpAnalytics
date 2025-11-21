@@ -9,7 +9,7 @@ public class Repository<TEntity>(PvpAnalyticsDbContext dbContext) : IRepository<
 {
     private readonly DbSet<TEntity> _dbSet = dbContext.Set<TEntity>();
 
-    public IQueryable<TEntity> Query() => _dbSet.AsNoTracking().AsQueryable();
+    public IQueryable<TEntity> Query() => _dbSet.AsNoTracking();
 
     public Task<TEntity?> GetByIdAsync(long id, CancellationToken ct = default)
     {

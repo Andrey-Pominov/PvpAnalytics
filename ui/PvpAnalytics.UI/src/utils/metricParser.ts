@@ -1,14 +1,13 @@
-import { Parser } from 'expr-eval'
-
 export interface ParseResult {
   success: boolean
   error?: string
   variables?: string[]
 }
 
-export interface EvaluateResult {
-  success: boolean
-  value?: number
+export interface ParsedMetric {
+  expression: string
+  variables: string[]
+  isValid: boolean
   error?: string
 }
 
@@ -20,94 +19,225 @@ function escapeRegex(str: string): string {
 }
 
 /**
- * Validates and parses a metric expression to extract variable names
+ * Validates that an expression only contains safe mathematical operations
  */
-export function parseMetric(expression: string): ParseResult {
+function isValidMathExpression(expression: string): { valid: boolean; error?: string } {
+  // Remove whitespace for validation
+  const cleaned = expression.replace(/\s/g, '')
+
+  // Check for dangerous patterns
+  const dangerousPatterns = [
+    /eval\s*\(/i,
+    /function\s*\(/i,
+    /=>/,
+    /import\s+/i,
+    /require\s*\(/i,
+    /\.\s*constructor/i,
+    /__proto__/i,
+    /prototype/i,
+    /constructor/i,
+    /\[.*\]\s*\(/, // Array access followed by function call
+  ]
+
+  for (const pattern of dangerousPatterns) {
+    if (pattern.test(cleaned)) {
+      return { valid: false, error: 'Expression contains unsafe patterns' }
+    }
+  }
+
+  // Check for method calls that are NOT Math.* (Math.* is allowed)
+  const methodCallPattern = /\.\s*\w+\s*\(/g
+  let methodMatch
+  while ((methodMatch = methodCallPattern.exec(cleaned)) !== null) {
+    const beforeDot = cleaned.substring(Math.max(0, methodMatch.index - 10), methodMatch.index)
+    // Allow Math.* but block other method calls
+    if (!beforeDot.endsWith('Math')) {
+      return { valid: false, error: 'Expression contains unsafe method calls (only Math.* functions are allowed)' }
+    }
+  }
+
+  // Check for balanced parentheses
+  let parenCount = 0
+  for (const char of cleaned) {
+    if (char === '(') parenCount++
+    if (char === ')') parenCount--
+    if (parenCount < 0) {
+      return { valid: false, error: 'Unbalanced parentheses' }
+    }
+  }
+  if (parenCount !== 0) {
+    return { valid: false, error: 'Unbalanced parentheses' }
+  }
+
+  // Allow only: numbers, operators, parentheses, Math functions, and variable names
+  // Variable names must be alphanumeric with underscores, starting with letter
+  const allowedPattern = /^[0-9+\-*/().\s,a-zA-Z_]+$/
+  if (!allowedPattern.test(cleaned.replace(/Math\.\w+/g, 'MATHFUNC'))) {
+    return { valid: false, error: 'Expression contains invalid characters' }
+  }
+
+  // Validate Math function calls are allowed
+  const mathFunctionPattern = /Math\.(\w+)/g
+  const allowedMathFunctions = ['abs', 'acos', 'asin', 'atan', 'ceil', 'cos', 'exp', 'floor', 'ln', 'log', 'max', 'min', 'pow', 'round', 'sin', 'sqrt', 'tan']
+  let match
+  while ((match = mathFunctionPattern.exec(cleaned)) !== null) {
+    if (!allowedMathFunctions.includes(match[1])) {
+      return { valid: false, error: `Unsupported Math function: Math.${match[1]}` }
+    }
+  }
+
+  return { valid: true }
+}
+
+/**
+ * Extracts variable names from an expression
+ */
+function extractVariables(expression: string): string[] {
+  // Match variable names (alphanumeric + underscore, must start with letter)
+  const variablePattern = /\b[a-zA-Z_][a-zA-Z0-9_]*\b/g
+  const matches = expression.match(variablePattern) || []
+  
+  // Filter out JavaScript keywords, Math functions, and operators
+  const keywords = [
+    'Math', 'abs', 'acos', 'asin', 'atan', 'ceil', 'cos', 'exp', 'floor', 'ln', 'log', 'max', 'min', 'pow', 'round', 'sin', 'sqrt', 'tan',
+    'and', 'or', 'not', 'if', 'true', 'false', 'null', 'undefined', 'NaN', 'Infinity',
+  ]
+  
+  return [...new Set(matches)].filter((v) => !keywords.includes(v) && !/^\d/.test(v))
+}
+
+/**
+ * Validates and parses a metric expression to extract variable names
+ * Returns ParsedMetric for backward compatibility with existing code
+ */
+export function parseMetric(expression: string): ParsedMetric {
   if (!expression || typeof expression !== 'string') {
-    return { success: false, error: 'Expression must be a non-empty string' }
+    return {
+      expression: expression || '',
+      variables: [],
+      isValid: false,
+      error: 'Expression must be a non-empty string',
+    }
   }
 
   const trimmed = expression.trim()
   if (!trimmed) {
-    return { success: false, error: 'Expression cannot be empty' }
+    return {
+      expression: trimmed,
+      variables: [],
+      isValid: false,
+      error: 'Expression cannot be empty',
+    }
   }
 
-  try {
-    // Create a parser instance for validation
-    const parser = new Parser()
-    
-    // Try to parse the expression to validate syntax
-    // We'll use a dummy context to check if variables are valid identifiers
-    const testExpr = parser.parse(trimmed)
-    
-    // Extract variable names from the expression
-    // expr-eval variables are extracted from the parsed expression
-    const variables: string[] = []
-    
-    // Walk through the expression to find variable references
-    // This is a simplified approach - expr-eval handles variable extraction internally
-    const variablePattern = /\b[a-zA-Z_][a-zA-Z0-9_]*\b/g
-    const matches = trimmed.match(variablePattern) || []
-    
-    // Filter out known operators and functions
-    const operators = ['and', 'or', 'not', 'if', 'abs', 'acos', 'asin', 'atan', 'ceil', 'cos', 'exp', 'floor', 'ln', 'log', 'max', 'min', 'pow', 'round', 'sin', 'sqrt', 'tan']
-    const uniqueVariables = [...new Set(matches.filter((match) => !operators.includes(match.toLowerCase()) && !/^\d/.test(match)))]
-    
+  // Validate expression safety
+  const validation = isValidMathExpression(trimmed)
+  if (!validation.valid) {
     return {
-      success: true,
-      variables: uniqueVariables,
+      expression: trimmed,
+      variables: [],
+      isValid: false,
+      error: validation.error || 'Invalid expression syntax',
     }
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Invalid expression syntax',
-    }
+  }
+
+  // Extract variables
+  const variables = extractVariables(trimmed)
+
+  return {
+    expression: trimmed,
+    variables,
+    isValid: true,
   }
 }
 
 /**
  * Safely evaluates a metric expression with provided variable values
- * Replaces unsafe new Function() with expr-eval for security
+ * Uses string substitution and a controlled evaluation context
+ * Returns { result: number; error?: string } for backward compatibility
  */
 export function evaluateMetric(
   expression: string,
   variables: Record<string, number>
-): EvaluateResult {
+): { result: number; error?: string } {
   // Validate expression first using parseMetric
   const parseResult = parseMetric(expression)
-  if (!parseResult.success) {
+  if (!parseResult.isValid) {
     return {
-      success: false,
+      result: 0,
       error: parseResult.error || 'Expression validation failed',
     }
   }
 
+  // Check that all required variables are provided
+  const missingVars = parseResult.variables.filter((v) => !(v in variables))
+  if (missingVars.length > 0) {
+    return {
+      result: 0,
+      error: `Missing variables: ${missingVars.join(', ')}`,
+    }
+  }
+
   try {
-    // Create a parser instance
-    const parser = new Parser()
+    // Substitute variables with their values using safe string replacement
+    let substituted = expression
     
-    // Parse the expression
-    const expr = parser.parse(expression)
+    // Sort by length (longest first) to avoid partial replacements
+    const varNames = Object.keys(variables).sort((a, b) => b.length - a.length)
     
-    // Safely evaluate with provided variables
-    // expr-eval only evaluates mathematical expressions and doesn't allow arbitrary code execution
-    const result = expr.evaluate(variables)
+    for (const varName of varNames) {
+      // Escape regex metacharacters in variable name
+      const escapedName = escapeRegex(varName)
+      // Replace with actual value (use word boundaries to avoid partial matches)
+      const regex = new RegExp(`\\b${escapedName}\\b`, 'g')
+      substituted = substituted.replace(regex, String(variables[varName]))
+    }
+
+    // Verify no variables remain (safety check)
+    const remainingVars = extractVariables(substituted)
+    if (remainingVars.length > 0) {
+      return {
+        result: 0,
+        error: `Could not substitute all variables. Remaining: ${remainingVars.join(', ')}`,
+      }
+    }
+
+    // Create a safe evaluation context with only Math functions
+    // Use Function constructor in a controlled way with a whitelist
+    const allowedFunctions = ['Math.abs', 'Math.floor', 'Math.ceil', 'Math.round', 'Math.max', 'Math.min', 'Math.sqrt', 'Math.pow', 'Math.sin', 'Math.cos', 'Math.tan', 'Math.asin', 'Math.acos', 'Math.atan', 'Math.exp', 'Math.log']
+    
+    // Validate that only allowed Math functions are used
+    const functionMatches = substituted.match(/Math\.\w+/g) || []
+    for (const func of functionMatches) {
+      if (!allowedFunctions.some((allowed) => func.startsWith(allowed))) {
+        return {
+          result: 0,
+          error: `Unsupported function: ${func}`,
+        }
+      }
+      // Replace Math.log with Math.log (natural log) - JavaScript's Math.log is natural log
+      // Replace Math.ln with Math.log if present (some expressions might use ln)
+      substituted = substituted.replace(/\bMath\.ln\b/g, 'Math.log')
+    }
+
+    // Evaluate using Function constructor with strict validation
+    // This is safer than eval but still requires careful validation (which we've done above)
+    const result = new Function('Math', `"use strict"; return ${substituted}`)(Math)
     
     // Ensure result is a number
     if (typeof result !== 'number' || !Number.isFinite(result)) {
       return {
-        success: false,
+        result: 0,
         error: 'Expression evaluation did not produce a valid number',
       }
     }
     
     return {
-      success: true,
-      value: result,
+      result,
     }
   } catch (error) {
     return {
-      success: false,
+      result: 0,
       error: error instanceof Error ? error.message : 'Expression evaluation failed',
     }
   }
@@ -136,3 +266,39 @@ export function substituteVariables(
   
   return substituted
 }
+
+/**
+ * Predefined metric templates with common formulas
+ */
+export const metricTemplates = [
+  {
+    name: 'Kills per Minute',
+    expression: 'Kills / (Duration / 60)',
+    description: 'Average number of kills per minute',
+    variables: ['Kills', 'Duration'],
+  },
+  {
+    name: 'Damage per Second',
+    expression: 'DamageDone / Duration',
+    description: 'Average damage dealt per second',
+    variables: ['DamageDone', 'Duration'],
+  },
+  {
+    name: 'Efficiency Score',
+    expression: '(Kills + Assists) / Deaths',
+    description: 'Kill/assist to death ratio',
+    variables: ['Kills', 'Assists', 'Deaths'],
+  },
+  {
+    name: 'Win Rate Percentage',
+    expression: '(Wins / TotalMatches) * 100',
+    description: 'Win rate as a percentage',
+    variables: ['Wins', 'TotalMatches'],
+  },
+  {
+    name: 'Average Match Duration',
+    expression: 'TotalDuration / TotalMatches',
+    description: 'Average duration of matches in seconds',
+    variables: ['TotalDuration', 'TotalMatches'],
+  },
+]
