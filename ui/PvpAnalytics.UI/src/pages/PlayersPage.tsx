@@ -1,15 +1,28 @@
 import { useEffect, useState, useMemo } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import axios from 'axios'
 import Card from '../components/Card/Card'
 import SearchBar from '../components/SearchBar/SearchBar'
+import ExportButton from '../components/ExportButton/ExportButton'
 import type { Player } from '../types/api'
 import { mockPlayers } from '../mocks/players'
 
 const PlayersPage = () => {
+  const navigate = useNavigate()
   const [players, setPlayers] = useState<Player[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [searchTerm, setSearchTerm] = useState('')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '')
+
+  // Sync searchTerm to URL search params
+  useEffect(() => {
+    if (searchTerm.trim()) {
+      setSearchParams({ search: searchTerm }, { replace: true })
+    } else {
+      setSearchParams({}, { replace: true })
+    }
+  }, [searchTerm, setSearchParams])
 
   useEffect(() => {
     const abortController = new AbortController()
@@ -117,7 +130,18 @@ const PlayersPage = () => {
         </div>
       )}
 
-      <Card title={`Players (${filteredPlayers.length})`}>
+      <Card
+        title={`Players (${filteredPlayers.length})`}
+        actions={
+          filteredPlayers.length > 0 ? (
+            <ExportButton
+              data={filteredPlayers}
+              filename={`players-${new Date().toISOString().split('T')[0]}`}
+              headers={['id', 'name', 'realm', 'class', 'faction']}
+            />
+          ) : undefined
+        }
+      >
         {loading ? (
           <div className="text-center py-12 text-text-muted">Loading players...</div>
         ) : filteredPlayers.length === 0 ? (
@@ -129,7 +153,8 @@ const PlayersPage = () => {
             {filteredPlayers.map((player) => (
               <div
                 key={player.id}
-                className="p-4 rounded-xl border border-accent-muted/30 bg-surface/50 hover:bg-surface/70 transition-colors"
+                onClick={() => navigate(`/players/${player.id}`)}
+                className="p-4 rounded-xl border border-accent-muted/30 bg-surface/50 hover:bg-surface/70 transition-colors cursor-pointer"
               >
                 <div className="flex items-start gap-3">
                   <div className="grid h-12 w-12 flex-shrink-0 place-items-center rounded-lg bg-gradient-to-br from-accent to-sky-400 text-lg font-bold text-white">

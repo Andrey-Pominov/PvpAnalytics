@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react'
 import axios from 'axios'
 import Card from '../components/Card/Card'
 import MatchesTable from '../components/MatchesTable/MatchesTable'
+import ExportButton from '../components/ExportButton/ExportButton'
 import type { Match } from '../types/api'
 import type { MatchSummary } from '../types/stats'
 import { mockMatches } from '../mocks/matches'
@@ -110,13 +111,26 @@ const MatchesPage = () => {
     }))
   }, [filteredMatches])
 
+  // Export data without 'result' field to avoid empty column in CSV
+  const exportData = useMemo(() => {
+    return transformedMatches.map(({ id, date, mode, map, duration }) => ({
+      id,
+      date,
+      mode,
+      map,
+      duration,
+    }))
+  }, [transformedMatches])
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <div className="text-sm text-text-muted">
           {loading ? 'Loading...' : `${filteredMatches.length} match${filteredMatches.length !== 1 ? 'es' : ''}`}
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-3">
+          <ExportButton data={exportData} filename="matches" disabled={loading || filteredMatches.length === 0} />
+          <div className="flex gap-2">
           <button
             onClick={() => setFilter('all')}
             className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
@@ -147,6 +161,7 @@ const MatchesPage = () => {
           >
             Unranked
           </button>
+          </div>
         </div>
       </div>
 
@@ -156,7 +171,18 @@ const MatchesPage = () => {
         </div>
       )}
 
-      <Card title={`Matches (${filteredMatches.length})`}>
+      <Card
+        title={`Matches (${filteredMatches.length})`}
+        actions={
+          filteredMatches.length > 0 ? (
+            <ExportButton
+              data={transformedMatches}
+              filename={`matches-${new Date().toISOString().split('T')[0]}`}
+              headers={['id', 'date', 'mode', 'map', 'result', 'duration']}
+            />
+          ) : undefined
+        }
+      >
         {loading ? (
           <div className="text-center py-12 text-text-muted">Loading matches...</div>
         ) : filteredMatches.length === 0 ? (

@@ -1,6 +1,5 @@
 using System.Text;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using PvpAnalytics.Application.Services;
 using PvpAnalytics.Core.Entities;
 using PvpAnalytics.Core.Enum;

@@ -18,6 +18,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICrudService<MatchResult>, MatchResultService>();
         services.AddScoped<ICrudService<CombatLogEntry>, CombatLogEntryService>();
         services.AddScoped<ICombatLogIngestionService, CombatLogIngestionService>();
+        services.AddScoped<IMatchDetailService, MatchDetailService>();
         
         // Configure WoW API with validation
         services.AddOptions<WowApiOptions>()
