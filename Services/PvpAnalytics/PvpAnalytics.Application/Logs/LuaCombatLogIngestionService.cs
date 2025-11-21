@@ -144,6 +144,7 @@ public class LuaCombatLogIngestionService(
         var arenaMatchId = GenerateArenaMatchId(luaMatch, startTime, endTime);
 
         // Finalize and persist match
+        var mapName = ArenaZoneIds.GetDisplayName(arenaZone);
         var match = await FinalizeAndPersistAsync(
             arenaZone,
             startTime,
@@ -154,7 +155,8 @@ public class LuaCombatLogIngestionService(
             playerSpells,
             ct,
             gameMode,
-            arenaMatchId);
+            arenaMatchId,
+            mapName);
 
         return match;
     }
@@ -365,10 +367,11 @@ public class LuaCombatLogIngestionService(
 
     private async Task EnrichPlayersWithWowApiAsync(List<string> playerNamesToEnrich, CancellationToken ct)
     {
+        // Note: Spec is not available from WoW API, so we only enrich for missing Class/Faction
         var playersToEnrich = playerNamesToEnrich
             .Select(name => _playerCache.GetCached(name))
             .OfType<Player>()
-            .Where(cached => string.IsNullOrWhiteSpace(cached.Class) || string.IsNullOrWhiteSpace(cached.Faction) || string.IsNullOrWhiteSpace(cached.Spec))
+            .Where(cached => string.IsNullOrWhiteSpace(cached.Class) || string.IsNullOrWhiteSpace(cached.Faction))
             .ToList();
 
         foreach (var player in playersToEnrich)
@@ -419,22 +422,15 @@ public class LuaCombatLogIngestionService(
         Dictionary<string, HashSet<string>> playerSpells,
         CancellationToken ct,
         GameMode gameMode,
-        string arenaMatchId)
+        string arenaMatchId,
+        string mapName)
     {
         var uniqueHash = ComputeMatchHash(participants, start, end, arenaMatchId);
-        
-        // Check if match with this UniqueHash already exists
-        var existingMatches = await matchRepo.ListAsync(m => m.UniqueHash == uniqueHash, ct);
-        if (existingMatches.Count > 0)
-        {
-            logger.LogInformation("Match with UniqueHash {UniqueHash} already exists, skipping duplicate.", uniqueHash);
-            return existingMatches[0]; // Return existing match
-        }
 
         var match = new Match
         {
             CreatedOn = start ?? DateTime.UtcNow,
-            MapName = "Nagrand Arena",
+            MapName = mapName,
             ArenaZone = arenaZone,
             ArenaMatchId = arenaMatchId,
             GameMode = gameMode,
@@ -442,10 +438,39 @@ public class LuaCombatLogIngestionService(
             IsRanked = true,
             UniqueHash = uniqueHash
         };
-        match = await matchRepo.AddAsync(match, ct);
 
-        logger.LogDebug("Persisted match {MatchId} with {ParticipantCount} participants.", match.Id,
-            participants.Count);
+        try
+        {
+            match = await matchRepo.AddAsync(match, ct);
+            logger.LogInformation("Persisted new match {MatchId} with UniqueHash {UniqueHash} and {ParticipantCount} participants.", 
+                match.Id, uniqueHash, participants.Count);
+        }
+        catch (Exception ex)
+        {
+            // Check if this is a unique constraint violation (PostgreSQL error code 23505)
+            var isUniqueConstraintViolation = ex.GetType().FullName?.Contains("DbUpdateException") == true &&
+                                              ex.InnerException?.GetType().FullName?.Contains("PostgresException") == true &&
+                                              (ex.InnerException.GetType().GetProperty("SqlState")?.GetValue(ex.InnerException)?.ToString() == "23505" ||
+                                               ex.Message.Contains("23505") ||
+                                               ex.Message.Contains("duplicate key value") ||
+                                               ex.Message.Contains("IX_Matches_UniqueHash"));
+
+            if (isUniqueConstraintViolation)
+            {
+                // Unique constraint violation - match already exists
+                logger.LogInformation("Match with UniqueHash {UniqueHash} already exists in database, returning existing match.", uniqueHash);
+                
+                // Re-query to get the existing match
+                var existingMatches = await matchRepo.ListAsync(m => m.UniqueHash == uniqueHash, ct);
+                if (existingMatches.Count > 0)
+                {
+                    return existingMatches[0]; // Return existing match (skip creating entries/results for duplicate)
+                }
+            }
+            
+            // If not a unique constraint violation or query failed, re-throw
+            throw;
+        }
 
         foreach (var e in entries)
         {

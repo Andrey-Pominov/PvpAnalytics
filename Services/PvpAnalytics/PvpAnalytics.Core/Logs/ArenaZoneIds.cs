@@ -58,5 +58,23 @@ public static class ArenaZoneIds
             _ => ArenaZone.Unknown
         };
     }
+
+    /// <summary>
+    /// Converts an ArenaZone enum value to its user-friendly display name.
+    /// </summary>
+    /// <param name="arenaZone">The ArenaZone enum value.</param>
+    /// <param name="fallback">Fallback name to return when the arena zone is Unknown; defaults to "Unknown Arena".</param>
+    /// <returns>The display name for the arena zone, or the fallback if Unknown.</returns>
+    public static string GetDisplayName(ArenaZone arenaZone, string fallback = "Unknown Arena")
+    {
+        if (arenaZone == ArenaZone.Unknown)
+        {
+            return fallback;
+        }
+
+        // Convert enum to zone ID and look up in Map
+        var zoneId = (int)arenaZone;
+        return Map.GetValueOrDefault(zoneId, fallback);
+    }
 }
 
