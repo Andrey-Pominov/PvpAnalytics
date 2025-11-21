@@ -142,7 +142,8 @@ public class PlayerCache(IRepository<Player> playerRepo)
                 Name = pending.Name,
                 Realm = pending.Realm,
                 Class = string.Empty,
-                Faction = string.Empty
+                Faction = string.Empty,
+                Spec = string.Empty
             };
             playersToCreate.Add(player);
         }

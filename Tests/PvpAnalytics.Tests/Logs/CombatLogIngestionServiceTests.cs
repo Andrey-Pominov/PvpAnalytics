@@ -1,6 +1,7 @@
 using System.Linq.Expressions;
 using System.Text;
 using FluentAssertions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using PvpAnalytics.Application.Logs;
 using PvpAnalytics.Application.Services;
@@ -24,16 +25,16 @@ public class CombatLogIngestionServiceTests
         var entryRepo = new InMemoryRepository<CombatLogEntry>(e => e.Id);
         var wowApiService = new MockWowApiService();
 
-        var sut = new CombatLogIngestionService(playerRepo, matchRepo, resultRepo, entryRepo, wowApiService, NullLogger<CombatLogIngestionService>.Instance);
+        var sut = new CombatLogIngestionService(playerRepo, matchRepo, resultRepo, entryRepo, wowApiService, NullLogger<CombatLogIngestionService>.Instance, new NullLoggerFactory());
 
-        var log = """
-# Nicked header
-1/2/2024 19:10:02.000  ARENA_MATCH_START,match-123,559,,,,,,,,,,,,
-1/2/2024 19:10:03.100  ZONE_CHANGE,559,Nagrand Arena,,,,,,,,,,,,
-1/2/2024 19:10:04.200  SPELL_DAMAGE,0x0100,Alpha-Illidan,0x0,0x0,0x0200,Bravo-Illidan,0x0,0x0,1337,Chaos Bolt,0x0,1200,0,0,0,0,0,0,0
-1/2/2024 19:10:05.300  SPELL_HEAL,0x0200,Bravo-Illidan,0x0,0x0,0x0100,Alpha-Illidan,0x0,0x0,2337,Rejuvenation,0x0,0,900,0,0,0,0,0,0
-1/2/2024 19:10:30.000  ZONE_CHANGE,87,Stormwind City,,,,,,,,,,,,
-""";
+        const string log = """
+                           # Nicked header
+                           1/2/2024 19:10:02.000  ARENA_MATCH_START,match-123,559,,,,,,,,,,,,
+                           1/2/2024 19:10:03.100  ZONE_CHANGE,559,Nagrand Arena,,,,,,,,,,,,
+                           1/2/2024 19:10:04.200  SPELL_DAMAGE,0x0100,Alpha-Illidan,0x0,0x0,0x0200,Bravo-Illidan,0x0,0x0,1337,Chaos Bolt,0x0,1200,0,0,0,0,0,0,0
+                           1/2/2024 19:10:05.300  SPELL_HEAL,0x0200,Bravo-Illidan,0x0,0x0,0x0100,Alpha-Illidan,0x0,0x0,2337,Rejuvenation,0x0,0,900,0,0,0,0,0,0
+                           1/2/2024 19:10:30.000  ZONE_CHANGE,87,Stormwind City,,,,,,,,,,,,
+                           """;
 
         await using var stream = new MemoryStream(Encoding.UTF8.GetBytes(log));
 
@@ -44,7 +45,7 @@ public class CombatLogIngestionServiceTests
         match.Id.Should().BeGreaterThan(0);
         match.ArenaZone.Should().Be(ArenaZone.NagrandArena);
         match.GameMode.Should().Be(GameMode.TwoVsTwo);
-
+        match.MapName.Should().Be(nameof(ArenaZone.NagrandArena));
         playerRepo.Entities.Should().HaveCount(2);
         resultRepo.Entities.Should().HaveCount(2);
         entryRepo.Entities.Should().HaveCount(2);
@@ -60,7 +61,7 @@ public class CombatLogIngestionServiceTests
         var entryRepo = new InMemoryRepository<CombatLogEntry>(e => e.Id);
         var wowApiService = new MockWowApiService();
 
-        var sut = new CombatLogIngestionService(playerRepo, matchRepo, resultRepo, entryRepo, wowApiService, NullLogger<CombatLogIngestionService>.Instance);
+        var sut = new CombatLogIngestionService(playerRepo, matchRepo, resultRepo, entryRepo, wowApiService, NullLogger<CombatLogIngestionService>.Instance, new LoggerFactory());
 
         const string log = "1/2/2024 19:10:03.100  ZONE_CHANGE,1,Elwynn Forest";
 

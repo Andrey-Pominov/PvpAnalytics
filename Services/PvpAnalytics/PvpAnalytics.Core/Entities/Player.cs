@@ -7,6 +7,7 @@ public class Player
     public string Realm { get; set; }
     public string Class { get; set; }
     public string Faction { get; set; }
+    public string Spec { get; set; }
 
     public ICollection<MatchResult> MatchResults { get; set; }
     public ICollection<CombatLogEntry> SourceCombatLogs { get; set; }

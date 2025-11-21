@@ -59,6 +59,7 @@ public sealed class TestIngestionState
         {
             Id = 100,
             ArenaZone = ArenaZone.DalaranArena,
+            MapName = nameof(ArenaZone.DalaranArena),
             ArenaMatchId = Guid.NewGuid().ToString("N"),
             CreatedOn = DateTime.UtcNow,
             UniqueHash = Guid.NewGuid().ToString("N"),

@@ -21,17 +21,16 @@ public class LuaCombatLogIngestionService(
     ILogger<LuaCombatLogIngestionService> logger)
     : ICombatLogIngestionService
 {
-    private readonly ILogger<LuaCombatLogIngestionService> _logger = logger;
     private readonly PlayerCache _playerCache = new PlayerCache(playerRepo);
     private readonly Dictionary<string, string> _playerRegions = new(StringComparer.OrdinalIgnoreCase);
 
     public async Task<List<Match>> IngestAsync(Stream fileStream, CancellationToken ct = default)
     {
-        _logger.LogInformation("Lua combat log ingestion started.");
+        logger.LogInformation("Lua combat log ingestion started.");
 
         // Parse Lua table structure
         var luaMatches = LuaTableParser.Parse(fileStream);
-        _logger.LogInformation("Parsed {MatchCount} match(es) from Lua table.", luaMatches.Count);
+        logger.LogInformation("Parsed {MatchCount} match(es) from Lua table.", luaMatches.Count);
 
         var allPersistedMatches = new List<Match>();
 
@@ -43,12 +42,12 @@ public class LuaCombatLogIngestionService(
                 if (persistedMatch != null && persistedMatch.Id > 0)
                 {
                     allPersistedMatches.Add(persistedMatch);
-                    _logger.LogInformation("Persisted match {MatchId} from Lua format.", persistedMatch.Id);
+                    logger.LogInformation("Persisted match {MatchId} from Lua format.", persistedMatch.Id);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to process Lua match with zone {Zone}, start {StartTime}", 
+                logger.LogError(ex, "Failed to process Lua match with zone {Zone}, start {StartTime}", 
                     luaMatch.Zone, luaMatch.StartTime);
             }
         }
@@ -63,7 +62,7 @@ public class LuaCombatLogIngestionService(
         // Persist any updates from enrichment
         await _playerCache.BatchPersistAsync(ct);
 
-        _logger.LogInformation("Lua combat log ingestion completed. Persisted {MatchCount} match(es).",
+        logger.LogInformation("Lua combat log ingestion completed. Persisted {MatchCount} match(es).",
             allPersistedMatches.Count);
         return allPersistedMatches;
     }
@@ -74,7 +73,7 @@ public class LuaCombatLogIngestionService(
         if (!TryParseDateTime(luaMatch.StartTime, out var startTime) ||
             !TryParseDateTime(luaMatch.EndTime, out var endTime))
         {
-            _logger.LogWarning("Failed to parse timestamps for match. Start: {Start}, End: {End}",
+            logger.LogWarning("Failed to parse timestamps for match. Start: {Start}, End: {End}",
                 luaMatch.StartTime, luaMatch.EndTime);
             return null;
         }
@@ -145,6 +144,7 @@ public class LuaCombatLogIngestionService(
         var arenaMatchId = GenerateArenaMatchId(luaMatch, startTime, endTime);
 
         // Finalize and persist match
+        var mapName = ArenaZoneIds.GetDisplayName(arenaZone);
         var match = await FinalizeAndPersistAsync(
             arenaZone,
             startTime,
@@ -155,7 +155,8 @@ public class LuaCombatLogIngestionService(
             playerSpells,
             ct,
             gameMode,
-            arenaMatchId);
+            arenaMatchId,
+            mapName);
 
         return match;
     }
@@ -351,13 +352,14 @@ public class LuaCombatLogIngestionService(
 
             var originalClass = player.Class;
             var originalFaction = player.Faction;
+            var originalSpec = player.Spec;
 
             PlayerInfoExtractor.UpdatePlayerFromSpells(player, spells);
 
-            if (player.Class == originalClass && player.Faction == originalFaction) continue;
+            if (player.Class == originalClass && player.Faction == originalFaction && player.Spec == originalSpec) continue;
             _playerCache.MarkForUpdate(player);
-            _logger.LogDebug("Marked player {PlayerName} for update: Class={Class}, Faction={Faction}",
-                player.Name, player.Class, player.Faction);
+            logger.LogDebug("Marked player {PlayerName} for update: Class={Class}, Faction={Faction}, Spec={Spec}",
+                player.Name, player.Class, player.Faction, player.Spec);
         }
 
         return Task.CompletedTask;
@@ -365,6 +367,7 @@ public class LuaCombatLogIngestionService(
 
     private async Task EnrichPlayersWithWowApiAsync(List<string> playerNamesToEnrich, CancellationToken ct)
     {
+        // Note: Spec is not available from WoW API, so we only enrich for missing Class/Faction
         var playersToEnrich = playerNamesToEnrich
             .Select(name => _playerCache.GetCached(name))
             .OfType<Player>()
@@ -397,14 +400,14 @@ public class LuaCombatLogIngestionService(
                     if (needsUpdate)
                     {
                         _playerCache.MarkForUpdate(player);
-                        _logger.LogDebug("Enriched player {PlayerName} from WoW API: Class={Class}, Faction={Faction}",
+                        logger.LogDebug("Enriched player {PlayerName} from WoW API: Class={Class}, Faction={Faction}",
                             player.Name, player.Class, player.Faction);
                     }
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to enrich player {PlayerName} from WoW API", player.Name);
+                logger.LogWarning(ex, "Failed to enrich player {PlayerName} from WoW API", player.Name);
             }
         }
     }
@@ -419,22 +422,55 @@ public class LuaCombatLogIngestionService(
         Dictionary<string, HashSet<string>> playerSpells,
         CancellationToken ct,
         GameMode gameMode,
-        string arenaMatchId)
+        string arenaMatchId,
+        string mapName)
     {
+        var uniqueHash = ComputeMatchHash(participants, start, end, arenaMatchId);
+
         var match = new Match
         {
             CreatedOn = start ?? DateTime.UtcNow,
+            MapName = mapName,
             ArenaZone = arenaZone,
             ArenaMatchId = arenaMatchId,
             GameMode = gameMode,
             Duration = start.HasValue && end.HasValue ? (long)(end.Value - start.Value).TotalSeconds : 0,
             IsRanked = true,
-            UniqueHash = ComputeMatchHash(participants, start, end, arenaMatchId)
+            UniqueHash = uniqueHash
         };
-        match = await matchRepo.AddAsync(match, ct);
 
-        _logger.LogDebug("Persisted match {MatchId} with {ParticipantCount} participants.", match.Id,
-            participants.Count);
+        try
+        {
+            match = await matchRepo.AddAsync(match, ct);
+            logger.LogInformation("Persisted new match {MatchId} with UniqueHash {UniqueHash} and {ParticipantCount} participants.", 
+                match.Id, uniqueHash, participants.Count);
+        }
+        catch (Exception ex)
+        {
+            // Check if this is a unique constraint violation (PostgreSQL error code 23505)
+            var isUniqueConstraintViolation = ex.GetType().FullName?.Contains("DbUpdateException") == true &&
+                                              ex.InnerException?.GetType().FullName?.Contains("PostgresException") == true &&
+                                              (ex.InnerException.GetType().GetProperty("SqlState")?.GetValue(ex.InnerException)?.ToString() == "23505" ||
+                                               ex.Message.Contains("23505") ||
+                                               ex.Message.Contains("duplicate key value") ||
+                                               ex.Message.Contains("IX_Matches_UniqueHash"));
+
+            if (isUniqueConstraintViolation)
+            {
+                // Unique constraint violation - match already exists
+                logger.LogInformation("Match with UniqueHash {UniqueHash} already exists in database, returning existing match.", uniqueHash);
+                
+                // Re-query to get the existing match
+                var existingMatches = await matchRepo.ListAsync(m => m.UniqueHash == uniqueHash, ct);
+                if (existingMatches.Count > 0)
+                {
+                    return existingMatches[0]; // Return existing match (skip creating entries/results for duplicate)
+                }
+            }
+            
+            // If not a unique constraint violation or query failed, re-throw
+            throw;
+        }
 
         foreach (var e in entries)
         {
