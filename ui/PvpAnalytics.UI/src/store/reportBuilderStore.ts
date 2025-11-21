@@ -172,4 +172,3 @@ export const useReportBuilderStore = create<ReportBuilderState>((set, get) => ({
     saveToStorage(updatedLayouts)
   },
 }))
-

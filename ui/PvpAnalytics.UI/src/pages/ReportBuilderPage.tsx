@@ -238,4 +238,3 @@ const ReportBuilderPage = () => {
 }
 
 export default ReportBuilderPage
-

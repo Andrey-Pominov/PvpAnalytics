@@ -61,5 +61,3 @@ public class MatchesController(ICrudService<Match> service, IMatchDetailService 
         return NoContent();
     }
 }
-
-

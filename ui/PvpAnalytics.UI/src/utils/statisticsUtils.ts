@@ -110,17 +110,25 @@ export function detectAnomaliesInData<T>(
 /**
  * Simple linear regression to calculate trend
  * Returns slope and intercept for y = mx + b
+ * Handles single-point data by returning flat line (slope = 0)
  */
 function linearRegression(x: number[], y: number[]): { slope: number; intercept: number } {
   const n = x.length
   if (n === 0) return { slope: 0, intercept: 0 }
+  
+  // Guard against single-point data to avoid 0/0 division
+  if (n === 1) {
+    return { slope: 0, intercept: y[0] || 0 }
+  }
 
   const sumX = x.reduce((acc, val) => acc + val, 0)
   const sumY = y.reduce((acc, val) => acc + val, 0)
   const sumXY = x.reduce((acc, val, idx) => acc + val * y[idx], 0)
   const sumXX = x.reduce((acc, val) => acc + val * val, 0)
 
-  const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX)
+  const denominator = n * sumXX - sumX * sumX
+  // Guard against division by zero
+  const slope = denominator !== 0 ? (n * sumXY - sumX * sumY) / denominator : 0
   const intercept = (sumY - slope * sumX) / n
 
   return { slope, intercept }
@@ -164,11 +172,31 @@ export function generateForecast(
     }
   }
 
+  // Handle single-point historical data to avoid NaN outputs
+  // With only one point, linear regression would compute 0/0 for slope denominator
+  if (historicalValues.length === 1) {
+    return {
+      projectedValue: historicalValues[0],
+      confidence: 'low', // Low confidence with insufficient data
+      trend: 'stable', // Cannot determine trend from single point
+    }
+  }
+
   // Use indices as x values (time points)
   const x = historicalValues.map((_, idx) => idx)
   const y = historicalValues
 
   const { slope, intercept } = linearRegression(x, y)
+  
+  // Guard against NaN values from regression
+  if (!Number.isFinite(slope) || !Number.isFinite(intercept)) {
+    return {
+      projectedValue: historicalValues[historicalValues.length - 1],
+      confidence: 'low',
+      trend: 'stable',
+    }
+  }
+  
   const rSquared = calculateRSquared(x, y, slope, intercept)
 
   // Project forward
@@ -258,3 +286,35 @@ export function detectWinRateAnomaly(
   }
 }
 
+/**
+ * Calculates a classic trailing moving average.
+ * Only uses previous data points, not future ones.
+ */
+export function calculateTrailingMovingAverage(
+  data: number[],
+  windowSize: number
+): number[] {
+  if (windowSize <= 0 || data.length === 0) {
+    return []
+  }
+
+  const result: number[] = []
+
+  for (let i = 0; i < data.length; i++) {
+    // Classic trailing window: only look back
+    const start = Math.max(0, i - windowSize + 1)
+    const end = i + 1
+
+    let sum = 0
+    let count = 0
+
+    for (let j = start; j < end; j++) {
+      sum += data[j]
+      count++
+    }
+
+    result.push(count > 0 ? sum / count : data[i])
+  }
+
+  return result
+}

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { exportToCSV, exportToJSON } from '../../utils/exportUtils'
 
 interface ExportButtonProps<T extends Record<string, unknown>> {
@@ -6,6 +6,7 @@ interface ExportButtonProps<T extends Record<string, unknown>> {
   filename: string
   headers?: string[]
   className?: string
+  disabled?: boolean
 }
 
 const ExportButton = <T extends Record<string, unknown>>({
@@ -13,8 +14,52 @@ const ExportButton = <T extends Record<string, unknown>>({
   filename,
   headers,
   className = '',
+  disabled = false,
 }: ExportButtonProps<T>) => {
   const [showMenu, setShowMenu] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const menuId = `export-menu-${Math.random().toString(36).substring(7)}`
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(event.target as Node) &&
+        buttonRef.current &&
+        !buttonRef.current.contains(event.target as Node)
+      ) {
+        setShowMenu(false)
+      }
+    }
+
+    if (showMenu) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showMenu])
+
+  // Handle keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!showMenu) return
+
+      if (event.key === 'Escape') {
+        setShowMenu(false)
+        buttonRef.current?.focus()
+      }
+
+      if (event.key === 'Tab' && !menuRef.current?.contains(event.target as Node)) {
+        setShowMenu(false)
+      }
+    }
+
+    if (showMenu) {
+      document.addEventListener('keydown', handleKeyDown)
+      return () => document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [showMenu])
 
   const handleExportCSV = () => {
     exportToCSV(data, filename, headers)
@@ -26,13 +71,18 @@ const ExportButton = <T extends Record<string, unknown>>({
     setShowMenu(false)
   }
 
-  if (data.length === 0) {
+  if (data.length === 0 || disabled) {
     return null
   }
 
   return (
     <div className={`relative ${className}`}>
       <button
+        ref={buttonRef}
+        type="button"
+        aria-expanded={showMenu}
+        aria-controls={menuId}
+        aria-haspopup="menu"
         onClick={() => setShowMenu(!showMenu)}
         className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-text-muted transition-colors hover:bg-surface/50 hover:text-text"
         aria-label="Export data"
@@ -64,29 +114,32 @@ const ExportButton = <T extends Record<string, unknown>>({
       </button>
 
       {showMenu && (
-        <>
-          {/* Backdrop to close menu */}
-          <div
-            className="fixed inset-0 z-10"
-            onClick={() => setShowMenu(false)}
-            aria-hidden="true"
-          />
-          {/* Menu */}
-          <div className="absolute right-0 top-full z-20 mt-2 w-40 rounded-lg border border-accent-muted/40 bg-surface/95 shadow-lg backdrop-blur-lg">
-            <button
-              onClick={handleExportCSV}
-              className="w-full rounded-t-lg px-4 py-2 text-left text-sm text-text transition-colors hover:bg-surface/70"
-            >
-              Export as CSV
-            </button>
-            <button
-              onClick={handleExportJSON}
-              className="w-full rounded-b-lg px-4 py-2 text-left text-sm text-text transition-colors hover:bg-surface/70"
-            >
-              Export as JSON
-            </button>
-          </div>
-        </>
+        <div
+          ref={menuRef}
+          id={menuId}
+          role="menu"
+          aria-label="Export options"
+          className="absolute right-0 top-full z-20 mt-2 w-40 rounded-lg border border-accent-muted/40 bg-surface/95 shadow-lg backdrop-blur-lg"
+        >
+          <button
+            type="button"
+            role="menuitem"
+            onClick={handleExportCSV}
+            className="w-full rounded-t-lg px-4 py-2 text-left text-sm text-text transition-colors hover:bg-surface/70"
+            tabIndex={0}
+          >
+            Export as CSV
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={handleExportJSON}
+            className="w-full rounded-b-lg px-4 py-2 text-left text-sm text-text transition-colors hover:bg-surface/70"
+            tabIndex={0}
+          >
+            Export as JSON
+          </button>
+        </div>
       )}
     </div>
   )

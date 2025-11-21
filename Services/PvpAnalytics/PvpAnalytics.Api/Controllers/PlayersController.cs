@@ -21,14 +21,6 @@ public class PlayersController(
         => Ok(await service.GetAllAsync(ct));
 
     [AllowAnonymous]
-    [HttpGet("{id:long}")]
-    public async Task<ActionResult<Player>> Get(long id, CancellationToken ct)
-    {
-        var entity = await service.GetAsync(id, ct);
-        return entity is null ? NotFound() : Ok(entity);
-    }
-
-    [AllowAnonymous]
     [HttpGet("{id:long}/stats")]
     public async Task<ActionResult<PlayerStatsDto>> GetStats(long id, CancellationToken ct)
     {
@@ -38,44 +30,91 @@ public class PlayersController(
             return NotFound();
         }
 
-        var matchResults = await matchResultRepo.ListAsync(mr => mr.PlayerId == id, ct);
-        var totalMatches = matchResults.Count;
-        var wins = matchResults.Count(mr => mr.IsWinner);
-        var losses = totalMatches - wins;
-        var winRate = totalMatches > 0 ? (double)wins / totalMatches * 100 : 0;
+        // Database-side aggregation query: Join MatchResult with Match and aggregate in database
+        var joinedQuery = matchResultRepo.Query()
+            .Where(mr => mr.PlayerId == id)
+            .Join(
+                matchRepo.Query(),
+                mr => mr.MatchId,
+                m => m.Id,
+                (mr, m) => new { MatchResult = mr, Match = m }
+            );
 
-        // Get match durations
-        var matchIds = matchResults.Select(mr => mr.MatchId).ToList();
-        var matches = await matchRepo.ListAsync(m => matchIds.Contains(m.Id), ct);
-        var averageDuration = matches.Any() ? matches.Average(m => m.Duration) : 0;
+        // Check if player has any matches
+        var hasMatches = await joinedQuery.AnyAsync(ct);
+        if (!hasMatches)
+        {
+            return Ok(new PlayerStatsDto
+            {
+                PlayerId = player.Id,
+                PlayerName = player.Name,
+                Realm = player.Realm,
+                TotalMatches = 0,
+                Wins = 0,
+                Losses = 0,
+                WinRate = 0.0,
+                AverageMatchDuration = 0.0,
+                FavoriteGameMode = null,
+                FavoriteSpec = null,
+            });
+        }
 
-        // Find favorite game mode
-        var gameModeGroups = matches
-            .GroupBy(m => m.GameMode)
-            .OrderByDescending(g => g.Count())
-            .ToList();
-        var favoriteGameMode = gameModeGroups.FirstOrDefault()?.Key;
+        // Aggregate stats in database
+        var statsQuery = joinedQuery
+            .GroupBy(x => x.MatchResult.PlayerId)
+            .Select(g => new
+            {
+                PlayerId = g.Key,
+                TotalMatches = g.Count(),
+                Wins = g.Count(x => x.MatchResult.IsWinner),
+                AverageMatchDuration = g.Average(x => (double)x.Match.Duration),
+            });
 
-        // Find favorite spec
-        var specGroups = matchResults
-            .Where(mr => !string.IsNullOrWhiteSpace(mr.Spec))
-            .GroupBy(mr => mr.Spec)
-            .OrderByDescending(g => g.Count())
-            .ToList();
-        var favoriteSpec = specGroups.FirstOrDefault()?.Key;
+        var baseStats = await statsQuery.FirstOrDefaultAsync(ct);
+        if (baseStats == null)
+        {
+            return Ok(new PlayerStatsDto
+            {
+                PlayerId = player.Id,
+                PlayerName = player.Name,
+                Realm = player.Realm,
+                TotalMatches = 0,
+                Wins = 0,
+                Losses = 0,
+                WinRate = 0.0,
+                AverageMatchDuration = 0.0,
+                FavoriteGameMode = null,
+                FavoriteSpec = null,
+            });
+        }
+
+        // Get favorite game mode (separate query for better SQL translation)
+        var favoriteGameMode = await joinedQuery
+            .GroupBy(x => x.Match.GameMode)
+            .Select(g => new { GameMode = g.Key, Count = g.Count() })
+            .OrderByDescending(g => g.Count)
+            .FirstOrDefaultAsync(ct);
+
+        // Get favorite spec (separate query for better SQL translation)
+        var favoriteSpec = await matchResultRepo.Query()
+            .Where(mr => mr.PlayerId == id && mr.Spec != null && mr.Spec != string.Empty)
+            .GroupBy(mr => mr.Spec!)
+            .Select(g => new { Spec = g.Key, Count = g.Count() })
+            .OrderByDescending(g => g.Count)
+            .FirstOrDefaultAsync(ct);
 
         var stats = new PlayerStatsDto
         {
-            PlayerId = player.Id,
+            PlayerId = baseStats.PlayerId,
             PlayerName = player.Name,
             Realm = player.Realm,
-            TotalMatches = totalMatches,
-            Wins = wins,
-            Losses = losses,
-            WinRate = Math.Round(winRate, 2),
-            AverageMatchDuration = Math.Round(averageDuration, 2),
-            FavoriteGameMode = favoriteGameMode,
-            FavoriteSpec = favoriteSpec
+            TotalMatches = baseStats.TotalMatches,
+            Wins = baseStats.Wins,
+            Losses = baseStats.TotalMatches - baseStats.Wins,
+            WinRate = baseStats.TotalMatches > 0 ? Math.Round(baseStats.Wins * 100.0 / baseStats.TotalMatches, 2) : 0.0,
+            AverageMatchDuration = Math.Round(baseStats.AverageMatchDuration, 2),
+            FavoriteGameMode = favoriteGameMode != null ? favoriteGameMode.GameMode.ToString() : null,
+            FavoriteSpec = favoriteSpec?.Spec
         };
 
         return Ok(stats);
@@ -83,44 +122,81 @@ public class PlayersController(
 
     [AllowAnonymous]
     [HttpGet("{id:long}/matches")]
-    public async Task<ActionResult<IEnumerable<PlayerMatchDto>>> GetMatches(long id, CancellationToken ct)
+    public async Task<ActionResult<IEnumerable<PlayerMatchDto>>> GetMatches(
+        long id,
+        [FromQuery] int skip = 0,
+        [FromQuery] int take = 100,
+        CancellationToken ct = default)
     {
+        // Validate pagination parameters
+        if (skip < 0)
+        {
+            return BadRequest("skip must be greater than or equal to 0");
+        }
+
+        const int maxTake = 1000;
+        if (take <= 0)
+        {
+            return BadRequest("take must be greater than 0");
+        }
+
+        if (take > maxTake)
+        {
+            return BadRequest($"take must not exceed {maxTake}");
+        }
+
+        // Verify player exists
         var player = await service.GetAsync(id, ct);
         if (player is null)
         {
             return NotFound();
         }
 
-        var matchResults = await matchResultRepo.ListAsync(mr => mr.PlayerId == id, ct);
-        var matchIds = matchResults.Select(mr => mr.MatchId).ToList();
-        var matches = await matchRepo.ListAsync(m => matchIds.Contains(m.Id), ct);
-
-        var matchDict = matches.ToDictionary(m => m.Id);
-        var resultDict = matchResults.ToDictionary(mr => mr.MatchId);
-
-        var playerMatches = matches
-            .OrderByDescending(m => m.CreatedOn)
-            .Select(m =>
-            {
-                var result = resultDict.GetValueOrDefault(m.Id);
-                return new PlayerMatchDto
+        // Single efficient database query: Join MatchResult with Match, filter by PlayerId,
+        // order by most recent (CreatedOn descending), and apply pagination
+        // Query() already uses AsNoTracking() for read-only queries
+        var matchesQuery = matchResultRepo.Query()
+            .Where(mr => mr.PlayerId == id)
+            .Join(
+                matchRepo.Query(),
+                mr => mr.MatchId,
+                m => m.Id,
+                (mr, m) => new
                 {
-                    MatchId = m.Id,
-                    CreatedOn = m.CreatedOn,
-                    MapName = m.MapName,
-                    ArenaZone = (int)m.ArenaZone,
-                    GameMode = m.GameMode,
-                    Duration = m.Duration,
-                    IsRanked = m.IsRanked,
-                    IsWinner = result?.IsWinner ?? false,
-                    RatingBefore = result?.RatingBefore ?? 0,
-                    RatingAfter = result?.RatingAfter ?? 0,
-                    Spec = result?.Spec
-                };
-            })
-            .ToList();
+                    MatchResult = mr,
+                    Match = m
+                }
+            )
+            .OrderByDescending(x => x.Match.CreatedOn)
+            .Skip(skip)
+            .Take(take)
+            .Select(x => new PlayerMatchDto
+            {
+                MatchId = x.Match.Id,
+                CreatedOn = x.Match.CreatedOn,
+                MapName = x.Match.MapName,
+                GameMode = x.Match.GameMode.ToString(),
+                Duration = x.Match.Duration,
+                IsWinner = x.MatchResult.IsWinner,
+                RatingBefore = x.MatchResult.RatingBefore,
+                RatingAfter = x.MatchResult.RatingAfter,
+                RatingChange = x.MatchResult.RatingAfter - x.MatchResult.RatingBefore,
+                Spec = x.MatchResult.Spec,
+                Team = x.MatchResult.Team
+            });
 
-        return Ok(playerMatches);
+        var matches = await matchesQuery.ToListAsync(ct);
+
+        // Handle missing results - return empty list if player has no matches (valid case)
+        return Ok(matches);
+    }
+
+    [AllowAnonymous]
+    [HttpGet("{id:long}")]
+    public async Task<ActionResult<Player>> Get(long id, CancellationToken ct)
+    {
+        var entity = await service.GetAsync(id, ct);
+        return entity is null ? NotFound() : Ok(entity);
     }
 
     [Authorize(Roles = "Admin")]

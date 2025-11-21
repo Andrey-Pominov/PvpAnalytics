@@ -1,9 +1,11 @@
+using System.Linq;
 using System.Linq.Expressions;
 
 namespace PvpAnalytics.Core.Repositories;
 
 public interface IRepository<TEntity> where TEntity : class
 {
+    IQueryable<TEntity> Query();
     Task<TEntity?> GetByIdAsync(long id, CancellationToken ct = default);
     Task<IReadOnlyList<TEntity>> ListAsync(CancellationToken ct = default);
     Task<IReadOnlyList<TEntity>> ListAsync(Expression<Func<TEntity, bool>> predicate, CancellationToken ct = default);

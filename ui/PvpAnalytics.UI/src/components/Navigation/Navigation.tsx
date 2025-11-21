@@ -1,9 +1,12 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { useState } from 'react'
 import SearchBar from '../SearchBar/SearchBar'
+import axios from 'axios'
 
 const Navigation = () => {
   const location = useLocation()
   const navigate = useNavigate()
+  const [searchLoading, setSearchLoading] = useState(false)
 
   const navItems = [
     { path: '/', label: 'Stats', icon: '📊' },
@@ -12,7 +15,9 @@ const Navigation = () => {
     { path: '/upload', label: 'Upload', icon: '📤' },
   ]
 
-  const handleGlobalSearch = (term: string) => {
+  // Handle search: distinguish between player ID and match ID
+  // Numeric IDs are checked as match first, then player; non-numeric searches go to players page
+  const handleSearch = async (term: string) => {
     if (!term.trim()) {
       // Clear search if empty
       if (location.pathname === '/players') {
@@ -21,16 +26,57 @@ const Navigation = () => {
       return
     }
 
-    // Try to parse as player ID or match ID
-    const numId = parseInt(term, 10)
-    if (!isNaN(numId) && numId > 0) {
-      // Check if it's a player ID (try navigating to player profile)
-      navigate(`/players/${numId}`)
-      return
+    const trimmedTerm = term.trim()
+    const isNumericId = /^\d+$/.test(trimmedTerm)
+    
+    if (isNumericId) {
+      setSearchLoading(true)
+      try {
+        const baseUrl = import.meta.env.VITE_ANALYTICS_API_BASE_URL || 'http://localhost:8080/api'
+        
+        // Try to fetch as match first (matches are typically searched by numeric ID)
+        try {
+          const { data: match } = await axios.get<{ id: number }>(`${baseUrl}/matches/${trimmedTerm}`, {
+            validateStatus: (status) => status === 200 || status === 404,
+          })
+          
+          if (match?.id) {
+            // Match found - navigate to match detail page
+            navigate(`/matches/${trimmedTerm}`)
+            return
+          }
+        } catch {
+          // Match not found or error - continue to player lookup
+        }
+        
+        // Try to fetch as player
+        try {
+          const { data: player } = await axios.get<{ id: number }>(`${baseUrl}/players/${trimmedTerm}`, {
+            validateStatus: (status) => status === 200 || status === 404,
+          })
+          
+          if (player?.id) {
+            // Player found - navigate to player profile page
+            navigate(`/players/${trimmedTerm}`)
+            return
+          }
+        } catch {
+          // Player not found or error
+        }
+        
+        // Neither match nor player found - navigate to players page with search query
+        navigate(`/players?search=${encodeURIComponent(trimmedTerm)}`)
+      } catch (error) {
+        console.error('Search error:', error)
+        // On error, fallback to players page with search query
+        navigate(`/players?search=${encodeURIComponent(trimmedTerm)}`)
+      } finally {
+        setSearchLoading(false)
+      }
+    } else {
+      // Non-numeric search - navigate to players page with search query
+      navigate(`/players?search=${encodeURIComponent(trimmedTerm)}`)
     }
-
-    // Otherwise, search in players page
-    navigate(`/players?search=${encodeURIComponent(term)}`)
   }
 
   return (
@@ -57,8 +103,8 @@ const Navigation = () => {
         </div>
         <div className="flex-1 max-w-md">
           <SearchBar
-            placeholder="Search player ID, match ID, or name..."
-            onSearch={handleGlobalSearch}
+            placeholder={searchLoading ? 'Searching...' : 'Search player ID, match ID, or name...'}
+            onSearch={handleSearch}
           />
         </div>
       </div>

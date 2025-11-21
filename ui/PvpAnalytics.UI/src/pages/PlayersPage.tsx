@@ -9,19 +9,20 @@ import { mockPlayers } from '../mocks/players'
 
 const PlayersPage = () => {
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
   const [players, setPlayers] = useState<Player[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [searchParams, setSearchParams] = useSearchParams()
   const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '')
 
+  // Sync searchTerm to URL search params
   useEffect(() => {
-    // Sync search term from URL params
-    const urlSearch = searchParams.get('search')
-    if (urlSearch !== null && urlSearch !== searchTerm) {
-      setSearchTerm(urlSearch)
+    if (searchTerm.trim()) {
+      setSearchParams({ search: searchTerm }, { replace: true })
+    } else {
+      setSearchParams({}, { replace: true })
     }
-  }, [searchParams])
+  }, [searchTerm, setSearchParams])
 
   useEffect(() => {
     const abortController = new AbortController()
