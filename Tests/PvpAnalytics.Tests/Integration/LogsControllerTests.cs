@@ -50,6 +50,7 @@ public class LogsControllerTests : IClassFixture<PvpAnalyticsApiFactory>, IDispo
                 {
                     Id = 42,
                     ArenaZone = ArenaZone.NagrandArena,
+                    MapName = nameof(ArenaZone.NagrandArena),
                     CreatedOn = DateTime.UtcNow,
                     UniqueHash = Guid.NewGuid().ToString("N"),
                     GameMode = GameMode.ThreeVsThree,

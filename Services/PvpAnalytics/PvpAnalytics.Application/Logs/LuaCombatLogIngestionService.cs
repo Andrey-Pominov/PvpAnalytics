@@ -21,17 +21,16 @@ public class LuaCombatLogIngestionService(
     ILogger<LuaCombatLogIngestionService> logger)
     : ICombatLogIngestionService
 {
-    private readonly ILogger<LuaCombatLogIngestionService> _logger = logger;
     private readonly PlayerCache _playerCache = new PlayerCache(playerRepo);
     private readonly Dictionary<string, string> _playerRegions = new(StringComparer.OrdinalIgnoreCase);
 
     public async Task<List<Match>> IngestAsync(Stream fileStream, CancellationToken ct = default)
     {
-        _logger.LogInformation("Lua combat log ingestion started.");
+        logger.LogInformation("Lua combat log ingestion started.");
 
         // Parse Lua table structure
         var luaMatches = LuaTableParser.Parse(fileStream);
-        _logger.LogInformation("Parsed {MatchCount} match(es) from Lua table.", luaMatches.Count);
+        logger.LogInformation("Parsed {MatchCount} match(es) from Lua table.", luaMatches.Count);
 
         var allPersistedMatches = new List<Match>();
 
@@ -43,12 +42,12 @@ public class LuaCombatLogIngestionService(
                 if (persistedMatch != null && persistedMatch.Id > 0)
                 {
                     allPersistedMatches.Add(persistedMatch);
-                    _logger.LogInformation("Persisted match {MatchId} from Lua format.", persistedMatch.Id);
+                    logger.LogInformation("Persisted match {MatchId} from Lua format.", persistedMatch.Id);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to process Lua match with zone {Zone}, start {StartTime}", 
+                logger.LogError(ex, "Failed to process Lua match with zone {Zone}, start {StartTime}", 
                     luaMatch.Zone, luaMatch.StartTime);
             }
         }
@@ -63,7 +62,7 @@ public class LuaCombatLogIngestionService(
         // Persist any updates from enrichment
         await _playerCache.BatchPersistAsync(ct);
 
-        _logger.LogInformation("Lua combat log ingestion completed. Persisted {MatchCount} match(es).",
+        logger.LogInformation("Lua combat log ingestion completed. Persisted {MatchCount} match(es).",
             allPersistedMatches.Count);
         return allPersistedMatches;
     }
@@ -74,7 +73,7 @@ public class LuaCombatLogIngestionService(
         if (!TryParseDateTime(luaMatch.StartTime, out var startTime) ||
             !TryParseDateTime(luaMatch.EndTime, out var endTime))
         {
-            _logger.LogWarning("Failed to parse timestamps for match. Start: {Start}, End: {End}",
+            logger.LogWarning("Failed to parse timestamps for match. Start: {Start}, End: {End}",
                 luaMatch.StartTime, luaMatch.EndTime);
             return null;
         }
@@ -351,13 +350,14 @@ public class LuaCombatLogIngestionService(
 
             var originalClass = player.Class;
             var originalFaction = player.Faction;
+            var originalSpec = player.Spec;
 
             PlayerInfoExtractor.UpdatePlayerFromSpells(player, spells);
 
-            if (player.Class == originalClass && player.Faction == originalFaction) continue;
+            if (player.Class == originalClass && player.Faction == originalFaction && player.Spec == originalSpec) continue;
             _playerCache.MarkForUpdate(player);
-            _logger.LogDebug("Marked player {PlayerName} for update: Class={Class}, Faction={Faction}",
-                player.Name, player.Class, player.Faction);
+            logger.LogDebug("Marked player {PlayerName} for update: Class={Class}, Faction={Faction}, Spec={Spec}",
+                player.Name, player.Class, player.Faction, player.Spec);
         }
 
         return Task.CompletedTask;
@@ -368,7 +368,7 @@ public class LuaCombatLogIngestionService(
         var playersToEnrich = playerNamesToEnrich
             .Select(name => _playerCache.GetCached(name))
             .OfType<Player>()
-            .Where(cached => string.IsNullOrWhiteSpace(cached.Class) || string.IsNullOrWhiteSpace(cached.Faction))
+            .Where(cached => string.IsNullOrWhiteSpace(cached.Class) || string.IsNullOrWhiteSpace(cached.Faction) || string.IsNullOrWhiteSpace(cached.Spec))
             .ToList();
 
         foreach (var player in playersToEnrich)
@@ -397,14 +397,14 @@ public class LuaCombatLogIngestionService(
                     if (needsUpdate)
                     {
                         _playerCache.MarkForUpdate(player);
-                        _logger.LogDebug("Enriched player {PlayerName} from WoW API: Class={Class}, Faction={Faction}",
+                        logger.LogDebug("Enriched player {PlayerName} from WoW API: Class={Class}, Faction={Faction}",
                             player.Name, player.Class, player.Faction);
                     }
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to enrich player {PlayerName} from WoW API", player.Name);
+                logger.LogWarning(ex, "Failed to enrich player {PlayerName} from WoW API", player.Name);
             }
         }
     }
@@ -421,19 +421,30 @@ public class LuaCombatLogIngestionService(
         GameMode gameMode,
         string arenaMatchId)
     {
+        var uniqueHash = ComputeMatchHash(participants, start, end, arenaMatchId);
+        
+        // Check if match with this UniqueHash already exists
+        var existingMatches = await matchRepo.ListAsync(m => m.UniqueHash == uniqueHash, ct);
+        if (existingMatches.Count > 0)
+        {
+            logger.LogInformation("Match with UniqueHash {UniqueHash} already exists, skipping duplicate.", uniqueHash);
+            return existingMatches[0]; // Return existing match
+        }
+
         var match = new Match
         {
             CreatedOn = start ?? DateTime.UtcNow,
+            MapName = "Nagrand Arena",
             ArenaZone = arenaZone,
             ArenaMatchId = arenaMatchId,
             GameMode = gameMode,
             Duration = start.HasValue && end.HasValue ? (long)(end.Value - start.Value).TotalSeconds : 0,
             IsRanked = true,
-            UniqueHash = ComputeMatchHash(participants, start, end, arenaMatchId)
+            UniqueHash = uniqueHash
         };
         match = await matchRepo.AddAsync(match, ct);
 
-        _logger.LogDebug("Persisted match {MatchId} with {ParticipantCount} participants.", match.Id,
+        logger.LogDebug("Persisted match {MatchId} with {ParticipantCount} participants.", match.Id,
             participants.Count);
 
         foreach (var e in entries)

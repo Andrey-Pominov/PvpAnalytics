@@ -1,4 +1,5 @@
 using PvpAnalytics.Core.Entities;
+using PvpAnalytics.Core.Enum;
 using PvpAnalytics.Core.Logs;
 
 namespace PvpAnalytics.Application.Logs;
@@ -72,8 +73,19 @@ public static class PlayerInfoExtractor
             }
         }
 
+        // Determine spec if not set (can be updated even if class is already set)
+        if (string.IsNullOrWhiteSpace(player.Spec))
+        {
+            var detectedSpec = PlayerAttributeMappings.DetermineSpec(spells);
+            if (!string.IsNullOrWhiteSpace(detectedSpec))
+            {
+                player.Spec = detectedSpec;
+            }
+        }
+
         // Determine faction/race if not set
         if (!string.IsNullOrWhiteSpace(player.Faction)) return;
+
         var detectedFaction = PlayerAttributeMappings.DetermineFaction(spells);
         if (!string.IsNullOrWhiteSpace(detectedFaction))
         {
@@ -93,4 +105,3 @@ public static class PlayerInfoExtractor
         return PlayerAttributeMappings.DetermineSpec(spells) ?? string.Empty;
     }
 }
-

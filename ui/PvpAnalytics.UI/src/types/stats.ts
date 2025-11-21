@@ -17,7 +17,7 @@ export interface MatchSummary {
   date: string
   mode: string
   map: string
-  result: 'Victory' | 'Defeat'
+  result?: 'Victory' | 'Defeat'
   duration: string
 }
 

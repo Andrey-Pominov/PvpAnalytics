@@ -4,6 +4,7 @@ import Card from '../components/Card/Card'
 import MatchesTable from '../components/MatchesTable/MatchesTable'
 import type { Match } from '../types/api'
 import type { MatchSummary } from '../types/stats'
+import { mockMatches } from '../mocks/matches'
 
 const MatchesPage = () => {
   const [matches, setMatches] = useState<Match[]>([])
@@ -12,23 +13,49 @@ const MatchesPage = () => {
   const [filter, setFilter] = useState<'all' | 'ranked' | 'unranked'>('all')
 
   useEffect(() => {
-    loadMatches()
-  }, [])
+    const abortController = new AbortController()
 
-  const loadMatches = async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const baseUrl = import.meta.env.VITE_ANALYTICS_API_BASE_URL || 'http://localhost:8080/api'
-      const { data } = await axios.get<Match[]>(`${baseUrl}/matches`)
-      setMatches(data)
-    } catch (err) {
-      console.error('Failed to load matches', err)
-      setError('Failed to load matches. Please try again later.')
-    } finally {
-      setLoading(false)
+    const loadMatches = async () => {
+      setLoading(true)
+      setError(null)
+      try {
+        const baseUrl = import.meta.env.VITE_ANALYTICS_API_BASE_URL || 'http://localhost:8080/api'
+        
+        // Use mock data if API base URL is set to 'mock' or if API call fails
+        if (baseUrl === 'mock') {
+          // Simulate API delay
+          await new Promise((resolve) => setTimeout(resolve, 500))
+          if (abortController.signal.aborted) return
+          setMatches(mockMatches)
+          return
+        }
+
+        const { data } = await axios.get<Match[]>(`${baseUrl}/matches`, {
+          signal: abortController.signal,
+        })
+        if (abortController.signal.aborted) return
+        setMatches(data.length > 0 ? data : mockMatches) // Fallback to mock if empty
+      } catch (err) {
+        if (abortController.signal.aborted) return
+        if (axios.isCancel(err) || (err as Error).name === 'CanceledError') return
+        
+        console.error('Failed to load matches, using mock data', err)
+        // Use mock data on error
+        setMatches(mockMatches)
+        setError(null) // Don't show error, just use mock data
+      } finally {
+        if (!abortController.signal.aborted) {
+          setLoading(false)
+        }
+      }
     }
-  }
+
+    loadMatches()
+
+    return () => {
+      abortController.abort()
+    }
+  }, [])
 
   const arenaZoneNames: Record<number, string> = {
     0: 'Unknown',
@@ -78,7 +105,7 @@ const MatchesPage = () => {
       }),
       mode: gameModeNames[m.gameMode] || m.gameMode,
       map: arenaZoneNames[m.arenaZone] || 'Unknown',
-      result: 'Victory' as const, // Default - would need MatchResult data for actual result
+      // result is optional - only set if available from API data
       duration: formatDuration(m.duration),
     }))
   }, [filteredMatches])

@@ -19,8 +19,6 @@ public class CombatLogIngestionService(
     ILoggerFactory loggerFactory)
     : ICombatLogIngestionService
 {
-    private readonly ILogger<CombatLogIngestionService> _logger = logger;
-    private readonly ILoggerFactory _loggerFactory = loggerFactory;
     private readonly PlayerCache _playerCache = new PlayerCache(playerRepo);
 
     private readonly Dictionary<string, string>
@@ -39,15 +37,15 @@ public class CombatLogIngestionService(
     /// <returns>List of all persisted <see cref="Match"/> entities created from the stream.</returns>
     public async Task<List<Match>> IngestAsync(Stream fileStream, CancellationToken ct = default)
     {
-        _logger.LogInformation("Combat log ingestion started.");
+        logger.LogInformation("Combat log ingestion started.");
 
         // Detect format and route to appropriate service
         var format = CombatLogFormatDetector.DetectFormat(fileStream);
         
         if (format == CombatLogFormat.LuaTable)
         {
-            _logger.LogInformation("Detected Lua table format, routing to Lua parser.");
-            var luaLogger = _loggerFactory.CreateLogger<LuaCombatLogIngestionService>();
+            logger.LogInformation("Detected Lua table format, routing to Lua parser.");
+            var luaLogger = loggerFactory.CreateLogger<LuaCombatLogIngestionService>();
             var luaService = new LuaCombatLogIngestionService(
                 playerRepo,
                 matchRepo,
@@ -59,7 +57,7 @@ public class CombatLogIngestionService(
         }
 
         // Continue with traditional format parsing
-        _logger.LogInformation("Detected traditional format, using standard parser.");
+        logger.LogInformation("Detected traditional format, using standard parser.");
         using var reader = new StreamReader(fileStream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true,
             leaveOpen: true);
 
@@ -104,7 +102,7 @@ public class CombatLogIngestionService(
                         ArenaZoneIds.GetNameOrDefault(currentZoneId.Value);
                     }
 
-                    _logger.LogInformation("Arena match started: {ArenaMatchId} at {Timestamp}", currentArenaMatchId,
+                    logger.LogInformation("Arena match started: {ArenaMatchId} at {Timestamp}", currentArenaMatchId,
                         matchStart);
                     continue;
                 }
@@ -138,7 +136,7 @@ public class CombatLogIngestionService(
                         if (persistedMatch.Id > 0)
                         {
                             allPersistedMatches.Add(persistedMatch);
-                            _logger.LogInformation("Persisted match {MatchId} with arena match ID {ArenaMatchId}.",
+                            logger.LogInformation("Persisted match {MatchId} with arena match ID {ArenaMatchId}.",
                                 persistedMatch.Id, currentArenaMatchId);
                         }
 
@@ -298,7 +296,7 @@ public class CombatLogIngestionService(
             if (persistedMatch.Id > 0)
             {
                 allPersistedMatches.Add(persistedMatch);
-                _logger.LogInformation("Persisted final match {MatchId} with arena match ID {ArenaMatchId}.",
+                logger.LogInformation("Persisted final match {MatchId} with arena match ID {ArenaMatchId}.",
                     persistedMatch.Id, currentArenaMatchId);
             }
         }
@@ -316,7 +314,7 @@ public class CombatLogIngestionService(
         // Persist any updates from enrichment
         await _playerCache.BatchPersistAsync(ct);
 
-        _logger.LogInformation("Combat log ingestion completed. Persisted {MatchCount} match(es).",
+        logger.LogInformation("Combat log ingestion completed. Persisted {MatchCount} match(es).",
             allPersistedMatches.Count);
         return allPersistedMatches;
     }
@@ -351,13 +349,14 @@ public class CombatLogIngestionService(
 
             var originalClass = player.Class;
             var originalFaction = player.Faction;
+            var originalSpec = player.Spec;
 
             PlayerInfoExtractor.UpdatePlayerFromSpells(player, spells);
 
-            if (player.Class == originalClass && player.Faction == originalFaction) continue;
+            if (player.Class == originalClass && player.Faction == originalFaction && player.Spec == originalSpec) continue;
             _playerCache.MarkForUpdate(player);
-            _logger.LogDebug("Marked player {PlayerName} for update: Class={Class}, Faction={Faction}",
-                player.Name, player.Class, player.Faction);
+            logger.LogDebug("Marked player {PlayerName} for update: Class={Class}, Faction={Faction}, Spec={Spec}",
+                player.Name, player.Class, player.Faction, player.Spec);
         }
 
         return Task.CompletedTask;
@@ -369,7 +368,7 @@ public class CombatLogIngestionService(
         var playersToEnrich = playerNamesToEnrich
             .Select(name => _playerCache.GetCached(name))
             .OfType<Player>()
-            .Where(cached => string.IsNullOrWhiteSpace(cached.Class) || string.IsNullOrWhiteSpace(cached.Faction))
+            .Where(cached => string.IsNullOrWhiteSpace(cached.Class) || string.IsNullOrWhiteSpace(cached.Faction) || string.IsNullOrWhiteSpace(cached.Spec))
             .ToList();
 
         foreach (var player in playersToEnrich)
@@ -398,14 +397,14 @@ public class CombatLogIngestionService(
                     if (needsUpdate)
                     {
                         _playerCache.MarkForUpdate(player);
-                        _logger.LogDebug("Enriched player {PlayerName} from WoW API: Class={Class}, Faction={Faction}",
+                        logger.LogDebug("Enriched player {PlayerName} from WoW API: Class={Class}, Faction={Faction}",
                             player.Name, player.Class, player.Faction);
                     }
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to enrich player {PlayerName} from WoW API", player.Name);
+                logger.LogWarning(ex, "Failed to enrich player {PlayerName} from WoW API", player.Name);
             }
         }
     }
@@ -422,19 +421,30 @@ public class CombatLogIngestionService(
         GameMode gameMode,
         string arenaMatchId)
     {
+        var uniqueHash = ComputeMatchHash(participants, start, end, arenaMatchId);
+        
+        // Check if match with this UniqueHash already exists
+        var existingMatches = await matchRepo.ListAsync(m => m.UniqueHash == uniqueHash, ct);
+        if (existingMatches.Count > 0)
+        {
+            logger.LogInformation("Match with UniqueHash {UniqueHash} already exists, skipping duplicate.", uniqueHash);
+            return existingMatches[0]; // Return existing match (skip creating entries/results for duplicate)
+        }
+
         var match = new Match
         {
             CreatedOn = start ?? DateTime.UtcNow,
             ArenaZone = arenaZone,
+            MapName = "Nagrand Arena",
             ArenaMatchId = arenaMatchId,
             GameMode = gameMode,
             Duration = start.HasValue && end.HasValue ? (long)(end.Value - start.Value).TotalSeconds : 0,
             IsRanked = true,
-            UniqueHash = ComputeMatchHash(participants, start, end, arenaMatchId)
+            UniqueHash = uniqueHash
         };
         match = await matchRepo.AddAsync(match, ct);
 
-        _logger.LogDebug("Persisted match {MatchId} with {ParticipantCount} participants.", match.Id,
+        logger.LogDebug("Persisted match {MatchId} with {ParticipantCount} participants.", match.Id,
             participants.Count);
 
         foreach (var e in entries)

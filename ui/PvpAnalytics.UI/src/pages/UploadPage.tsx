@@ -1,4 +1,4 @@
-import { useState, useRef, DragEvent } from 'react'
+import { useState, useRef, type DragEvent } from 'react'
 import axios from 'axios'
 import Card from '../components/Card/Card'
 import type { UploadResponse } from '../types/api'
@@ -74,7 +74,6 @@ const UploadPage = () => {
       formData.append('file', file)
 
       const { data } = await axios.post<UploadResponse>(`${baseUrl}/logs/upload`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
         timeout: 300000, // 5 minutes timeout for large files
       })
 

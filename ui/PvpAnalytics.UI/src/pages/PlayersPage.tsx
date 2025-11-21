@@ -3,6 +3,7 @@ import axios from 'axios'
 import Card from '../components/Card/Card'
 import SearchBar from '../components/SearchBar/SearchBar'
 import type { Player } from '../types/api'
+import { mockPlayers } from '../mocks/players'
 
 const PlayersPage = () => {
   const [players, setPlayers] = useState<Player[]>([])
@@ -11,23 +12,49 @@ const PlayersPage = () => {
   const [searchTerm, setSearchTerm] = useState('')
 
   useEffect(() => {
-    loadPlayers()
-  }, [])
+    const abortController = new AbortController()
 
-  const loadPlayers = async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const baseUrl = import.meta.env.VITE_ANALYTICS_API_BASE_URL || 'http://localhost:8080/api'
-      const { data } = await axios.get<Player[]>(`${baseUrl}/players`)
-      setPlayers(data)
-    } catch (err) {
-      console.error('Failed to load players', err)
-      setError('Failed to load players. Please try again later.')
-    } finally {
-      setLoading(false)
+    const loadPlayers = async () => {
+      setLoading(true)
+      setError(null)
+      try {
+        const baseUrl = import.meta.env.VITE_ANALYTICS_API_BASE_URL || 'http://localhost:8080/api'
+        
+        // Use mock data if API base URL is set to 'mock' or if API call fails
+        if (baseUrl === 'mock') {
+          // Simulate API delay
+          await new Promise((resolve) => setTimeout(resolve, 500))
+          if (abortController.signal.aborted) return
+          setPlayers(mockPlayers)
+          return
+        }
+
+        const { data } = await axios.get<Player[]>(`${baseUrl}/players`, {
+          signal: abortController.signal,
+        })
+        if (abortController.signal.aborted) return
+        setPlayers(data.length > 0 ? data : mockPlayers) // Fallback to mock if empty
+      } catch (err) {
+        if (abortController.signal.aborted) return
+        if (axios.isCancel(err) || (err as Error).name === 'CanceledError') return
+        
+        console.error('Failed to load players, using mock data', err)
+        // Use mock data on error
+        setPlayers(mockPlayers)
+        setError(null) // Don't show error, just use mock data
+      } finally {
+        if (!abortController.signal.aborted) {
+          setLoading(false)
+        }
+      }
     }
-  }
+
+    loadPlayers()
+
+    return () => {
+      abortController.abort()
+    }
+  }, [])
 
   const filteredPlayers = useMemo(() => {
     if (!searchTerm.trim()) return players

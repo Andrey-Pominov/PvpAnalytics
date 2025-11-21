@@ -1,4 +1,4 @@
-import { defineConfig, Plugin } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 
 // Plugin to handle SPA routing - rewrite all requests to index.html
@@ -9,7 +9,7 @@ function spaFallback(): Plugin {
       // This function runs after Vite sets up its middleware
       return () => {
         // Add our middleware at the end to catch all unmatched routes
-        server.middlewares.use((req, res, next) => {
+        server.middlewares.use((req, _res, next) => {
           const url = req.url || ''
           
           // Check if URL has a file extension (static asset)
