@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react'
 import axios from 'axios'
 import Card from '../components/Card/Card'
 import MatchesTable from '../components/MatchesTable/MatchesTable'
+import ExportButton from '../components/ExportButton/ExportButton'
 import type { Match } from '../types/api'
 import type { MatchSummary } from '../types/stats'
 import { mockMatches } from '../mocks/matches'
@@ -156,7 +157,18 @@ const MatchesPage = () => {
         </div>
       )}
 
-      <Card title={`Matches (${filteredMatches.length})`}>
+      <Card
+        title={`Matches (${filteredMatches.length})`}
+        actions={
+          filteredMatches.length > 0 ? (
+            <ExportButton
+              data={transformedMatches}
+              filename={`matches-${new Date().toISOString().split('T')[0]}`}
+              headers={['id', 'date', 'mode', 'map', 'result', 'duration']}
+            />
+          ) : undefined
+        }
+      >
         {loading ? (
           <div className="text-center py-12 text-text-muted">Loading matches...</div>
         ) : filteredMatches.length === 0 ? (
