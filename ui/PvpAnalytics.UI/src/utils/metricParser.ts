@@ -273,31 +273,31 @@ export function substituteVariables(
 export const metricTemplates = [
   {
     name: 'Kills per Minute',
-    expression: 'Kills / (Duration / 60)',
+    expression: 'Kills / Math.max(Duration / 60, 1)',
     description: 'Average number of kills per minute',
     variables: ['Kills', 'Duration'],
   },
   {
     name: 'Damage per Second',
-    expression: 'DamageDone / Duration',
+    expression: 'DamageDone / Math.max(Duration, 1)',
     description: 'Average damage dealt per second',
     variables: ['DamageDone', 'Duration'],
   },
   {
     name: 'Efficiency Score',
-    expression: '(Kills + Assists) / Deaths',
+    expression: '(Kills + Assists) / Math.max(Deaths, 1)',
     description: 'Kill/assist to death ratio',
     variables: ['Kills', 'Assists', 'Deaths'],
   },
   {
     name: 'Win Rate Percentage',
-    expression: '(Wins / TotalMatches) * 100',
+    expression: '(Wins / Math.max(TotalMatches, 1)) * 100',
     description: 'Win rate as a percentage',
     variables: ['Wins', 'TotalMatches'],
   },
   {
     name: 'Average Match Duration',
-    expression: 'TotalDuration / TotalMatches',
+    expression: 'TotalDuration / Math.max(TotalMatches, 1)',
     description: 'Average duration of matches in seconds',
     variables: ['TotalDuration', 'TotalMatches'],
   },
