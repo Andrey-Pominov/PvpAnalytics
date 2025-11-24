@@ -55,14 +55,22 @@ const RatingProgressionPage = () => {
         <div className="mt-6">
           <h3 className="text-lg font-semibold mb-2">Rating History</h3>
           <div className="space-y-2">
-            {data.dataPoints.slice(-10).map((point: any, idx: number) => (
-              <div key={idx} className="flex flex-col sm:flex-row sm:justify-between gap-2 p-2 bg-surface/50 rounded">
-                <span className="text-sm">{new Date(point.matchDate).toLocaleDateString()}</span>
-                <span className={`text-sm ${point.ratingChange > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {point.ratingBefore} → {point.ratingAfter} ({point.ratingChange > 0 ? '+' : ''}{point.ratingChange})
-                </span>
-              </div>
-            ))}
+            {data.dataPoints.slice(-10).map((point: any) => {
+              const getRatingChangeColor = () => {
+                if (point.ratingChange > 0) return 'text-green-600'
+                if (point.ratingChange < 0) return 'text-red-600'
+                return 'text-gray-600'
+              }
+              
+              return (
+                <div key={point.matchId} className="flex flex-col sm:flex-row sm:justify-between gap-2 p-2 bg-surface/50 rounded">
+                  <span className="text-sm">{new Date(point.matchDate).toLocaleDateString()}</span>
+                  <span className={`text-sm ${getRatingChangeColor()}`}>
+                    {point.ratingBefore} → {point.ratingAfter} ({point.ratingChange > 0 ? '+' : ''}{point.ratingChange})
+                  </span>
+                </div>
+              )
+            })}
           </div>
         </div>
       </Card>

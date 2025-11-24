@@ -136,7 +136,7 @@ const StatsPage = () => {
       {/* Key Metrics Cards */}
       <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         {ratingForecast && (
-          <div className="md:col-span-2 lg:col-span-4">
+          <div className="sm:col-span-2 lg:col-span-4">
             <ForecastCard
               forecast={ratingForecast}
               title="Rating Forecast"
