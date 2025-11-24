@@ -4,4 +4,9 @@ obj/
 riderModule.iml
 /_ReSharper.Caches/
 /.idea
+/.vscode
+node_modules/
+dist/
 .env
+*.DotSettings.user
+*.lua

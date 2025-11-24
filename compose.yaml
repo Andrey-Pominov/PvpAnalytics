@@ -1,0 +1,102 @@
+﻿version: "3.9"
+services:
+  pvpanalytics:
+    image: pvpanalytics
+    build:
+      context: .
+      dockerfile: Services/PvpAnalytics/PvpAnalytics.Api/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Username=${POSTGRES_USER?POSTGRES_USER not set};Password=${POSTGRES_PASSWORD?POSTGRES_PASSWORD not set};Database=${POSTGRES_DB?POSTGRES_DB not set}
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8080
+      - Jwt__Issuer=PvpAnalytics.Auth
+      - Jwt__Audience=PvpAnalytics.Api
+      - Jwt__SigningKey=${JWT_SIGNING_KEY?JWT_SIGNING_KEY not set}
+      - WowApi__ClientId=${WowApi__ClientId?WowApi__ClientId not set}
+      - WowApi__ClientSecret=${WowApi__ClientSecret?WowApi__ClientSecret not set}
+      - WowApi__BaseUrl=https://us.api.blizzard.com
+      - WowApi__OAuthUrl=https://us.battle.net/oauth/token
+    depends_on:
+      - db
+
+  auth:
+    image: authservice
+    build:
+      context: .
+      dockerfile: Services/AuthService/AuthService.Api/Dockerfile
+    ports:
+      - "8081:8081"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8081
+      - ConnectionStrings__DefaultConnection=Server=auth-sql,1433;Database=AuthService;User Id=sa;Password=${AUTH_PASSWORD?AUTH_PASSWORD not set};TrustServerCertificate=True
+      - Jwt__Issuer=PvpAnalytics.Auth
+      - Jwt__Audience=PvpAnalytics.Api
+      - Jwt__SigningKey=${JWT_SIGNING_KEY?JWT_SIGNING_KEY not set}
+      - Jwt__AccessTokenMinutes=60
+      - Jwt__RefreshTokenDays=7
+    depends_on:
+      - db
+      - auth-sql
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  payment:
+    image: paymentservice
+    build:
+      context: .
+      dockerfile: Services/PaymentService/PaymentService.Api/Dockerfile
+    ports:
+      - "8082:8082"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8082
+      - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Username=${POSTGRES_USER?POSTGRES_USER not set};Password=${POSTGRES_PASSWORD?POSTGRES_PASSWORD not set};Database=${POSTGRES_PAYMENT_DB?POSTGRES_PAYMENT_DB not set}
+      - Jwt__Issuer=PvpAnalytics.Auth
+      - Jwt__Audience=PvpAnalytics.Api
+      - Jwt__SigningKey=${JWT_SIGNING_KEY?JWT_SIGNING_KEY not set}
+      - Jwt__AccessTokenMinutes=60
+      - Jwt__RefreshTokenDays=7
+      - Cors__AllowedOrigins=http://localhost:3000,https://localhost:8080,http://localhost:3001
+      - EfMigrations__Skip=false
+    depends_on:
+      - db
+
+  ui:
+    image: nginx:stable-alpine
+    ports:
+      - "3000:80"
+    volumes:
+      - ./ui/PvpAnalytics.UI/dist:/usr/share/nginx/html:ro
+    depends_on:
+      - pvpanalytics
+
+  db:
+    image: postgres:16
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER?POSTGRES_USER not set}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD?POSTGRES_PASSWORD not set} 
+      POSTGRES_DB: ${POSTGRES_DB?POSTGRES_DB not set}
+      POSTGRES_PAYMENT_DB: ${POSTGRES_PAYMENT_DB?POSTGRES_PAYMENT_DB not set}
+    ports:
+      - "5442:5432"
+    volumes:
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+
+  auth-sql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    restart: always
+    environment:
+      - ACCEPT_EULA=Y
+      - AUTH_PASSWORD=${AUTH_PASSWORD?AUTH_PASSWORD not set}
+    ports:
+      - "1433:1433"
+    volumes:
+      - auth-sql-data:/var/opt/mssql
+
+
+volumes:
+  auth-sql-data:
