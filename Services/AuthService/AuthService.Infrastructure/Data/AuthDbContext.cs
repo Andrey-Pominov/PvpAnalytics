@@ -15,6 +15,15 @@ public class AuthDbContext(DbContextOptions<AuthDbContext> options)
     {
         base.OnModelCreating(builder);
 
+        // Customize Identity table names (remove AspNet prefix)
+        builder.Entity<ApplicationUser>().ToTable("Users");
+        builder.Entity<IdentityRole<Guid>>().ToTable("Roles");
+        builder.Entity<IdentityUserClaim<Guid>>().ToTable("UserClaims");
+        builder.Entity<IdentityUserLogin<Guid>>().ToTable("UserLogins");
+        builder.Entity<IdentityUserRole<Guid>>().ToTable("UserRoles");
+        builder.Entity<IdentityUserToken<Guid>>().ToTable("UserTokens");
+        builder.Entity<IdentityRoleClaim<Guid>>().ToTable("RoleClaims");
+
         builder.Entity<ApplicationUser>(b =>
         {
             b.Property(u => u.FullName).HasMaxLength(200);

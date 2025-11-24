@@ -25,7 +25,7 @@ public static class ServiceCollectionExtensions
         {
             throw new InvalidOperationException(
                 $"Invalid connection string for AuthService: AuthService must use SQL Server, but detected PostgreSQL connection string format. " +
-                $"Connection string starts with: {connectionString.Substring(0, Math.Min(50, connectionString.Length))}... " +
+                $"Connection string starts with: {connectionString[..Math.Min(50, connectionString.Length)]}... " +
                 $"Check for environment variable 'ConnectionStrings__DefaultConnection' that might be overriding the SQL Server connection string.");
         }
 

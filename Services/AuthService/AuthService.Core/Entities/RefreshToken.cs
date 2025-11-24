@@ -1,5 +1,3 @@
-using System;
-
 namespace AuthService.Core.Entities;
 
 public class RefreshToken
