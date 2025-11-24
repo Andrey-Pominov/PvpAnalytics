@@ -4,7 +4,6 @@ using FluentAssertions;
 using PaymentEntity = PaymentService.Core.Entities.Payment;
 using PaymentService.Core.Enum;
 using PaymentService.Core.Repositories;
-using PvpAnalytics.Tests.Helper;
 using Xunit;
 
 namespace PvpAnalytics.Tests.Payment;
@@ -31,7 +30,7 @@ public class PaymentServiceUnitTests
         var service = new PaymentService.Application.Services.PaymentService(repository);
 
         // Act
-        var result = await service.GetAsync(payment.Id);
+        var result = await service.GetAsync([payment.Id]);
 
         // Assert
         result.Should().NotBeNull();
@@ -47,7 +46,7 @@ public class PaymentServiceUnitTests
         var service = new PaymentService.Application.Services.PaymentService(repository);
 
         // Act
-        var result = await service.GetAsync(999);
+        var result = await service.GetAsync([999]);
 
         // Assert
         result.Should().BeNull();
@@ -226,6 +225,22 @@ public class MockRepository<TEntity> : IRepository<TEntity> where TEntity : clas
 
     public Task<TEntity?> GetByIdAsync(long id, CancellationToken ct = default)
     {
+        _entities.TryGetValue(id, out var entity);
+        return Task.FromResult(entity);
+    }
+
+    public Task<TEntity?> GetByIdAsync(object[] keyValues, CancellationToken ct = default)
+    {
+        if (keyValues == null || keyValues.Length == 0)
+            return Task.FromResult<TEntity?>(null);
+        
+        var id = keyValues[0] switch
+        {
+            long l => l,
+            int i => (long)i,
+            _ => 0L
+        };
+        
         _entities.TryGetValue(id, out var entity);
         return Task.FromResult(entity);
     }

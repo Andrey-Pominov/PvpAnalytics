@@ -13,7 +13,7 @@ import AnomalyBadge from '../components/AnomalyBadge/AnomalyBadge'
 import ForecastCard from '../components/ForecastCard/ForecastCard'
 import { mockPlayerStatistics } from '../mocks/playerStats'
 import { useStatsStore } from '../store/statsStore'
-import { detectWinRateAnomaly, detectAnomalies, generateForecast } from '../utils/statisticsUtils'
+import { detectWinRateAnomaly, generateForecast } from '../utils/statisticsUtils'
 
 const StatsPage = () => {
   const [activeTopTab, setActiveTopTab] = useState('rating')
@@ -55,10 +55,11 @@ const StatsPage = () => {
   }, [stats.matches])
 
   // Detect rating trend anomalies
-  const ratingAnomalies = useMemo(() => {
-    if (stats.overviewTrend.length < 5) return []
-    return detectAnomalies(stats.overviewTrend)
-  }, [stats.overviewTrend])
+
+  // const ratingAnomalies = useMemo(() => {
+  //   if (stats.overviewTrend.length < 5) return []
+  //   return detectAnomalies(stats.overviewTrend)
+  // }, [stats.overviewTrend])
 
   // Calculate average duration
   const avgDuration = useMemo(() => {

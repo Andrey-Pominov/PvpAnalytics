@@ -176,9 +176,9 @@ const MatchesPage = () => {
         actions={
           filteredMatches.length > 0 ? (
             <ExportButton
-              data={transformedMatches}
+              data={exportData as unknown as Record<string, unknown>[]}
               filename={`matches-${new Date().toISOString().split('T')[0]}`}
-              headers={['id', 'date', 'mode', 'map', 'result', 'duration']}
+              headers={['id', 'date', 'mode', 'map', 'duration']}
             />
           ) : undefined
         }

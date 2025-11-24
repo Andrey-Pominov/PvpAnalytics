@@ -1,4 +1,3 @@
-import { useState } from 'react'
 
 interface ComparisonToggleProps {
   enabled: boolean

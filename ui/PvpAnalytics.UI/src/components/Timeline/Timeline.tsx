@@ -8,7 +8,7 @@ interface TimelineProps {
 
 type FilterType = 'all' | 'cooldowns' | 'cc' | 'kills'
 
-const Timeline = ({ events, matchDuration }: TimelineProps) => {
+const Timeline = ({ events }: TimelineProps) => {
   const [filter, setFilter] = useState<FilterType>('all')
 
   const filteredEvents = useMemo(() => {

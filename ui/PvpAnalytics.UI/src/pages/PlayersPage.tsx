@@ -135,7 +135,7 @@ const PlayersPage = () => {
         actions={
           filteredPlayers.length > 0 ? (
             <ExportButton
-              data={filteredPlayers}
+              data={filteredPlayers as unknown as Record<string, unknown>[]}
               filename={`players-${new Date().toISOString().split('T')[0]}`}
               headers={['id', 'name', 'realm', 'class', 'faction']}
             />

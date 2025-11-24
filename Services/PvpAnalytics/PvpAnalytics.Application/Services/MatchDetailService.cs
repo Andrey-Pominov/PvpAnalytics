@@ -1,8 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using PvpAnalytics.Core.DTOs;
-using PvpAnalytics.Core.Entities;
 using PvpAnalytics.Core.Logs;
-using PvpAnalytics.Core.Repositories;
 using PvpAnalytics.Infrastructure;
 
 namespace PvpAnalytics.Application.Services;
@@ -12,35 +10,18 @@ public interface IMatchDetailService
     Task<MatchDetailDto?> GetMatchDetailAsync(long matchId, CancellationToken ct = default);
 }
 
-public class MatchDetailService : IMatchDetailService
+public class MatchDetailService(PvpAnalyticsDbContext dbContext) : IMatchDetailService
 {
-    private readonly PvpAnalyticsDbContext _dbContext;
-    private readonly IRepository<Match> _matchRepo;
-    private readonly IRepository<MatchResult> _matchResultRepo;
-    private readonly IRepository<CombatLogEntry> _combatLogRepo;
-
-    public MatchDetailService(
-        PvpAnalyticsDbContext dbContext,
-        IRepository<Match> matchRepo,
-        IRepository<MatchResult> matchResultRepo,
-        IRepository<CombatLogEntry> combatLogRepo)
-    {
-        _dbContext = dbContext;
-        _matchRepo = matchRepo;
-        _matchResultRepo = matchResultRepo;
-        _combatLogRepo = combatLogRepo;
-    }
-
     public async Task<MatchDetailDto?> GetMatchDetailAsync(long matchId, CancellationToken ct = default)
     {
         // Load match with related entities
-        var match = await _dbContext.Matches
+        var match = await dbContext.Matches
             .Include(m => m.Results)
-                .ThenInclude(r => r.Player)
+            .ThenInclude(r => r.Player)
             .Include(m => m.CombatLogs)
-                .ThenInclude(e => e.SourcePlayer)
+            .ThenInclude(e => e.SourcePlayer)
             .Include(m => m.CombatLogs)
-                .ThenInclude(e => e.TargetPlayer)
+            .ThenInclude(e => e.TargetPlayer)
             .AsNoTracking()
             .FirstOrDefaultAsync(m => m.Id == matchId, ct);
 
@@ -89,6 +70,7 @@ public class MatchDetailService : IMatchDetailService
                 {
                     stats.cc++;
                 }
+
                 participantStats[entry.SourcePlayerId] = stats;
             }
         }
@@ -139,7 +121,8 @@ public class MatchDetailService : IMatchDetailService
                 var relativeTimestamp = (long)(e.Timestamp - matchStartTime).TotalSeconds;
                 var isCooldown = ImportantAbilities.IsCooldownOrDefensive(e.Ability);
                 var isCC = ImportantAbilities.IsCrowdControl(e.Ability);
-                var isImportant = isCooldown || isCC || e.DamageDone > 50000 || e.HealingDone > 30000; // Flag high-impact events
+                var isImportant =
+                    isCooldown || isCC || e.DamageDone > 50000 || e.HealingDone > 30000; // Flag high-impact events
 
                 string eventType = "damage";
                 if (e.HealingDone > 0)
@@ -172,7 +155,8 @@ public class MatchDetailService : IMatchDetailService
                     IsCC = isCC,
                 };
             })
-            .Where(e => e.IsImportant || e.DamageDone > 10000 || e.HealingDone > 5000) // Filter to important events only
+            .Where(e => e.IsImportant || e.DamageDone > 10000 ||
+                        e.HealingDone > 5000) // Filter to important events only
             .ToList();
 
         return new MatchDetailDto
@@ -183,4 +167,3 @@ public class MatchDetailService : IMatchDetailService
         };
     }
 }
-

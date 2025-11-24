@@ -243,7 +243,7 @@ const CustomMetricsPage = () => {
                       <p className="mt-1 text-sm text-text-muted">{metric.description}</p>
                     )}
                     <div className="mt-2 font-mono text-sm text-accent">{metric.expression}</div>
-                    {metric.parsed?.variables.length > 0 && (
+                    {metric.parsed?.variables && metric.parsed.variables.length > 0 && (
                       <p className="mt-1 text-xs text-text-muted">
                         Variables: {metric.parsed.variables.join(', ')}
                       </p>

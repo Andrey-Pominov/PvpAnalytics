@@ -155,7 +155,7 @@ const MatchDetailPage = () => {
 
   const { basicInfo, teams } = matchDetail
   const winningTeam = teams.find((t) => t.isWinner)
-  const losingTeam = teams.find((t) => !t.isWinner)
+  // const losingTeam = teams.find((t) => !t.isWinner)
 
   return (
     <div className="flex flex-col gap-6">

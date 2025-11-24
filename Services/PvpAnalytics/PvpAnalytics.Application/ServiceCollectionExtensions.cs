@@ -19,6 +19,14 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICrudService<CombatLogEntry>, CombatLogEntryService>();
         services.AddScoped<ICombatLogIngestionService, CombatLogIngestionService>();
         services.AddScoped<IMatchDetailService, MatchDetailService>();
+        services.AddScoped<IOpponentScoutingService, OpponentScoutingService>();
+        services.AddScoped<IMatchupAnalyticsService, MatchupAnalyticsService>();
+        services.AddScoped<ITeamCompositionService, TeamCompositionService>();
+        services.AddScoped<IRatingProgressionService, RatingProgressionService>();
+        services.AddScoped<IKeyMomentService, KeyMomentService>();
+        services.AddScoped<IMetaAnalysisService, MetaAnalysisService>();
+        services.AddScoped<IPerformanceComparisonService, PerformanceComparisonService>();
+        services.AddScoped<ISessionAnalysisService, SessionAnalysisService>();
         
         // Configure WoW API with validation
         services.AddOptions<WowApiOptions>()

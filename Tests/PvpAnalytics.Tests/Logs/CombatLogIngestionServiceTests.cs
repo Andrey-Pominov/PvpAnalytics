@@ -91,6 +91,11 @@ public class CombatLogIngestionServiceTests
 
         public IReadOnlyList<TEntity> Entities => _entities;
 
+        public IQueryable<TEntity> Query()
+        {
+            throw new NotImplementedException();
+        }
+
         public Task<TEntity?> GetByIdAsync(long id, CancellationToken ct = default)
         {
             return Task.FromResult(_entities.FirstOrDefault(e => _getId(e) == id));
