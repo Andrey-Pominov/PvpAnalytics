@@ -36,24 +36,24 @@ const KeyMomentsPage = () => {
   if (!data) return <div className="p-6">No data available</div>
 
   return (
-    <div className="p-6">
-      <h1 className="text-3xl font-bold mb-6">Key Moments</h1>
-      <Card className="mb-4">
-        <p>Match Date: {new Date(data.matchDate).toLocaleString()}</p>
+    <div className="flex flex-col gap-6">
+      <h1 className="text-2xl sm:text-3xl font-bold">Key Moments</h1>
+      <Card>
+        <p className="text-sm sm:text-base">Match Date: {new Date(data.matchDate).toLocaleString()}</p>
       </Card>
       <div className="space-y-2">
         {data.moments?.map((moment: any, idx: number) => (
           <Card key={idx} className={moment.isCritical ? 'border-2 border-red-500' : ''}>
-            <div className="flex justify-between">
-              <div>
-                <p className="font-semibold">{moment.eventType.toUpperCase()}</p>
-                <p>{moment.description}</p>
-                {moment.ability && <p className="text-sm text-gray-600">Ability: {moment.ability}</p>}
+            <div className="flex flex-col sm:flex-row sm:justify-between gap-2 sm:gap-4">
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-sm sm:text-base">{moment.eventType.toUpperCase()}</p>
+                <p className="text-xs sm:text-sm">{moment.description}</p>
+                {moment.ability && <p className="text-xs text-text-muted mt-1">Ability: {moment.ability}</p>}
               </div>
-              <div className="text-right">
-                <p className="text-sm">{moment.timestamp}s</p>
-                {moment.damageDone && <p className="text-red-600">{moment.damageDone.toLocaleString()} damage</p>}
-                {moment.healingDone && <p className="text-green-600">{moment.healingDone.toLocaleString()} healing</p>}
+              <div className="text-left sm:text-right flex-shrink-0">
+                <p className="text-xs sm:text-sm font-semibold">{moment.timestamp}s</p>
+                {moment.damageDone && <p className="text-xs sm:text-sm text-red-600">{moment.damageDone.toLocaleString()} damage</p>}
+                {moment.healingDone && <p className="text-xs sm:text-sm text-green-600">{moment.healingDone.toLocaleString()} healing</p>}
               </div>
             </div>
           </Card>

@@ -102,7 +102,7 @@ const StatsPage = () => {
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex justify-end">
+      <div className="flex justify-end overflow-x-auto">
         <ToggleGroup
           options={[
             { id: 'rating', label: 'Top Player by Rating' },
@@ -115,26 +115,26 @@ const StatsPage = () => {
       </div>
 
       {/* Player Header */}
-      <section className="flex flex-col gap-6 rounded-3xl border border-accent-muted/30 bg-gradient-to-br from-background/80 to-surface/70 p-8 shadow-inner shadow-black/20 backdrop-blur">
-        <div className="flex items-center gap-6">
-          <div className="grid h-20 w-20 place-items-center rounded-2xl bg-gradient-to-br from-accent to-sky-400 text-2xl font-bold text-white" aria-hidden={true}>
+      <section className="flex flex-col gap-6 rounded-3xl border border-accent-muted/30 bg-gradient-to-br from-background/80 to-surface/70 p-4 sm:p-6 lg:p-8 shadow-inner shadow-black/20 backdrop-blur">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6">
+          <div className="grid h-16 w-16 sm:h-20 sm:w-20 place-items-center rounded-2xl bg-gradient-to-br from-accent to-sky-400 text-xl sm:text-2xl font-bold text-white flex-shrink-0" aria-hidden={true}>
             {stats.player.name.substring(0, 1)}
           </div>
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-text-muted">
               {stats.player.title}
             </span>
-            <h1 className="mt-1 text-3xl font-semibold text-text">{stats.player.name}</h1>
+            <h1 className="mt-1 text-2xl sm:text-3xl font-semibold text-text truncate">{stats.player.name}</h1>
           </div>
-          <div className="text-left lg:text-right">
+          <div className="text-left sm:text-right w-full sm:w-auto">
             <span className="block text-xs font-semibold uppercase tracking-[0.12em] text-text-muted">Rating</span>
-            <span className="mt-1 block text-4xl font-bold text-white">{stats.player.rating}</span>
+            <span className="mt-1 block text-3xl sm:text-4xl font-bold text-white">{stats.player.rating}</span>
           </div>
         </div>
       </section>
 
       {/* Key Metrics Cards */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         {ratingForecast && (
           <div className="md:col-span-2 lg:col-span-4">
             <ForecastCard
@@ -188,7 +188,7 @@ const StatsPage = () => {
       )}
 
       {/* Charts Section */}
-      <div className="grid gap-8 md:grid-cols-2 xl:grid-cols-3" aria-busy={loading}>
+      <div className="grid gap-6 sm:gap-8 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3" aria-busy={loading}>
         <Tooltip content="Rating trend over time. Shows performance progression across recent matches. Enable comparison to see previous period.">
           <Card
             title="Rating Trend"

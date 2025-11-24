@@ -112,7 +112,7 @@ const PlayersPage = () => {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:items-center">
+      <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:items-center">
         <SearchBar
           placeholder="Search players by name, realm, class..."
           onSearch={setSearchTerm}
@@ -149,7 +149,7 @@ const PlayersPage = () => {
             {searchTerm ? 'No players found matching your search.' : 'No players found.'}
           </div>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
             {filteredPlayers.map((player) => (
               <div
                 key={player.id}

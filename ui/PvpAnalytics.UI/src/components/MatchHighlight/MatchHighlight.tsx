@@ -27,7 +27,7 @@ const MatchHighlight = ({ match }: MatchHighlightProps) => (
       </span>
     </header>
 
-    <div className="grid gap-4 md:grid-cols-2">
+    <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
       {match.teams.map((team) => (
         <div
           key={team.name}

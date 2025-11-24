@@ -134,7 +134,7 @@ const Navigation = () => {
 
   return (
     <nav className="sticky top-0 z-50 mb-8 flex flex-col gap-4 border-b border-accent-muted/30 bg-background/95 backdrop-blur-sm pb-4 pt-4">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-2">
           {navItems.map((item) => {
             const isActive = location.pathname === item.path || (item.path === '/' && location.pathname === '/')
@@ -154,7 +154,7 @@ const Navigation = () => {
             )
           })}
         </div>
-        <div className="flex-1 max-w-md">
+        <div className="flex-1 w-full sm:max-w-md">
           <SearchBar
             placeholder={searchLoading ? 'Searching...' : 'Search player ID, match ID, or name...'}
             onSearch={handleSearch}

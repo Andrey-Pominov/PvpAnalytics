@@ -32,24 +32,28 @@ const TeamCompositionPage = () => {
       .finally(() => setLoading(false))
   }, [playerId])
 
-  if (loading) return <div className="p-6">Loading...</div>
+  if (loading) return <div className="flex flex-col gap-6"><div className="text-text-muted">Loading...</div></div>
 
   return (
-    <div className="p-6">
-      <h1 className="text-3xl font-bold mb-6">Team Compositions</h1>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="flex flex-col gap-6">
+      <h1 className="text-2xl sm:text-3xl font-bold">Team Compositions</h1>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {data.map((team, idx) => (
           <Card key={idx}>
-            <h3 className="text-lg font-semibold mb-2">{team.composition}</h3>
-            <p>Matches: {team.totalMatches}</p>
-            <p>Win Rate: <span className={team.winRate > 50 ? 'text-green-600' : 'text-red-600'}>{team.winRate}%</span></p>
-            <p>Synergy Score: {team.synergyScore}</p>
-            <p>Peak Rating: {team.peakRating}</p>
-            <div className="mt-2">
-              <p className="text-sm font-semibold">Members:</p>
-              {team.members?.map((member: any, mIdx: number) => (
-                <p key={mIdx} className="text-sm">{member.playerName} ({member.class})</p>
-              ))}
+            <h3 className="text-base sm:text-lg font-semibold mb-2 truncate">{team.composition}</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+              <p>Matches: <span className="font-semibold">{team.totalMatches}</span></p>
+              <p>Win Rate: <span className={`font-semibold ${team.winRate > 50 ? 'text-green-600' : 'text-red-600'}`}>{team.winRate}%</span></p>
+              <p>Synergy Score: <span className="font-semibold">{team.synergyScore}</span></p>
+              <p>Peak Rating: <span className="font-semibold">{team.peakRating}</span></p>
+            </div>
+            <div className="mt-3">
+              <p className="text-xs sm:text-sm font-semibold mb-1">Members:</p>
+              <div className="flex flex-wrap gap-2">
+                {team.members?.map((member: any, mIdx: number) => (
+                  <span key={mIdx} className="text-xs sm:text-sm px-2 py-1 bg-surface/50 rounded">{member.playerName} ({member.class})</span>
+                ))}
+              </div>
             </div>
           </Card>
         ))}

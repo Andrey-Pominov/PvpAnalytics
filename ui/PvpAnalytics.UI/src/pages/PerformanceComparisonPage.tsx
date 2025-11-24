@@ -36,19 +36,19 @@ const PerformanceComparisonPage = () => {
   }
 
   return (
-    <div className="p-6">
-      <h1 className="text-3xl font-bold mb-6">Performance Comparison</h1>
-      <div className="mb-6">
+    <div className="flex flex-col gap-6">
+      <h1 className="text-2xl sm:text-3xl font-bold">Performance Comparison</h1>
+      <div className="flex flex-col sm:flex-row gap-4">
         <input
           type="text"
           value={spec}
           onChange={(e) => setSpec(e.target.value)}
           placeholder="Enter spec (e.g., Assassination)"
-          className="px-4 py-2 border rounded mr-4"
+          className="flex-1 px-4 py-2 border rounded"
         />
         <button
           onClick={handleCompare}
-          className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 whitespace-nowrap"
         >
           Compare
         </button>
@@ -58,7 +58,7 @@ const PerformanceComparisonPage = () => {
         <div className="space-y-4">
           <Card>
             <h2 className="text-xl font-semibold mb-4">Your Performance</h2>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <p>Win Rate: {data.playerMetrics.winRate}%</p>
               <p>Current Rating: {data.playerMetrics.currentRating}</p>
               <p>Avg Damage: {data.playerMetrics.averageDamage.toLocaleString()}</p>
@@ -67,7 +67,7 @@ const PerformanceComparisonPage = () => {
           </Card>
           <Card>
             <h2 className="text-xl font-semibold mb-4">Top Players Average</h2>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <p>Win Rate: {data.topPlayerMetrics.averageWinRate}%</p>
               <p>Avg Rating: {data.topPlayerMetrics.averageRating}</p>
               <p>Avg Damage: {data.topPlayerMetrics.averageDamage.toLocaleString()}</p>
@@ -77,7 +77,7 @@ const PerformanceComparisonPage = () => {
           {data.percentiles && (
             <Card>
               <h2 className="text-xl font-semibold mb-4">Percentile Rankings</h2>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <p>Win Rate: {data.percentiles.winRatePercentile}th percentile</p>
                 <p>Rating: {data.percentiles.ratingPercentile}th percentile</p>
                 <p>Damage: {data.percentiles.damagePercentile}th percentile</p>

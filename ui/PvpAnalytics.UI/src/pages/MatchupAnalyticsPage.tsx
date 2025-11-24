@@ -35,26 +35,26 @@ const MatchupAnalyticsPage = () => {
   }
 
   return (
-    <div className="p-6">
-      <h1 className="text-3xl font-bold mb-6">Matchup Analytics</h1>
-      <div className="mb-6 flex gap-4">
+    <div className="flex flex-col gap-6">
+      <h1 className="text-2xl sm:text-3xl font-bold">Matchup Analytics</h1>
+      <div className="flex flex-col sm:flex-row gap-4">
         <input
           type="text"
           value={class1}
           onChange={(e) => setClass1(e.target.value)}
           placeholder="Class 1"
-          className="px-4 py-2 border rounded"
+          className="flex-1 px-4 py-2 border rounded"
         />
         <input
           type="text"
           value={class2}
           onChange={(e) => setClass2(e.target.value)}
           placeholder="Class 2"
-          className="px-4 py-2 border rounded"
+          className="flex-1 px-4 py-2 border rounded"
         />
         <button
           onClick={handleSearch}
-          className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 whitespace-nowrap"
         >
           Search
         </button>
@@ -63,7 +63,7 @@ const MatchupAnalyticsPage = () => {
       {data && (
         <Card>
           <h2 className="text-xl font-semibold mb-4">{data.class1} vs {data.class2}</h2>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <p>Total Matches: {data.totalMatches}</p>
               <p>{data.class1} Wins: {data.winsForClass1} ({data.winRateForClass1}%)</p>
