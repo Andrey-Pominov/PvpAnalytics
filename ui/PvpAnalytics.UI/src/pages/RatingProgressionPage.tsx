@@ -32,15 +32,15 @@ const RatingProgressionPage = () => {
       .finally(() => setLoading(false))
   }, [playerId])
 
-  if (loading) return <div className="p-6">Loading...</div>
-  if (!data) return <div className="p-6">No data available</div>
+  if (loading) return <div className="flex flex-col gap-6"><div className="text-text-muted">Loading...</div></div>
+  if (!data) return <div className="flex flex-col gap-6"><div className="text-text-muted">No data available</div></div>
 
   return (
-    <div className="p-6">
-      <h1 className="text-3xl font-bold mb-6">Rating Progression</h1>
+    <div className="flex flex-col gap-6">
+      <h1 className="text-2xl sm:text-3xl font-bold">Rating Progression</h1>
       <Card>
         <h2 className="text-xl font-semibold mb-4">{data.playerName}</h2>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <p>Current Rating: <span className="font-bold">{data.summary.currentRating}</span></p>
             <p>Peak Rating: <span className="font-bold">{data.summary.peakRating}</span></p>
@@ -55,14 +55,22 @@ const RatingProgressionPage = () => {
         <div className="mt-6">
           <h3 className="text-lg font-semibold mb-2">Rating History</h3>
           <div className="space-y-2">
-            {data.dataPoints.slice(-10).map((point: any, idx: number) => (
-              <div key={idx} className="flex justify-between p-2 bg-gray-100 rounded">
-                <span>{new Date(point.matchDate).toLocaleDateString()}</span>
-                <span className={point.ratingChange > 0 ? 'text-green-600' : 'text-red-600'}>
-                  {point.ratingBefore} → {point.ratingAfter} ({point.ratingChange > 0 ? '+' : ''}{point.ratingChange})
-                </span>
-              </div>
-            ))}
+            {data.dataPoints.slice(-10).map((point: any) => {
+              const getRatingChangeColor = () => {
+                if (point.ratingChange > 0) return 'text-green-600'
+                if (point.ratingChange < 0) return 'text-red-600'
+                return 'text-gray-600'
+              }
+              
+              return (
+                <div key={point.matchId} className="flex flex-col sm:flex-row sm:justify-between gap-2 p-2 bg-surface/50 rounded">
+                  <span className="text-sm">{new Date(point.matchDate).toLocaleDateString()}</span>
+                  <span className={`text-sm ${getRatingChangeColor()}`}>
+                    {point.ratingBefore} → {point.ratingAfter} ({point.ratingChange > 0 ? '+' : ''}{point.ratingChange})
+                  </span>
+                </div>
+              )
+            })}
           </div>
         </div>
       </Card>

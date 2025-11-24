@@ -37,7 +37,7 @@ const MetricCard = ({
 
   return (
     <div
-      className={`group relative rounded-2xl border border-accent-muted/40 bg-surface/90 p-6 shadow-card backdrop-blur-lg transition-all hover:border-accent-muted/60 hover:shadow-lg ${className}`}
+      className={`group relative rounded-2xl border border-accent-muted/40 bg-surface/90 p-4 sm:p-6 shadow-card backdrop-blur-lg transition-all hover:border-accent-muted/60 hover:shadow-lg ${className}`}
       title={tooltip}
     >
       <div className="flex items-start justify-between">
@@ -46,8 +46,8 @@ const MetricCard = ({
             {icon && <div className="text-accent">{icon}</div>}
             <h3 className="text-sm font-semibold uppercase tracking-[0.08em] text-text-muted">{title}</h3>
           </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-bold text-text">{value}</span>
+          <div className="flex items-baseline gap-2 flex-wrap">
+            <span className="text-2xl sm:text-3xl font-bold text-text">{value}</span>
             {trend && trendValue && (
               <span
                 className={`flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold ${trendColors[trend]} ${trendBgColors[trend]}`}

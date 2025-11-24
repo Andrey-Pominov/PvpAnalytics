@@ -235,12 +235,12 @@ const MatchDetailPage = () => {
       {activeTab === 'overview' && (
         <div className="flex flex-col gap-6">
           {/* Team Comparison */}
-          <div className="grid gap-6 md:grid-cols-2">
+          <div className="grid gap-6 grid-cols-1 sm:grid-cols-2">
             {teams.map((team) => (
               <Card key={team.teamName} title={team.teamName}>
                 <div className="space-y-4">
                   {/* Team Stats */}
-                  <div className="grid grid-cols-2 gap-4 rounded-lg bg-surface/50 p-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-lg bg-surface/50 p-4">
                     <div>
                       <div className="text-xs text-text-muted">Total Damage</div>
                       <div className="text-lg font-bold text-red-300">{team.totalDamage.toLocaleString()}</div>

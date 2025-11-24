@@ -41,20 +41,27 @@ const OpponentScoutingPage = () => {
   }
 
   return (
-    <div className="p-6">
-      <h1 className="text-3xl font-bold mb-6">Opponent Scouting</h1>
-      <div className="mb-6">
+    <div className="flex flex-col gap-6">
+      <h1 className="text-2xl sm:text-3xl font-bold">Opponent Scouting</h1>
+      <div>
         <SearchBar
           onSearch={handleSearch}
           placeholder="Search player by name..."
         />
       </div>
-      {loading && <p>Loading...</p>}
+      {loading && <p className="text-text-muted">Loading...</p>}
       {results.map((player) => (
-        <Card key={player.playerId} className="mb-4">
-          <h3 className="text-xl font-semibold">{player.playerName} - {player.realm}</h3>
-          <p>Class: {player.class} | Spec: {player.currentSpec}</p>
-          <p>Rating: {player.currentRating} | Win Rate: {player.winRate}%</p>
+        <Card key={player.playerId}>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <h3 className="text-lg sm:text-xl font-semibold truncate">{player.playerName} - {player.realm}</h3>
+              <p className="text-sm sm:text-base text-text-muted">Class: {player.class} | Spec: {player.currentSpec}</p>
+            </div>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm sm:text-base">
+              <p>Rating: <span className="font-semibold">{player.currentRating}</span></p>
+              <p>Win Rate: <span className="font-semibold">{player.winRate}%</span></p>
+            </div>
+          </div>
         </Card>
       ))}
     </div>

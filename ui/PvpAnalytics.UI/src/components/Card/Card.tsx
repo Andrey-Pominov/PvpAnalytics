@@ -8,7 +8,7 @@ interface CardProps {
 }
 
 const baseClasses =
-  'flex flex-col gap-4 rounded-2xl border border-accent-muted/40 bg-surface/90 p-6 shadow-card backdrop-blur-lg'
+  'flex flex-col gap-4 rounded-2xl border border-accent-muted/40 bg-surface/90 p-4 sm:p-6 shadow-card backdrop-blur-lg'
 
 const Card = ({ title, subtitle, actions, className, children }: PropsWithChildren<CardProps>) => (
   <section className={[baseClasses, className ?? ''].filter(Boolean).join(' ')}>

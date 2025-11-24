@@ -36,11 +36,11 @@ const SessionAnalysisPage = () => {
   if (!data) return <div className="p-6">No data available</div>
 
   return (
-    <div className="p-6">
-      <h1 className="text-3xl font-bold mb-6">Session Analysis</h1>
+    <div className="flex flex-col gap-6">
+      <h1 className="text-2xl sm:text-3xl font-bold">Session Analysis</h1>
       <Card className="mb-6">
         <h2 className="text-xl font-semibold mb-4">Summary</h2>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <p>Total Sessions: {data.summary.totalSessions}</p>
           <p>Avg Win Rate: {data.summary.averageWinRate}%</p>
           <p>Net Rating Change: <span className={data.summary.netRatingChange > 0 ? 'text-green-600' : 'text-red-600'}>{data.summary.netRatingChange}</span></p>
@@ -52,14 +52,14 @@ const SessionAnalysisPage = () => {
         <div className="space-y-2">
           {data.sessions?.slice(0, 10).map((session: any, idx: number) => (
             <Card key={idx}>
-              <div className="flex justify-between">
-                <div>
-                  <p className="font-semibold">{new Date(session.startTime).toLocaleString()}</p>
-                  <p>Matches: {session.matchCount} | Win Rate: {session.winRate}%</p>
+              <div className="flex flex-col sm:flex-row sm:justify-between gap-2 sm:gap-4">
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm sm:text-base">{new Date(session.startTime).toLocaleString()}</p>
+                  <p className="text-xs sm:text-sm text-text-muted">Matches: {session.matchCount} | Win Rate: {session.winRate}%</p>
                 </div>
-                <div className="text-right">
-                  <p>Rating: {session.ratingStart} → {session.ratingEnd}</p>
-                  <p className={session.ratingChange > 0 ? 'text-green-600' : 'text-red-600'}>
+                <div className="text-left sm:text-right flex-shrink-0">
+                  <p className="text-sm sm:text-base">Rating: {session.ratingStart} → {session.ratingEnd}</p>
+                  <p className={`text-sm sm:text-base ${session.ratingChange > 0 ? 'text-green-600' : 'text-red-600'}`}>
                     {session.ratingChange > 0 ? '+' : ''}{session.ratingChange}
                   </p>
                 </div>

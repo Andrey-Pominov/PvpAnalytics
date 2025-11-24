@@ -217,21 +217,21 @@ const PlayerProfilePage = () => {
 
       {/* Player Header */}
       <Card>
-        <div className="flex items-start gap-6">
-          <div className="grid h-20 w-20 flex-shrink-0 place-items-center rounded-xl bg-gradient-to-br from-accent to-sky-400 text-2xl font-bold text-white">
+        <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6">
+          <div className="grid h-16 w-16 sm:h-20 sm:w-20 flex-shrink-0 place-items-center rounded-xl bg-gradient-to-br from-accent to-sky-400 text-xl sm:text-2xl font-bold text-white">
             {player.name.substring(0, 1).toUpperCase()}
           </div>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-2xl font-bold text-text">{player.name}</h1>
-            <p className="mt-1 text-lg text-text-muted">{player.realm}</p>
+          <div className="flex-1 min-w-0 w-full sm:w-auto">
+            <h1 className="text-xl sm:text-2xl font-bold text-text truncate">{player.name}</h1>
+            <p className="mt-1 text-base sm:text-lg text-text-muted">{player.realm}</p>
             <div className="mt-3 flex flex-wrap gap-2">
               {player.class && (
-                <span className={`text-sm px-3 py-1 rounded ${getClassColor(player.class)}`}>
+                <span className={`text-xs sm:text-sm px-2 sm:px-3 py-1 rounded ${getClassColor(player.class)}`}>
                   {player.class}
                 </span>
               )}
               {player.faction && (
-                <span className={`text-sm px-3 py-1 rounded ${getFactionColor(player.faction)}`}>
+                <span className={`text-xs sm:text-sm px-2 sm:px-3 py-1 rounded ${getFactionColor(player.faction)}`}>
                   {player.faction}
                 </span>
               )}
@@ -242,7 +242,7 @@ const PlayerProfilePage = () => {
 
       {/* Statistics Cards */}
       {stats && (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
           {ratingForecast && (
             <div className="md:col-span-2 lg:col-span-4">
               <ForecastCard
@@ -315,8 +315,8 @@ const PlayerProfilePage = () => {
         {matches.length === 0 ? (
           <div className="text-center py-12 text-text-muted">No matches found for this player.</div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-[560px] w-full border-collapse text-sm text-text">
+          <div className="overflow-x-auto -mx-6 sm:mx-0">
+            <table className="min-w-full sm:min-w-[560px] w-full border-collapse text-xs sm:text-sm text-text">
               <thead className="text-xs font-semibold uppercase tracking-[0.08em] text-text-muted/70">
                 <tr>
                   <th className="px-3 py-3 text-left">Date</th>

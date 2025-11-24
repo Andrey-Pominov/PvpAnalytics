@@ -28,20 +28,22 @@ const MetaAnalysisPage = () => {
       .finally(() => setLoading(false))
   }, [])
 
-  if (loading) return <div className="p-6">Loading...</div>
-  if (!data) return <div className="p-6">No data available</div>
+  if (loading) return <div className="flex flex-col gap-6"><div className="text-text-muted">Loading...</div></div>
+  if (!data) return <div className="flex flex-col gap-6"><div className="text-text-muted">No data available</div></div>
 
   return (
-    <div className="p-6">
-      <h1 className="text-3xl font-bold mb-6">Meta Analysis</h1>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div className="flex flex-col gap-6">
+      <h1 className="text-2xl sm:text-3xl font-bold">Meta Analysis</h1>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {data.compositions?.slice(0, 10).map((comp: any, idx: number) => (
           <Card key={idx}>
-            <h3 className="text-lg font-semibold mb-2">#{comp.rank} {comp.composition}</h3>
-            <p>Matches: {comp.totalMatches}</p>
-            <p>Win Rate: <span className={comp.winRate > 50 ? 'text-green-600' : 'text-red-600'}>{comp.winRate}%</span></p>
-            <p>Popularity: {comp.popularity}%</p>
-            <p>Avg Rating: {comp.averageRating}</p>
+            <h3 className="text-base sm:text-lg font-semibold mb-2 truncate">#{comp.rank} {comp.composition}</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+              <p>Matches: <span className="font-semibold">{comp.totalMatches}</span></p>
+              <p>Win Rate: <span className={`font-semibold ${comp.winRate > 50 ? 'text-green-600' : 'text-red-600'}`}>{comp.winRate}%</span></p>
+              <p>Popularity: <span className="font-semibold">{comp.popularity}%</span></p>
+              <p>Avg Rating: <span className="font-semibold">{comp.averageRating}</span></p>
+            </div>
           </Card>
         ))}
       </div>

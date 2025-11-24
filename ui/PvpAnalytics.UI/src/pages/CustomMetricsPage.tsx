@@ -200,7 +200,7 @@ const CustomMetricsPage = () => {
       {/* Templates */}
       {!showForm && (
         <Card title="Metric Templates" subtitle="Start with a pre-built formula">
-          <div className="grid gap-3 md:grid-cols-2">
+          <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
             {metricTemplates.map((template) => (
               <button
                 key={template.name}
