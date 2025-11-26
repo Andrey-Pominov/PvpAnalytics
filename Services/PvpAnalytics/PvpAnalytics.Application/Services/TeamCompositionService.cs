@@ -74,7 +74,7 @@ public class TeamCompositionService(
             {
                 var firstMatch = g.OrderBy(td => td.MatchDate).First();
                 var lastMatch = g.OrderByDescending(td => td.MatchDate).First();
-                var members = firstMatch.Players.Select(p => new TeamMember
+                var members = firstMatch.Players.Select(p => new PvpAnalytics.Core.DTOs.TeamMember
                 {
                     PlayerId = p.PlayerId,
                     PlayerName = p.Name,

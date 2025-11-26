@@ -15,7 +15,6 @@ public class AuthDbContext(DbContextOptions<AuthDbContext> options)
     {
         base.OnModelCreating(builder);
 
-        // Customize Identity table names (remove AspNet prefix)
         builder.Entity<ApplicationUser>().ToTable("Users");
         builder.Entity<IdentityRole<Guid>>().ToTable("Roles");
         builder.Entity<IdentityUserClaim<Guid>>().ToTable("UserClaims");

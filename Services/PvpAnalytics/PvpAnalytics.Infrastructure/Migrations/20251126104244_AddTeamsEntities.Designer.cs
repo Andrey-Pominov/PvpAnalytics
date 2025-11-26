@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using PvpAnalytics.Infrastructure;
@@ -11,9 +12,11 @@ using PvpAnalytics.Infrastructure;
 namespace PvpAnalytics.Infrastructure.Migrations
 {
     [DbContext(typeof(PvpAnalyticsDbContext))]
-    partial class PvpAnalyticsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251126104244_AddTeamsEntities")]
+    partial class AddTeamsEntities
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -67,115 +70,6 @@ namespace PvpAnalytics.Infrastructure.Migrations
                     b.ToTable("CombatLogEntries");
                 });
 
-            modelBuilder.Entity("PvpAnalytics.Core.Entities.CommunityRanking", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime>("CalculatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Period")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<long?>("PlayerId")
-                        .HasColumnType("bigint");
-
-                    b.Property<int>("Rank")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("RankingType")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Scope")
-                        .HasColumnType("text");
-
-                    b.Property<double>("Score")
-                        .HasColumnType("double precision");
-
-                    b.Property<long?>("TeamId")
-                        .HasColumnType("bigint");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("PlayerId");
-
-                    b.HasIndex("TeamId");
-
-                    b.HasIndex("RankingType", "Period", "Rank");
-
-                    b.ToTable("CommunityRankings");
-                });
-
-            modelBuilder.Entity("PvpAnalytics.Core.Entities.FavoritePlayer", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("OwnerUserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<long>("TargetPlayerId")
-                        .HasColumnType("bigint");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("OwnerUserId");
-
-                    b.HasIndex("TargetPlayerId");
-
-                    b.HasIndex("OwnerUserId", "TargetPlayerId")
-                        .IsUnique();
-
-                    b.ToTable("FavoritePlayers");
-                });
-
-            modelBuilder.Entity("PvpAnalytics.Core.Entities.FeaturedMatch", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<int>("CommentsCount")
-                        .HasColumnType("integer");
-
-                    b.Property<Guid?>("CuratorUserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("FeaturedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long>("MatchId")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("Reason")
-                        .HasColumnType("text");
-
-                    b.Property<int>("Upvotes")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("FeaturedAt");
-
-                    b.HasIndex("MatchId");
-
-                    b.ToTable("FeaturedMatches");
-                });
-
             modelBuilder.Entity("PvpAnalytics.Core.Entities.Match", b =>
                 {
                     b.Property<long>("Id")
@@ -216,81 +110,6 @@ namespace PvpAnalytics.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("Matches");
-                });
-
-            modelBuilder.Entity("PvpAnalytics.Core.Entities.MatchDiscussionPost", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<Guid>("AuthorUserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Body")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<long?>("ParentPostId")
-                        .HasColumnType("bigint");
-
-                    b.Property<long>("ThreadId")
-                        .HasColumnType("bigint");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("Upvotes")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ParentPostId");
-
-                    b.HasIndex("ThreadId");
-
-                    b.ToTable("MatchDiscussionPosts");
-                });
-
-            modelBuilder.Entity("PvpAnalytics.Core.Entities.MatchDiscussionThread", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("CreatedByUserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<bool>("IsLocked")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("IsPinned")
-                        .HasColumnType("boolean");
-
-                    b.Property<long>("MatchId")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("Title")
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("MatchId");
-
-                    b.ToTable("MatchDiscussionThreads");
                 });
 
             modelBuilder.Entity("PvpAnalytics.Core.Entities.MatchResult", b =>
@@ -364,41 +183,6 @@ namespace PvpAnalytics.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Players");
-                });
-
-            modelBuilder.Entity("PvpAnalytics.Core.Entities.Rival", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("IntensityScore")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Notes")
-                        .HasColumnType("text");
-
-                    b.Property<long>("OpponentPlayerId")
-                        .HasColumnType("bigint");
-
-                    b.Property<Guid>("OwnerUserId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("OpponentPlayerId");
-
-                    b.HasIndex("OwnerUserId");
-
-                    b.HasIndex("OwnerUserId", "OpponentPlayerId")
-                        .IsUnique();
-
-                    b.ToTable("Rivals");
                 });
 
             modelBuilder.Entity("PvpAnalytics.Core.Entities.Team", b =>
@@ -510,38 +294,6 @@ namespace PvpAnalytics.Infrastructure.Migrations
                     b.ToTable("TeamMembers");
                 });
 
-            modelBuilder.Entity("PvpAnalytics.Core.Entities.UserBadge", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<string>("BadgeName")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("BadgeType")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("EarnedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("UserBadges");
-                });
-
             modelBuilder.Entity("PvpAnalytics.Core.Entities.CombatLogEntry", b =>
                 {
                     b.HasOne("PvpAnalytics.Core.Entities.Match", "Match")
@@ -568,74 +320,6 @@ namespace PvpAnalytics.Infrastructure.Migrations
                     b.Navigation("TargetPlayer");
                 });
 
-            modelBuilder.Entity("PvpAnalytics.Core.Entities.CommunityRanking", b =>
-                {
-                    b.HasOne("PvpAnalytics.Core.Entities.Player", "Player")
-                        .WithMany()
-                        .HasForeignKey("PlayerId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("PvpAnalytics.Core.Entities.Team", "Team")
-                        .WithMany()
-                        .HasForeignKey("TeamId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("Player");
-
-                    b.Navigation("Team");
-                });
-
-            modelBuilder.Entity("PvpAnalytics.Core.Entities.FavoritePlayer", b =>
-                {
-                    b.HasOne("PvpAnalytics.Core.Entities.Player", "TargetPlayer")
-                        .WithMany()
-                        .HasForeignKey("TargetPlayerId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("TargetPlayer");
-                });
-
-            modelBuilder.Entity("PvpAnalytics.Core.Entities.FeaturedMatch", b =>
-                {
-                    b.HasOne("PvpAnalytics.Core.Entities.Match", "Match")
-                        .WithMany()
-                        .HasForeignKey("MatchId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Match");
-                });
-
-            modelBuilder.Entity("PvpAnalytics.Core.Entities.MatchDiscussionPost", b =>
-                {
-                    b.HasOne("PvpAnalytics.Core.Entities.MatchDiscussionPost", "ParentPost")
-                        .WithMany()
-                        .HasForeignKey("ParentPostId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("PvpAnalytics.Core.Entities.MatchDiscussionThread", "Thread")
-                        .WithMany("Posts")
-                        .HasForeignKey("ThreadId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ParentPost");
-
-                    b.Navigation("Thread");
-                });
-
-            modelBuilder.Entity("PvpAnalytics.Core.Entities.MatchDiscussionThread", b =>
-                {
-                    b.HasOne("PvpAnalytics.Core.Entities.Match", "Match")
-                        .WithMany()
-                        .HasForeignKey("MatchId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Match");
-                });
-
             modelBuilder.Entity("PvpAnalytics.Core.Entities.MatchResult", b =>
                 {
                     b.HasOne("PvpAnalytics.Core.Entities.Match", "Match")
@@ -653,17 +337,6 @@ namespace PvpAnalytics.Infrastructure.Migrations
                     b.Navigation("Match");
 
                     b.Navigation("Player");
-                });
-
-            modelBuilder.Entity("PvpAnalytics.Core.Entities.Rival", b =>
-                {
-                    b.HasOne("PvpAnalytics.Core.Entities.Player", "OpponentPlayer")
-                        .WithMany()
-                        .HasForeignKey("OpponentPlayerId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("OpponentPlayer");
                 });
 
             modelBuilder.Entity("PvpAnalytics.Core.Entities.TeamMatch", b =>
@@ -709,11 +382,6 @@ namespace PvpAnalytics.Infrastructure.Migrations
                     b.Navigation("CombatLogs");
 
                     b.Navigation("Results");
-                });
-
-            modelBuilder.Entity("PvpAnalytics.Core.Entities.MatchDiscussionThread", b =>
-                {
-                    b.Navigation("Posts");
                 });
 
             modelBuilder.Entity("PvpAnalytics.Core.Entities.Player", b =>

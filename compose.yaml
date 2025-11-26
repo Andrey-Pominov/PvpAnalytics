@@ -31,15 +31,17 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:8081
-      - ConnectionStrings__DefaultConnection=Server=auth-sql,1433;Database=AuthService;User Id=sa;Password=${AUTH_PASSWORD?AUTH_PASSWORD not set};TrustServerCertificate=True
+      - ConnectionStrings__DefaultConnection=Server=auth-sql,1433;Database=AuthService;User Id=sa;Password=${AUTH_PASSWORD?AUTH_PASSWORD not set};TrustServerCertificate=True;Encrypt=True
       - Jwt__Issuer=PvpAnalytics.Auth
       - Jwt__Audience=PvpAnalytics.Api
       - Jwt__SigningKey=${JWT_SIGNING_KEY?JWT_SIGNING_KEY not set}
       - Jwt__AccessTokenMinutes=60
       - Jwt__RefreshTokenDays=7
     depends_on:
-      - db
-      - auth-sql
+      db:
+        condition: service_started
+      auth-sql:
+        condition: service_healthy
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
@@ -91,11 +93,18 @@ services:
     restart: always
     environment:
       - ACCEPT_EULA=Y
-      - AUTH_PASSWORD=${AUTH_PASSWORD?AUTH_PASSWORD not set}
+      - MSSQL_SA_PASSWORD=${AUTH_PASSWORD?AUTH_PASSWORD not set}
+      - MSSQL_PID=Developer
     ports:
       - "1433:1433"
     volumes:
       - auth-sql-data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -d master -Q \"SELECT 1\" -C || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
 
 
 volumes:

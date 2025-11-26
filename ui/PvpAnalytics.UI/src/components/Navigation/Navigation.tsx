@@ -24,6 +24,13 @@ const Navigation = () => {
     { path: '/', label: 'Stats', icon: '📊' },
     { path: '/players', label: 'Players', icon: '👥' },
     { path: '/matches', label: 'Matches', icon: '⚔️' },
+    { path: '/teams', label: 'Teams', icon: '👫' },
+    { path: '/leaderboards', label: 'Leaderboards', icon: '🏆' },
+    { path: '/highlights', label: 'Highlights', icon: '⭐' },
+    { path: '/discover', label: 'Discover', icon: '🔍' },
+    { path: '/favorites', label: 'Favorites', icon: '⭐' },
+    { path: '/rivals', label: 'Rivals', icon: '⚡' },
+    { path: '/profile', label: 'Profile', icon: '👤' },
     { path: '/upload', label: 'Upload', icon: '📤' },
   ]
 
@@ -137,7 +144,13 @@ const Navigation = () => {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-2">
           {navItems.map((item) => {
-            const isActive = location.pathname === item.path || (item.path === '/' && location.pathname === '/')
+            const isActive = location.pathname === item.path || 
+              (item.path === '/' && location.pathname === '/') ||
+              (item.path === '/teams' && location.pathname.startsWith('/teams')) ||
+              (item.path === '/leaderboards' && location.pathname.startsWith('/leaderboards')) ||
+              (item.path === '/favorites' && location.pathname.startsWith('/favorites')) ||
+              (item.path === '/rivals' && location.pathname.startsWith('/rivals')) ||
+              (item.path === '/profile' && location.pathname.startsWith('/profile'))
             return (
               <Link
                 key={item.path}
