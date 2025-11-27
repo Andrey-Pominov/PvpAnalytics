@@ -163,7 +163,7 @@ public class AnalyticsControllersTests : IClassFixture<PvpAnalyticsApiFactory>
             Ability = "Chaos Bolt",
             DamageDone = 150000,
             HealingDone = 0,
-            CrowdControl = null
+            CrowdControl = string.Empty
         };
         dbContext.CombatLogEntries.Add(combatLog);
         await dbContext.SaveChangesAsync();
