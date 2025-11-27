@@ -12,14 +12,17 @@ public class RivalDto
     public int IntensityScore { get; set; }
     public DateTime CreatedAt { get; set; }
     public int MatchesPlayed { get; set; }
-    public int Wins { get; set; }
-    public int Losses { get; set; }
-    public double WinRate { get; set; }
+    public int? Wins { get; set; }
+    public int? Losses { get; set; }
+    public double? WinRate { get; set; }
 }
 
 public class CreateRivalDto
 {
-    public long PlayerId { get; set; }
+    /// <summary>
+    /// The ID of the opponent player to mark as a rival. Required.
+    /// </summary>
+    public long OpponentPlayerId { get; set; }
     public string? Notes { get; set; }
     public int IntensityScore { get; set; } = 5;
 }

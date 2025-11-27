@@ -30,14 +30,9 @@ public class ProfileService(AuthDbContext dbContext) : IProfileService
         if (user == null)
             return null;
 
-        if (dto.DisplayName != null)
-            user.DisplayName = dto.DisplayName;
-
-        if (dto.Bio != null)
-            user.Bio = dto.Bio;
-
-        if (dto.AvatarUrl != null)
-            user.AvatarUrl = dto.AvatarUrl;
+        user.DisplayName = dto.DisplayName;
+        user.Bio = dto.Bio;
+        user.AvatarUrl = dto.AvatarUrl;
 
         if (dto.IsProfilePublic.HasValue)
             user.IsProfilePublic = dto.IsProfilePublic.Value;

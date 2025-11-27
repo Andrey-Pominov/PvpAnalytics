@@ -32,11 +32,12 @@ public class TeamService(
         var team = await dbContext.Teams
             .Include(t => t.Members)
                 .ThenInclude(m => m.Player)
+            .Include(t => t.TeamMatches)
             .FirstOrDefaultAsync(t => t.Id == teamId, ct);
 
         if (team == null) return null;
 
-        return await MapToDtoAsync(team, ct);
+        return MapToDto(team);
     }
 
     public async Task<List<TeamDto>> GetUserTeamsAsync(Guid userId, CancellationToken ct = default)
@@ -44,16 +45,12 @@ public class TeamService(
         var teams = await dbContext.Teams
             .Include(t => t.Members)
                 .ThenInclude(m => m.Player)
+            .Include(t => t.TeamMatches)
             .Where(t => t.CreatedByUserId == userId)
             .OrderByDescending(t => t.CreatedAt)
             .ToListAsync(ct);
 
-        var result = new List<TeamDto>();
-        foreach (var team in teams)
-        {
-            result.Add(await MapToDtoAsync(team, ct));
-        }
-        return result;
+        return teams.Select(MapToDto).ToList();
     }
 
     public async Task<List<TeamDto>> SearchTeamsAsync(string? bracket = null, string? region = null, bool? isPublic = true, CancellationToken ct = default)
@@ -61,6 +58,7 @@ public class TeamService(
         var query = dbContext.Teams
             .Include(t => t.Members)
                 .ThenInclude(m => m.Player)
+            .Include(t => t.TeamMatches)
             .AsQueryable();
 
         if (!string.IsNullOrEmpty(bracket))
@@ -77,12 +75,7 @@ public class TeamService(
             .ThenByDescending(t => t.CreatedAt)
             .ToListAsync(ct);
 
-        var result = new List<TeamDto>();
-        foreach (var team in teams)
-        {
-            result.Add(await MapToDtoAsync(team, ct));
-        }
-        return result;
+        return teams.Select(MapToDto).ToList();
     }
 
     public async Task<TeamDto> CreateTeamAsync(CreateTeamDto dto, Guid userId, CancellationToken ct = default)
@@ -116,14 +109,15 @@ public class TeamService(
             }
         }
 
-        // Reload with members
+        // Reload with members and matches
         await dbContext.Entry(team).Collection(t => t.Members).LoadAsync(ct);
         foreach (var member in team.Members)
         {
             await dbContext.Entry(member).Reference(m => m.Player).LoadAsync(ct);
         }
+        await dbContext.Entry(team).Collection(t => t.TeamMatches).LoadAsync(ct);
 
-        return await MapToDtoAsync(team, ct);
+        return MapToDto(team);
     }
 
     public async Task<TeamDto?> UpdateTeamAsync(long teamId, UpdateTeamDto dto, Guid userId, CancellationToken ct = default)
@@ -131,6 +125,7 @@ public class TeamService(
         var team = await dbContext.Teams
             .Include(t => t.Members)
                 .ThenInclude(m => m.Player)
+            .Include(t => t.TeamMatches)
             .FirstOrDefaultAsync(t => t.Id == teamId, ct);
 
         if (team == null) return null;
@@ -155,7 +150,7 @@ public class TeamService(
 
         await teamRepo.UpdateAsync(team, ct);
 
-        return await MapToDtoAsync(team, ct);
+        return MapToDto(team);
     }
 
     public async Task<bool> DeleteTeamAsync(long teamId, Guid userId, CancellationToken ct = default)
@@ -208,12 +203,10 @@ public class TeamService(
         return true;
     }
 
-    private async Task<TeamDto> MapToDtoAsync(Team team, CancellationToken ct)
+    private TeamDto MapToDto(Team team)
     {
-        // Get match statistics
-        var teamMatches = await dbContext.TeamMatches
-            .Where(tm => tm.TeamId == team.Id)
-            .ToListAsync(ct);
+        // Use already-loaded TeamMatches collection (null check for safety)
+        var teamMatches = team.TeamMatches ?? new List<TeamMatch>();
 
         var totalMatches = teamMatches.Count;
         var wins = teamMatches.Count(tm => tm.IsWin);

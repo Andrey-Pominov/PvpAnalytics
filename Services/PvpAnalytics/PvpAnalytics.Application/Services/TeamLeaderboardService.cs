@@ -23,23 +23,44 @@ public class TeamLeaderboardService(PvpAnalyticsDbContext dbContext) : ITeamLead
 
         var teams = await query.ToListAsync(ct);
 
+        if (teams.Count == 0)
+        {
+            return new TeamLeaderboardDto
+            {
+                Bracket = bracket,
+                Region = region,
+                Entries = new List<TeamLeaderboardEntryDto>(),
+                TotalTeams = 0,
+                LastUpdated = DateTime.UtcNow
+            };
+        }
+
+        // Fetch all TeamMatches for all teams in a single query and aggregate at database level
+        var teamIds = teams.Select(t => t.Id).ToList();
+        var teamStatsList = await dbContext.TeamMatches
+            .Where(tm => teamIds.Contains(tm.TeamId))
+            .GroupBy(tm => tm.TeamId)
+            .Select(g => new
+            {
+                TeamId = g.Key,
+                TotalMatches = g.Count(),
+                Wins = g.Count(tm => tm.IsWin),
+                LastMatchDate = g.Max(tm => tm.Match.CreatedOn)
+            })
+            .ToListAsync(ct);
+        
+        var teamStats = teamStatsList.ToDictionary(x => x.TeamId);
+
         var entries = new List<TeamLeaderboardEntryDto>();
 
         foreach (var team in teams)
         {
-            var teamMatches = await dbContext.TeamMatches
-                .Include(tm => tm.Match)
-                .Where(tm => tm.TeamId == team.Id)
-                .ToListAsync(ct);
-
-            var totalMatches = teamMatches.Count;
-            var wins = teamMatches.Count(tm => tm.IsWin);
+            var stats = teamStats.GetValueOrDefault(team.Id);
+            var totalMatches = stats?.TotalMatches ?? 0;
+            var wins = stats?.Wins ?? 0;
             var losses = totalMatches - wins;
             var winRate = totalMatches > 0 ? Math.Round(wins * 100.0 / totalMatches, 2) : 0.0;
-
-            var lastMatchDate = teamMatches.Any()
-                ? teamMatches.Max(tm => tm.Match.CreatedOn)
-                : team.CreatedAt;
+            var lastMatchDate = stats?.LastMatchDate ?? team.CreatedAt;
 
             entries.Add(new TeamLeaderboardEntryDto
             {

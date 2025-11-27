@@ -110,6 +110,9 @@ public class PvpAnalyticsDbContext(DbContextOptions<PvpAnalyticsDbContext> optio
         modelBuilder.Entity<Rival>()
             .HasIndex(r => r.OwnerUserId);
 
+        modelBuilder.Entity<Rival>()
+            .HasCheckConstraint("CK_Rival_IntensityScore", "IntensityScore >= 1 AND IntensityScore <= 10");
+
         // User badges
         modelBuilder.Entity<UserBadge>()
             .HasIndex(ub => ub.UserId);
@@ -136,6 +139,9 @@ public class PvpAnalyticsDbContext(DbContextOptions<PvpAnalyticsDbContext> optio
             .WithMany()
             .HasForeignKey(cr => cr.TeamId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<CommunityRanking>()
+            .HasCheckConstraint("CK_CommunityRankings_PlayerOrTeam", "\"PlayerId\" IS NOT NULL OR \"TeamId\" IS NOT NULL");
 
         modelBuilder.Entity<CommunityRanking>()
             .HasIndex(cr => new { cr.RankingType, cr.Period, cr.Rank });

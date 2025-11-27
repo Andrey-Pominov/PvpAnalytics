@@ -33,7 +33,7 @@ namespace AuthService.Infrastructure.Data.Migrations
                 table: "Users",
                 type: "bit",
                 nullable: false,
-                defaultValue: false);
+                defaultValue: true);
 
             migrationBuilder.AddColumn<bool>(
                 name: "ShowStatsToFriendsOnly",

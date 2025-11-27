@@ -14,9 +14,9 @@ interface Rival {
   intensityScore: number
   createdAt: string
   matchesPlayed: number
-  wins: number
-  losses: number
-  winRate: number
+  wins?: number | null
+  losses?: number | null
+  winRate?: number | null
 }
 
 const RivalsPage = () => {
@@ -89,7 +89,15 @@ const RivalsPage = () => {
               <p>Class: <span className="font-semibold">{rival.class}</span></p>
               {rival.spec && <p>Spec: <span className="font-semibold">{rival.spec}</span></p>}
               <p>Matches: <span className="font-semibold">{rival.matchesPlayed}</span></p>
-              <p>Win Rate: <span className={`font-semibold ${rival.winRate > 50 ? 'text-green-600' : 'text-red-600'}`}>{rival.winRate.toFixed(1)}%</span></p>
+              {rival.winRate != null ? (
+                <>
+                  <p>Wins: <span className="font-semibold">{rival.wins ?? 0}</span></p>
+                  <p>Losses: <span className="font-semibold">{rival.losses ?? 0}</span></p>
+                  <p>Win Rate: <span className={`font-semibold ${rival.winRate > 50 ? 'text-green-600' : 'text-red-600'}`}>{rival.winRate.toFixed(1)}%</span></p>
+                </>
+              ) : (
+                <p className="col-span-2 text-text-muted text-xs">Stats unavailable - add favorite players to track your performance</p>
+              )}
             </div>
             {rival.notes && (
               <div className="mb-3">

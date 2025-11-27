@@ -23,28 +23,26 @@ public class DiscussionService(
     {
         var threads = await dbContext.MatchDiscussionThreads
             .Where(dt => dt.MatchId == matchId && !dt.IsLocked)
-            .OrderByDescending(dt => dt.IsPinned)
-            .ThenByDescending(dt => dt.CreatedAt)
+            .Select(thread => new
+            {
+                Thread = thread,
+                PostCount = dbContext.MatchDiscussionPosts
+                    .Count(p => p.ThreadId == thread.Id && !p.IsDeleted)
+            })
+            .OrderByDescending(x => x.Thread.IsPinned)
+            .ThenByDescending(x => x.Thread.CreatedAt)
+            .Select(x => new DiscussionThreadDto
+            {
+                Id = x.Thread.Id,
+                MatchId = x.Thread.MatchId,
+                CreatedByUserId = x.Thread.CreatedByUserId,
+                CreatedAt = x.Thread.CreatedAt,
+                Title = x.Thread.Title,
+                PostCount = x.PostCount
+            })
             .ToListAsync(ct);
 
-        var result = new List<DiscussionThreadDto>();
-        foreach (var thread in threads)
-        {
-            var postCount = await dbContext.MatchDiscussionPosts
-                .CountAsync(p => p.ThreadId == thread.Id && !p.IsDeleted, ct);
-
-            result.Add(new DiscussionThreadDto
-            {
-                Id = thread.Id,
-                MatchId = thread.MatchId,
-                CreatedByUserId = thread.CreatedByUserId,
-                CreatedAt = thread.CreatedAt,
-                Title = thread.Title,
-                PostCount = postCount
-            });
-        }
-
-        return result;
+        return threads;
     }
 
     public async Task<DiscussionThreadDto?> GetThreadAsync(long threadId, CancellationToken ct = default)
@@ -109,6 +107,16 @@ public class DiscussionService(
 
     public async Task<DiscussionPostDto> CreatePostAsync(CreatePostDto dto, Guid userId, CancellationToken ct = default)
     {
+        var thread = await dbContext.MatchDiscussionThreads.FindAsync(([dto.ThreadId]), ct);
+        if (thread == null)
+        {
+            throw new InvalidOperationException($" Thread with ID {dto.ThreadId} not found");
+        }
+
+        if (thread.IsLocked)
+        {
+            throw new InvalidOperationException($" Thread with ID {dto.ThreadId} is locked");
+        }
         var post = new MatchDiscussionPost
         {
             ThreadId = dto.ThreadId,
@@ -121,13 +129,6 @@ public class DiscussionService(
         };
 
         await postRepo.AddAsync(post, ct);
-
-        // Update thread's comment count
-        var thread = await dbContext.MatchDiscussionThreads.FindAsync([dto.ThreadId], ct);
-        if (thread != null)
-        {
-            // This would be better handled by a computed column or trigger, but for now we'll update manually
-        }
 
         return new DiscussionPostDto
         {

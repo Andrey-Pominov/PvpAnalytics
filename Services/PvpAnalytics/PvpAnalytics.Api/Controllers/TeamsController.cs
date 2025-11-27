@@ -24,7 +24,17 @@ public class TeamsController(ITeamService teamService) : ControllerBase
     public async Task<ActionResult<TeamDto>> GetTeam(long id, CancellationToken ct = default)
     {
         var team = await teamService.GetTeamAsync(id, ct);
-        return team == null ? NotFound() : Ok(team);
+        if (team == null)
+            return NotFound();
+
+        // Check visibility: allow if team is public OR if caller is the owner
+        var userId = GetUserId();
+        if (!team.IsPublic && (userId == null || team.CreatedByUserId != userId))
+        {
+            return NotFound(); // Return NotFound instead of Forbidden to prevent information disclosure
+        }
+
+        return Ok(team);
     }
 
     [Authorize]

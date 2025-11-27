@@ -42,6 +42,9 @@ namespace PvpAnalytics.Infrastructure.Migrations
                         principalTable: "Teams",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
+                    table.CheckConstraint(
+                        name: "CK_CommunityRankings_PlayerOrTeam",
+                        sql: "\"PlayerId\" IS NOT NULL OR \"TeamId\" IS NOT NULL");
                 });
 
             migrationBuilder.CreateTable(
