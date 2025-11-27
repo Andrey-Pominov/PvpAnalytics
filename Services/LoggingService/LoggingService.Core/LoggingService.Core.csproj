@@ -7,8 +7,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Google.Protobuf" Version="3.25.3" />
-    <PackageReference Include="Grpc.Core.Api" Version="2.62.0" />
+    <PackageReference Include="Google.Protobuf" Version="3.33.0" />
+    <PackageReference Include="Grpc.Core.Api" Version="2.71.0" />
   </ItemGroup>
 
   <ItemGroup>

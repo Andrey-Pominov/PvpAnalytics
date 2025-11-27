@@ -88,14 +88,14 @@ public class LoggingGrpcService(
             Take = request.Take
         };
 
-        var logs = await loggingService.GetLogsAsync(query, context.CancellationToken);
+        var result = await loggingService.GetLogsAsync(query, context.CancellationToken);
 
         var response = new LogQueryResponse
         {
-            TotalCount = logs.Count
+            TotalCount = result.TotalCount
         };
 
-        response.Logs.AddRange(logs.Select(log => new LogEntryResponse
+        response.Logs.AddRange(result.Logs.Select(log => new LogEntryResponse
         {
             Id = log.Id,
             Timestamp = Timestamp.FromDateTime(log.Timestamp.ToUniversalTime()),
@@ -144,14 +144,16 @@ public class LoggingGrpcService(
 
     public override async Task<LogQueryResponse> GetLogsByService(LogsByServiceRequest request, ServerCallContext context)
     {
-        var logs = await loggingService.GetLogsByServiceAsync(request.ServiceName, context.CancellationToken);
+        var skip = request.Skip > 0 ? request.Skip : 0;
+        var take = request.Take > 0 ? request.Take : 100;
+        var result = await loggingService.GetLogsByServiceAsync(request.ServiceName, skip, take, context.CancellationToken);
 
         var response = new LogQueryResponse
         {
-            TotalCount = logs.Count
+            TotalCount = result.TotalCount
         };
 
-        response.Logs.AddRange(logs.Select(log => new LogEntryResponse
+        response.Logs.AddRange(result.Logs.Select(log => new LogEntryResponse
         {
             Id = log.Id,
             Timestamp = Timestamp.FromDateTime(log.Timestamp.ToUniversalTime()),
@@ -174,14 +176,16 @@ public class LoggingGrpcService(
 
     public override async Task<LogQueryResponse> GetLogsByLevel(LogsByLevelRequest request, ServerCallContext context)
     {
-        var logs = await loggingService.GetLogsByLevelAsync(request.Level, context.CancellationToken);
+        var skip = request.Skip > 0 ? request.Skip : 0;
+        var take = request.Take > 0 ? request.Take : 100;
+        var result = await loggingService.GetLogsByLevelAsync(request.Level, skip, take, context.CancellationToken);
 
         var response = new LogQueryResponse
         {
-            TotalCount = logs.Count
+            TotalCount = result.TotalCount
         };
 
-        response.Logs.AddRange(logs.Select(log => new LogEntryResponse
+        response.Logs.AddRange(result.Logs.Select(log => new LogEntryResponse
         {
             Id = log.Id,
             Timestamp = Timestamp.FromDateTime(log.Timestamp.ToUniversalTime()),

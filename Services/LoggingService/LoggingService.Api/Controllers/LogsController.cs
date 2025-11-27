@@ -19,10 +19,10 @@ public class LogsController(ILoggingService loggingService) : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<List<LogEntryDto>>> GetLogs([FromQuery] LogQueryDto query, CancellationToken ct)
+    public async Task<ActionResult<LogQueryResultDto>> GetLogs([FromQuery] LogQueryDto query, CancellationToken ct)
     {
-        var logs = await loggingService.GetLogsAsync(query, ct);
-        return Ok(logs);
+        var result = await loggingService.GetLogsAsync(query, ct);
+        return Ok(result);
     }
 
     [HttpGet("{id:long}")]
@@ -33,17 +33,25 @@ public class LogsController(ILoggingService loggingService) : ControllerBase
     }
 
     [HttpGet("service/{serviceName}")]
-    public async Task<ActionResult<List<LogEntryDto>>> GetLogsByService(string serviceName, CancellationToken ct)
+    public async Task<ActionResult<LogQueryResultDto>> GetLogsByService(
+        string serviceName, 
+        [FromQuery] int skip = 0, 
+        [FromQuery] int take = 100, 
+        CancellationToken ct = default)
     {
-        var logs = await loggingService.GetLogsByServiceAsync(serviceName, ct);
-        return Ok(logs);
+        var result = await loggingService.GetLogsByServiceAsync(serviceName, skip, take, ct);
+        return Ok(result);
     }
 
     [HttpGet("level/{level}")]
-    public async Task<ActionResult<List<LogEntryDto>>> GetLogsByLevel(string level, CancellationToken ct)
+    public async Task<ActionResult<LogQueryResultDto>> GetLogsByLevel(
+        string level, 
+        [FromQuery] int skip = 0, 
+        [FromQuery] int take = 100, 
+        CancellationToken ct = default)
     {
-        var logs = await loggingService.GetLogsByLevelAsync(level, ct);
-        return Ok(logs);
+        var result = await loggingService.GetLogsByLevelAsync(level, skip, take, ct);
+        return Ok(result);
     }
 }
 

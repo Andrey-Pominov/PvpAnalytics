@@ -66,10 +66,14 @@ message LogByIdRequest {
 
 message LogsByServiceRequest {
   string service_name = 1;
+  int32 skip = 2;
+  int32 take = 3;
 }
 
 message LogsByLevelRequest {
   string level = 1;
+  int32 skip = 2;
+  int32 take = 3;
 }
 
 message ServiceRegistrationRequest {

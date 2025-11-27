@@ -31,7 +31,7 @@ public class LoggingService(LoggingDbContext dbContext) : ILoggingService
         return MapToDto(log);
     }
 
-    public async Task<List<LogEntryDto>> GetLogsAsync(LogQueryDto query, CancellationToken ct = default)
+    public async Task<LogQueryResultDto> GetLogsAsync(LogQueryDto query, CancellationToken ct = default)
     {
         var logsQuery = dbContext.ApplicationLogs.AsQueryable();
 
@@ -50,35 +50,65 @@ public class LoggingService(LoggingDbContext dbContext) : ILoggingService
         if (query.UserId.HasValue)
             logsQuery = logsQuery.Where(l => l.UserId == query.UserId.Value);
 
+        // Get total count before pagination
+        var totalCount = await logsQuery.CountAsync(ct);
+
+        // Get paged results
         var logs = await logsQuery
             .OrderByDescending(l => l.Timestamp)
             .Skip(query.Skip)
             .Take(query.Take)
             .ToListAsync(ct);
 
-        return logs.Select(MapToDto).ToList();
+        return new LogQueryResultDto
+        {
+            Logs = logs.Select(MapToDto).ToList(),
+            TotalCount = totalCount
+        };
     }
 
-    public async Task<List<LogEntryDto>> GetLogsByServiceAsync(string serviceName, CancellationToken ct = default)
+    public async Task<LogQueryResultDto> GetLogsByServiceAsync(string serviceName, int skip = 0, int take = 100, CancellationToken ct = default)
     {
-        var logs = await dbContext.ApplicationLogs
-            .Where(l => l.ServiceName == serviceName)
+        var logsQuery = dbContext.ApplicationLogs
+            .Where(l => l.ServiceName == serviceName);
+
+        // Get total count before pagination
+        var totalCount = await logsQuery.CountAsync(ct);
+
+        // Get paged results
+        var logs = await logsQuery
             .OrderByDescending(l => l.Timestamp)
-            .Take(1000)
+            .Skip(skip)
+            .Take(take)
             .ToListAsync(ct);
 
-        return logs.Select(MapToDto).ToList();
+        return new LogQueryResultDto
+        {
+            Logs = logs.Select(MapToDto).ToList(),
+            TotalCount = totalCount
+        };
     }
 
-    public async Task<List<LogEntryDto>> GetLogsByLevelAsync(string level, CancellationToken ct = default)
+    public async Task<LogQueryResultDto> GetLogsByLevelAsync(string level, int skip = 0, int take = 100, CancellationToken ct = default)
     {
-        var logs = await dbContext.ApplicationLogs
-            .Where(l => l.Level == level)
+        var logsQuery = dbContext.ApplicationLogs
+            .Where(l => l.Level == level);
+
+        // Get total count before pagination
+        var totalCount = await logsQuery.CountAsync(ct);
+
+        // Get paged results
+        var logs = await logsQuery
             .OrderByDescending(l => l.Timestamp)
-            .Take(1000)
+            .Skip(skip)
+            .Take(take)
             .ToListAsync(ct);
 
-        return logs.Select(MapToDto).ToList();
+        return new LogQueryResultDto
+        {
+            Logs = logs.Select(MapToDto).ToList(),
+            TotalCount = totalCount
+        };
     }
 
     public async Task<LogEntryDto?> GetLogByIdAsync(long id, CancellationToken ct = default)

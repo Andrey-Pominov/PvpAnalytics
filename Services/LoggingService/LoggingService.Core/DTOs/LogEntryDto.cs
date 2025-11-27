@@ -55,14 +55,38 @@ public class CreateLogEntryDto
     public string? Properties { get; set; }
 }
 
-public class LogQueryDto
+public class LogQueryDto : IValidatableObject
 {
+    [MaxLength(100, ErrorMessage = "ServiceName must not exceed 100 characters")]
     public string? ServiceName { get; set; }
+
+    [RegularExpression("^(Trace|Debug|Information|Warning|Error|Critical)$", ErrorMessage = "Level must be a valid log level (Trace, Debug, Information, Warning, Error, or Critical)")]
     public string? Level { get; set; }
+
     public DateTime? StartDate { get; set; }
     public DateTime? EndDate { get; set; }
     public Guid? UserId { get; set; }
+
+    [Range(0, int.MaxValue, ErrorMessage = "Skip must be non-negative")]
     public int Skip { get; set; } = 0;
+
+    [Range(1, 1000, ErrorMessage = "Take must be between 1 and 1000")]
     public int Take { get; set; } = 100;
+
+    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+    {
+        if (StartDate.HasValue && EndDate.HasValue && StartDate.Value > EndDate.Value)
+        {
+            yield return new ValidationResult(
+                "StartDate must be less than or equal to EndDate",
+                new[] { nameof(StartDate), nameof(EndDate) });
+        }
+    }
+}
+
+public class LogQueryResultDto
+{
+    public List<LogEntryDto> Logs { get; set; } = new();
+    public int TotalCount { get; set; }
 }
 
