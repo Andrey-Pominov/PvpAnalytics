@@ -5,6 +5,7 @@ using Microsoft.IdentityModel.Tokens;
 using PaymentService.Application;
 using PaymentService.Infrastructure;
 using PvpAnalytics.Shared.Security;
+using PvpAnalytics.Shared.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,14 +17,12 @@ builder.Services.AddApplication(builder.Configuration);
 
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
 
-// Get JWT options (always needed for configuration, even in test mode)
 var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>();
 if (jwtOptions == null)
 {
     throw new InvalidOperationException("Jwt configuration section is missing.");
 }
 
-// Skip JWT validation in test mode (when UseInMemoryDatabase is set)
 var useInMemoryDatabaseValue = builder.Configuration["UseInMemoryDatabase"];
 var useInMemoryDatabase = !string.IsNullOrWhiteSpace(useInMemoryDatabaseValue) && 
                           (useInMemoryDatabaseValue.Equals("true", StringComparison.OrdinalIgnoreCase) ||
@@ -31,7 +30,6 @@ var useInMemoryDatabase = !string.IsNullOrWhiteSpace(useInMemoryDatabaseValue) &
 
 if (!useInMemoryDatabase)
 {
-    // Validate JWT signing key with clear error messages (only in non-test mode)
     const string placeholderKey = "DEV_PLACEHOLDER_KEY_MUST_BE_REPLACED";
     if (string.IsNullOrWhiteSpace(jwtOptions.SigningKey))
     {
@@ -55,11 +53,9 @@ if (!useInMemoryDatabase)
     }
 }
 
-// Read CORS origins from configuration
 var corsOrigins = builder.Configuration.GetSection($"{CorsOptions.SectionName}:AllowedOrigins").Get<string[]>();
 if (corsOrigins == null || corsOrigins.Length == 0)
 {
-    // In test mode, use a default CORS origin
     if (useInMemoryDatabase)
     {
         corsOrigins = ["http://localhost:3000"];
@@ -104,7 +100,32 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization();
 
+builder.Services.AddSingleton<ILoggingClient>(sp =>
+{
+    var config = sp.GetRequiredService<IConfiguration>();
+    var logger = sp.GetRequiredService<ILogger<PvpAnalytics.Shared.Services.LoggingClient>>();
+    return new PvpAnalytics.Shared.Services.LoggingClient(config, logger);
+});
+
 var app = builder.Build();
+
+var loggingClient = app.Services.GetRequiredService<ILoggingClient>();
+var serviceName = builder.Configuration["LoggingService:ServiceName"] ?? "PaymentService";
+var serviceEndpoint = GetServiceEndpoint(builder.Configuration, "localhost:8082");
+var serviceVersion = "1.0.0";
+
+try
+{
+    await loggingClient.RegisterServiceAsync(serviceName, serviceEndpoint, serviceVersion);
+    var heartbeatInterval = TimeSpan.FromSeconds(
+        builder.Configuration.GetValue<int>("LoggingService:HeartbeatIntervalSeconds", 30));
+    loggingClient.StartHeartbeat(serviceName, heartbeatInterval);
+    app.Logger.LogInformation("Registered with LoggingService and started heartbeat");
+}
+catch (Exception ex)
+{
+    app.Logger.LogWarning(ex, "Failed to register with LoggingService, continuing without centralized logging");
+}
 
 var skipMigrations = builder.Configuration.GetValue<bool?>("EfMigrations:Skip") ?? false;
 if (!skipMigrations)
@@ -128,6 +149,46 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+static string GetServiceEndpoint(IConfiguration configuration, string defaultEndpoint)
+{
+    // Returns endpoint in host:port format (without scheme) for consistency
+    var urlsValue = configuration["ASPNETCORE_URLS"];
+    if (string.IsNullOrWhiteSpace(urlsValue))
+    {
+        // Ensure defaultEndpoint is in host:port format (strip scheme if present)
+        return NormalizeEndpoint(defaultEndpoint);
+    }
+
+    var urls = urlsValue.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    foreach (var url in urls)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+            continue;
+
+        if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        {
+            // Extract host:port (authority) without scheme for consistent format
+            // uri.Authority already handles default ports correctly
+            return uri.Authority;
+        }
+    }
+
+    // Return defaultEndpoint in host:port format (strip scheme if present)
+    return NormalizeEndpoint(defaultEndpoint);
+}
+
+static string NormalizeEndpoint(string endpoint)
+{
+    // If endpoint contains a scheme (e.g., "http://localhost:8082"), extract host:port
+    if (Uri.TryCreate(endpoint, UriKind.Absolute, out var uri))
+    {
+        return uri.Authority;
+    }
+    
+    // If no scheme, assume it's already in host:port format
+    return endpoint;
+}
 
 namespace PaymentService.Api
 {

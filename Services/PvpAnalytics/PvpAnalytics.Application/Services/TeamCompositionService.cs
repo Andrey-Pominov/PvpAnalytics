@@ -20,7 +20,6 @@ public class TeamCompositionService(
 {
     public async Task<List<TeamCompositionDto>> GetPlayerTeamsAsync(long playerId, CancellationToken ct = default)
     {
-        // Get all matches where player participated
         var playerMatchIds = await dbContext.MatchResults
             .Where(mr => mr.PlayerId == playerId)
             .Select(mr => mr.MatchId)
@@ -30,7 +29,6 @@ public class TeamCompositionService(
         if (!playerMatchIds.Any())
             return new List<TeamCompositionDto>();
 
-        // Get all match results for these matches, grouped by team
         var teamData = await dbContext.MatchResults
             .Include(mr => mr.Player)
             .Include(mr => mr.Match)
@@ -54,12 +52,10 @@ public class TeamCompositionService(
             })
             .ToListAsync(ct);
 
-        // Filter to teams that include the player
         var playerTeams = teamData
             .Where(td => td.Players.Any(p => p.PlayerId == playerId))
             .ToList();
 
-        // Group by composition (sorted class names)
         var compositionGroups = playerTeams
             .GroupBy(td =>
             {
@@ -107,8 +103,6 @@ public class TeamCompositionService(
 
     public async Task<TeamCompositionDto?> GetTeamStatsAsync(string composition, CancellationToken ct = default)
     {
-        // This would require a more complex query to find all teams with this composition
-        // For now, return null as this is a simplified implementation
         return null;
     }
 
@@ -120,7 +114,6 @@ public class TeamCompositionService(
         if (player1 == null || player2 == null)
             return null;
 
-        // Find matches where both players participated on the same team
         var player1Matches = await dbContext.MatchResults
             .Where(mr => mr.PlayerId == player1Id)
             .Select(mr => new { mr.MatchId, mr.Team })
@@ -131,7 +124,6 @@ public class TeamCompositionService(
             .Select(mr => new { mr.MatchId, mr.Team })
             .ToListAsync(ct);
 
-        // Find matches where they were on the same team
         var togetherMatches = player1Matches
             .Join(player2Matches,
                 p1 => new { p1.MatchId, p1.Team },
@@ -152,7 +144,6 @@ public class TeamCompositionService(
             };
         }
 
-        // Get match results for these matches
         var togetherResults = await dbContext.MatchResults
             .Include(mr => mr.Match)
             .Where(mr => togetherMatches.Contains(mr.MatchId) &&
@@ -182,7 +173,6 @@ public class TeamCompositionService(
             SynergyScore = CalculateSynergyScore(wins, togetherMatches.Count)
         };
 
-        // Get common compositions
         var teamCompositions = await GetPlayerTeamsAsync(player1Id, ct);
         dto.CommonCompositions = teamCompositions
             .Where(tc => tc.Members.Any(m => m.PlayerId == player2Id))
@@ -195,7 +185,6 @@ public class TeamCompositionService(
     {
         if (totalMatches == 0) return 0;
         var winRate = wins / (double)totalMatches;
-        // Synergy score: higher win rate = higher score, with bonus for more matches
         var baseScore = winRate * 100;
         var matchBonus = Math.Min(totalMatches / 10.0, 10); // Cap bonus at 10
         return Math.Round(baseScore + matchBonus, 2);

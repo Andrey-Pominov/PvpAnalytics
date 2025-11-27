@@ -30,7 +30,6 @@ public class PlayersController(
             return NotFound();
         }
 
-        // Database-side aggregation query: Join MatchResult with Match and aggregate in database
         var joinedQuery = matchResultRepo.Query()
             .Where(mr => mr.PlayerId == id)
             .Join(
@@ -40,7 +39,6 @@ public class PlayersController(
                 (mr, m) => new { MatchResult = mr, Match = m }
             );
 
-        // Check if player has any matches
         var hasMatches = await joinedQuery.AnyAsync(ct);
         if (!hasMatches)
         {
@@ -59,7 +57,6 @@ public class PlayersController(
             });
         }
 
-        // Aggregate stats in database
         var statsQuery = joinedQuery
             .GroupBy(x => x.MatchResult.PlayerId)
             .Select(g => new
@@ -88,14 +85,12 @@ public class PlayersController(
             });
         }
 
-        // Get favorite game mode (separate query for better SQL translation)
         var favoriteGameMode = await joinedQuery
             .GroupBy(x => x.Match.GameMode)
             .Select(g => new { GameMode = g.Key, Count = g.Count() })
             .OrderByDescending(g => g.Count)
             .FirstOrDefaultAsync(ct);
 
-        // Get favorite spec (separate query for better SQL translation)
         var favoriteSpec = await matchResultRepo.Query()
             .Where(mr => mr.PlayerId == id && mr.Spec != null && mr.Spec != string.Empty)
             .GroupBy(mr => mr.Spec!)
@@ -128,7 +123,6 @@ public class PlayersController(
         [FromQuery] int take = 100,
         CancellationToken ct = default)
     {
-        // Validate pagination parameters
         if (skip < 0)
         {
             return BadRequest("skip must be greater than or equal to 0");
@@ -145,16 +139,12 @@ public class PlayersController(
             return BadRequest($"take must not exceed {maxTake}");
         }
 
-        // Verify player exists
         var player = await service.GetAsync(id, ct);
         if (player is null)
         {
             return NotFound();
         }
 
-        // Single efficient database query: Join MatchResult with Match, filter by PlayerId,
-        // order by most recent (CreatedOn descending), and apply pagination
-        // Query() already uses AsNoTracking() for read-only queries
         var matchesQuery = matchResultRepo.Query()
             .Where(mr => mr.PlayerId == id)
             .Join(
@@ -187,7 +177,6 @@ public class PlayersController(
 
         var matches = await matchesQuery.ToListAsync(ct);
 
-        // Handle missing results - return empty list if player has no matches (valid case)
         return Ok(matches);
     }
 

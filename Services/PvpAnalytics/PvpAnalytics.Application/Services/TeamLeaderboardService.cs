@@ -35,7 +35,6 @@ public class TeamLeaderboardService(PvpAnalyticsDbContext dbContext) : ITeamLead
             };
         }
 
-        // Fetch all TeamMatches for all teams in a single query and aggregate at database level
         var teamIds = teams.Select(t => t.Id).ToList();
         var teamStatsList = await dbContext.TeamMatches
             .Where(tm => teamIds.Contains(tm.TeamId))
@@ -76,7 +75,6 @@ public class TeamLeaderboardService(PvpAnalyticsDbContext dbContext) : ITeamLead
             });
         }
 
-        // Sort by rating (descending), then by win rate, then by total matches
         entries = entries
             .OrderByDescending(e => e.Rating ?? 0)
             .ThenByDescending(e => e.WinRate)
@@ -84,7 +82,6 @@ public class TeamLeaderboardService(PvpAnalyticsDbContext dbContext) : ITeamLead
             .Take(limit ?? 100)
             .ToList();
 
-        // Assign ranks
         for (int i = 0; i < entries.Count; i++)
         {
             entries[i].Rank = i + 1;

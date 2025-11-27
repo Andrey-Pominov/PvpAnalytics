@@ -27,7 +27,6 @@ public class TeamsController(ITeamService teamService) : ControllerBase
         if (team == null)
             return NotFound();
 
-        // Check visibility: allow if team is public OR if caller is the owner
         var userId = GetUserId();
         if (!team.IsPublic && (userId == null || team.CreatedByUserId != userId))
         {
