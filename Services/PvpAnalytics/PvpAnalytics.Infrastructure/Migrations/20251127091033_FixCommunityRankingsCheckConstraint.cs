@@ -17,7 +17,7 @@ namespace PvpAnalytics.Infrastructure.Migrations
             migrationBuilder.AddCheckConstraint(
                 name: "CK_CommunityRankings_PlayerOrTeam",
                 table: "CommunityRankings",
-                sql: "PlayerId IS NOT NULL OR TeamId IS NOT NULL");
+                sql: "\"PlayerId\" IS NOT NULL OR \"TeamId\" IS NOT NULL");
         }
 
         /// <inheritdoc />
