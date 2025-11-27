@@ -1,9 +1,9 @@
+using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 using LoggingService.Application.Abstractions;
 using LoggingService.Core.DTOs;
-using LoggingService.Core.Protos;
-using LoggingService.Infrastructure.Services;
-using LoggingServiceBase = LoggingService.Core.Protos.LoggingService.LoggingServiceBase;
+using PvpAnalytics.Shared.Protos;
+using LoggingServiceBase = PvpAnalytics.Shared.Protos.LoggingService.LoggingServiceBase;
 
 namespace LoggingService.Infrastructure.Services;
 
@@ -11,6 +11,31 @@ public class LoggingGrpcService(
     ILoggingService loggingService,
     IServiceRegistry serviceRegistry) : LoggingServiceBase
 {
+    private static Guid? TryParseGuid(string? value, string parameterName)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return null;
+
+        if (Guid.TryParse(value, out var guid))
+            return guid;
+
+        throw new RpcException(new Status(
+            StatusCode.InvalidArgument,
+            $"Invalid GUID format for parameter '{parameterName}': '{value}'. Expected a valid GUID format."));
+    }
+
+    private static DateTime? TryParseDateTime(string? value, string parameterName)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return null;
+
+        if (DateTime.TryParse(value, out var dateTime))
+            return dateTime;
+
+        throw new RpcException(new Status(
+            StatusCode.InvalidArgument,
+            $"Invalid date format for parameter '{parameterName}': '{value}'. Expected a valid date/time format."));
+    }
     public override async Task<LogEntryResponse> CreateLog(CreateLogRequest request, ServerCallContext context)
     {
         var dto = new CreateLogEntryDto
@@ -19,12 +44,14 @@ public class LoggingGrpcService(
             ServiceName = request.ServiceName,
             Message = request.Message,
             Exception = string.IsNullOrEmpty(request.Exception) ? null : request.Exception,
-            UserId = string.IsNullOrEmpty(request.UserId) ? null : Guid.Parse(request.UserId),
+            UserId = TryParseGuid(request.UserId, nameof(request.UserId)),
             RequestPath = string.IsNullOrEmpty(request.RequestPath) ? null : request.RequestPath,
             RequestMethod = string.IsNullOrEmpty(request.RequestMethod) ? null : request.RequestMethod,
             StatusCode = request.StatusCode == 0 ? null : request.StatusCode,
             Duration = request.Duration == 0 ? null : request.Duration,
-            Properties = string.IsNullOrEmpty(request.Properties) ? null : request.Properties
+            Properties = request.Properties != null && request.Properties.Fields.Count > 0 
+                ? Google.Protobuf.JsonFormatter.Default.Format(request.Properties)
+                : null
         };
 
         var log = await loggingService.LogAsync(dto, context.CancellationToken);
@@ -32,7 +59,7 @@ public class LoggingGrpcService(
         return new LogEntryResponse
         {
             Id = log.Id,
-            Timestamp = log.Timestamp.ToString("O"),
+            Timestamp = Timestamp.FromDateTime(log.Timestamp.ToUniversalTime()),
             Level = log.Level,
             ServiceName = log.ServiceName,
             Message = log.Message,
@@ -42,7 +69,9 @@ public class LoggingGrpcService(
             RequestMethod = log.RequestMethod ?? string.Empty,
             StatusCode = log.StatusCode ?? 0,
             Duration = log.Duration ?? 0,
-            Properties = log.Properties ?? string.Empty
+            Properties = !string.IsNullOrEmpty(log.Properties) 
+                ? Struct.Parser.ParseJson(log.Properties)
+                : new Struct()
         };
     }
 
@@ -52,9 +81,9 @@ public class LoggingGrpcService(
         {
             ServiceName = string.IsNullOrEmpty(request.ServiceName) ? null : request.ServiceName,
             Level = string.IsNullOrEmpty(request.Level) ? null : request.Level,
-            StartDate = string.IsNullOrEmpty(request.StartDate) ? null : DateTime.Parse(request.StartDate),
-            EndDate = string.IsNullOrEmpty(request.EndDate) ? null : DateTime.Parse(request.EndDate),
-            UserId = string.IsNullOrEmpty(request.UserId) ? null : Guid.Parse(request.UserId),
+            StartDate = request.StartDate != null ? request.StartDate.ToDateTime() : null,
+            EndDate = request.EndDate != null ? request.EndDate.ToDateTime() : null,
+            UserId = TryParseGuid(request.UserId, nameof(request.UserId)),
             Skip = request.Skip,
             Take = request.Take
         };
@@ -69,7 +98,7 @@ public class LoggingGrpcService(
         response.Logs.AddRange(logs.Select(log => new LogEntryResponse
         {
             Id = log.Id,
-            Timestamp = log.Timestamp.ToString("O"),
+            Timestamp = Timestamp.FromDateTime(log.Timestamp.ToUniversalTime()),
             Level = log.Level,
             ServiceName = log.ServiceName,
             Message = log.Message,
@@ -79,7 +108,9 @@ public class LoggingGrpcService(
             RequestMethod = log.RequestMethod ?? string.Empty,
             StatusCode = log.StatusCode ?? 0,
             Duration = log.Duration ?? 0,
-            Properties = log.Properties ?? string.Empty
+            Properties = !string.IsNullOrEmpty(log.Properties) 
+                ? Struct.Parser.ParseJson(log.Properties)
+                : new Struct()
         }));
 
         return response;
@@ -95,7 +126,7 @@ public class LoggingGrpcService(
         return new LogEntryResponse
         {
             Id = log.Id,
-            Timestamp = log.Timestamp.ToString("O"),
+            Timestamp = Timestamp.FromDateTime(log.Timestamp.ToUniversalTime()),
             Level = log.Level,
             ServiceName = log.ServiceName,
             Message = log.Message,
@@ -105,7 +136,9 @@ public class LoggingGrpcService(
             RequestMethod = log.RequestMethod ?? string.Empty,
             StatusCode = log.StatusCode ?? 0,
             Duration = log.Duration ?? 0,
-            Properties = log.Properties ?? string.Empty
+            Properties = !string.IsNullOrEmpty(log.Properties) 
+                ? Struct.Parser.ParseJson(log.Properties)
+                : new Struct()
         };
     }
 
@@ -121,7 +154,7 @@ public class LoggingGrpcService(
         response.Logs.AddRange(logs.Select(log => new LogEntryResponse
         {
             Id = log.Id,
-            Timestamp = log.Timestamp.ToString("O"),
+            Timestamp = Timestamp.FromDateTime(log.Timestamp.ToUniversalTime()),
             Level = log.Level,
             ServiceName = log.ServiceName,
             Message = log.Message,
@@ -131,7 +164,9 @@ public class LoggingGrpcService(
             RequestMethod = log.RequestMethod ?? string.Empty,
             StatusCode = log.StatusCode ?? 0,
             Duration = log.Duration ?? 0,
-            Properties = log.Properties ?? string.Empty
+            Properties = !string.IsNullOrEmpty(log.Properties) 
+                ? Struct.Parser.ParseJson(log.Properties)
+                : new Struct()
         }));
 
         return response;
@@ -149,7 +184,7 @@ public class LoggingGrpcService(
         response.Logs.AddRange(logs.Select(log => new LogEntryResponse
         {
             Id = log.Id,
-            Timestamp = log.Timestamp.ToString("O"),
+            Timestamp = Timestamp.FromDateTime(log.Timestamp.ToUniversalTime()),
             Level = log.Level,
             ServiceName = log.ServiceName,
             Message = log.Message,
@@ -159,7 +194,9 @@ public class LoggingGrpcService(
             RequestMethod = log.RequestMethod ?? string.Empty,
             StatusCode = log.StatusCode ?? 0,
             Duration = log.Duration ?? 0,
-            Properties = log.Properties ?? string.Empty
+            Properties = !string.IsNullOrEmpty(log.Properties) 
+                ? Struct.Parser.ParseJson(log.Properties)
+                : new Struct()
         }));
 
         return response;

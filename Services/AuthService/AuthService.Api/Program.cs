@@ -76,8 +76,7 @@ var app = builder.Build();
 
 var loggingClient = app.Services.GetRequiredService<ILoggingClient>();
 var serviceName = builder.Configuration["LoggingService:ServiceName"] ?? "AuthService";
-var serviceEndpoint = builder.Configuration["ASPNETCORE_URLS"]?.Split(';').FirstOrDefault()?.Split("://").LastOrDefault() 
-    ?? "http://localhost:8081";
+var serviceEndpoint = GetServiceEndpoint(builder.Configuration);
 var serviceVersion = "1.0.0";
 
 try
@@ -133,6 +132,29 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+static string GetServiceEndpoint(IConfiguration configuration)
+{
+    var urlsValue = configuration["ASPNETCORE_URLS"];
+    if (string.IsNullOrWhiteSpace(urlsValue))
+    {
+        return "localhost:8081";
+    }
+
+    var urls = urlsValue.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    foreach (var url in urls)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+            continue;
+
+        if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        {
+            return uri.Authority;
+        }
+    }
+
+    return "localhost:8081";
+}
 
 namespace AuthService.Api
 {

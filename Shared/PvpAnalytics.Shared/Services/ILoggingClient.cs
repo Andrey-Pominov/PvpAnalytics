@@ -1,6 +1,6 @@
 namespace PvpAnalytics.Shared.Services;
 
-public interface ILoggingClient
+public interface ILoggingClient : IDisposable
 {
     Task LogAsync(string level, string message, string? exception = null, Guid? userId = null, 
         string? requestPath = null, string? requestMethod = null, int? statusCode = null, 

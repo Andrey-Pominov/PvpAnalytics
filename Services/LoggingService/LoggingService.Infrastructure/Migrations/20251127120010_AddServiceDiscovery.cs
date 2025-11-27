@@ -33,7 +33,8 @@ namespace LoggingService.Infrastructure.Migrations
             migrationBuilder.CreateIndex(
                 name: "IX_RegisteredServices_ServiceName",
                 table: "RegisteredServices",
-                column: "ServiceName");
+                column: "ServiceName",
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_RegisteredServices_Status",

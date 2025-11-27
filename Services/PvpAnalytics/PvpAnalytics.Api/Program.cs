@@ -54,8 +54,7 @@ var app = builder.Build();
 
 var loggingClient = app.Services.GetRequiredService<ILoggingClient>();
 var serviceName = builder.Configuration["LoggingService:ServiceName"] ?? "PvpAnalytics";
-var serviceEndpoint = builder.Configuration["ASPNETCORE_URLS"]?.Split(';').FirstOrDefault()?.Split("://").LastOrDefault() 
-    ?? "http://localhost:8080";
+var serviceEndpoint = GetServiceEndpoint(builder.Configuration, "localhost:8080");
 var serviceVersion = "1.0.0";
 
 try
@@ -94,6 +93,45 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+static string GetServiceEndpoint(IConfiguration configuration, string defaultEndpoint)
+{
+    // Returns endpoint in host:port format (without scheme) for consistency
+    var urlsValue = configuration["ASPNETCORE_URLS"];
+    if (string.IsNullOrWhiteSpace(urlsValue))
+    {
+        // Ensure defaultEndpoint is in host:port format (strip scheme if present)
+        return NormalizeEndpoint(defaultEndpoint);
+    }
+
+    var urls = urlsValue.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    foreach (var url in urls)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+            continue;
+
+        if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        {
+            // Extract host:port (authority) without scheme for consistent format
+            return uri.Authority;
+        }
+    }
+
+    // Return defaultEndpoint in host:port format (strip scheme if present)
+    return NormalizeEndpoint(defaultEndpoint);
+}
+
+static string NormalizeEndpoint(string endpoint)
+{
+    // If endpoint contains a scheme (e.g., "http://localhost:8080"), extract host:port
+    if (Uri.TryCreate(endpoint, UriKind.Absolute, out var uri))
+    {
+        return uri.Authority;
+    }
+    
+    // If no scheme, assume it's already in host:port format
+    return endpoint;
+}
 
 namespace PvpAnalytics.Api
 {

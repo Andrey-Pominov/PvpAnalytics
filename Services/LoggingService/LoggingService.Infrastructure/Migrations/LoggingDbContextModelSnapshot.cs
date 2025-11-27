@@ -117,7 +117,8 @@ namespace LoggingService.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ServiceName");
+                    b.HasIndex("ServiceName")
+                        .IsUnique();
 
                     b.HasIndex("Status");
 

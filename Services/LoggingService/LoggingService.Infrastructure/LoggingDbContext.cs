@@ -40,7 +40,7 @@ public class LoggingDbContext(DbContextOptions<LoggingDbContext> options) : DbCo
             entity.Property(e => e.RegisteredAt).IsRequired();
             entity.Property(e => e.LastHeartbeat).IsRequired();
 
-            entity.HasIndex(e => e.ServiceName);
+            entity.HasIndex(e => e.ServiceName).IsUnique();
             entity.HasIndex(e => e.Status);
         });
     }
