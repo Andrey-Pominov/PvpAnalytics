@@ -5,7 +5,7 @@ import "google/protobuf/struct.proto";
 
 option csharp_namespace = "PvpAnalytics.Shared.Protos";
 
-package logging;
+package PvpAnalytics.Shared.Logging;
 
 service LoggingService {
   rpc CreateLog (CreateLogRequest) returns (LogEntryResponse);
