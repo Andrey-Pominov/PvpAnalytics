@@ -141,7 +141,7 @@ public class PvpAnalyticsDbContext(DbContextOptions<PvpAnalyticsDbContext> optio
             .OnDelete(DeleteBehavior.Restrict);
 
         modelBuilder.Entity<CommunityRanking>()
-            .HasCheckConstraint("CK_CommunityRankings_PlayerOrTeam", "PlayerId IS NOT NULL OR TeamId IS NOT NULL");
+            .HasCheckConstraint("CK_CommunityRankings_PlayerOrTeam", "\"PlayerId\" IS NOT NULL OR \"TeamId\" IS NOT NULL");
 
         modelBuilder.Entity<CommunityRanking>()
             .HasIndex(cr => new { cr.RankingType, cr.Period, cr.Rank });
