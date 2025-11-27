@@ -57,16 +57,12 @@ public class Repository<TEntity>(PaymentDbContext dbContext) : IRepository<TEnti
 
     public async Task UpdateAsync(TEntity entity, CancellationToken ct = default, bool autoSave = true)
     {
-        // Check if entity is already tracked (from GetByIdAsync/FindAsync)
         var entry = dbContext.Entry(entity);
         if (entry.State == EntityState.Detached)
         {
-            // Entity not tracked - attach and mark as modified
             _dbSet.Attach(entity);
             entry.State = EntityState.Modified;
         }
-        // If already tracked, EF Core will detect property changes automatically
-        // No need to mark entire entity as modified - only changed properties will be saved
         
         if (autoSave)
         {

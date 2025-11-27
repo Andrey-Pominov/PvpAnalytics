@@ -13,7 +13,6 @@ public static class ServiceCollectionExtensions
     {
         services.AddDbContext<PaymentDbContext>(options =>
         {
-            // Check if we're in test mode (InMemory database requested)
             var useInMemory = configuration.GetSection("UseInMemoryDatabase").Get<bool>();
             if (useInMemory)
             {

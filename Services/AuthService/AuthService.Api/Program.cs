@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using PvpAnalytics.Shared.Security;
+using PvpAnalytics.Shared.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -24,7 +25,6 @@ if (string.IsNullOrWhiteSpace(jwtOptions.SigningKey))
         "JWT signing key is not configured. Set the 'Jwt__SigningKey' environment variable or use a secure secret store.");
 }
 
-// Read CORS origins from configuration
 var corsOrigins = builder.Configuration.GetSection($"{CorsOptions.SectionName}:AllowedOrigins").Get<string[]>();
 if (corsOrigins == null || corsOrigins.Length == 0)
 {
@@ -65,7 +65,33 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization();
 
+builder.Services.AddSingleton<ILoggingClient>(sp =>
+{
+    var config = sp.GetRequiredService<IConfiguration>();
+    var logger = sp.GetRequiredService<ILogger<LoggingClient>>();
+    return new LoggingClient(config, logger);
+});
+
 var app = builder.Build();
+
+var loggingClient = app.Services.GetRequiredService<ILoggingClient>();
+var serviceName = builder.Configuration["LoggingService:ServiceName"] ?? "AuthService";
+var serviceEndpoint = builder.Configuration["ASPNETCORE_URLS"]?.Split(';').FirstOrDefault()?.Split("://").LastOrDefault() 
+    ?? "http://localhost:8081";
+var serviceVersion = "1.0.0";
+
+try
+{
+    await loggingClient.RegisterServiceAsync(serviceName, serviceEndpoint, serviceVersion);
+    var heartbeatInterval = TimeSpan.FromSeconds(
+        builder.Configuration.GetValue<int>("LoggingService:HeartbeatIntervalSeconds", 30));
+    loggingClient.StartHeartbeat(serviceName, heartbeatInterval);
+    app.Logger.LogInformation("Registered with LoggingService and started heartbeat");
+}
+catch (Exception ex)
+{
+    app.Logger.LogWarning(ex, "Failed to register with LoggingService, continuing without centralized logging");
+}
 
 var skipMigrations = builder.Configuration.GetValue<bool?>("EfMigrations:Skip") ?? false;
 if (!skipMigrations)

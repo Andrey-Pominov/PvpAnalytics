@@ -5,6 +5,7 @@ using Microsoft.IdentityModel.Tokens;
 using PaymentService.Application;
 using PaymentService.Infrastructure;
 using PvpAnalytics.Shared.Security;
+using PvpAnalytics.Shared.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,14 +17,12 @@ builder.Services.AddApplication(builder.Configuration);
 
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
 
-// Get JWT options (always needed for configuration, even in test mode)
 var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>();
 if (jwtOptions == null)
 {
     throw new InvalidOperationException("Jwt configuration section is missing.");
 }
 
-// Skip JWT validation in test mode (when UseInMemoryDatabase is set)
 var useInMemoryDatabaseValue = builder.Configuration["UseInMemoryDatabase"];
 var useInMemoryDatabase = !string.IsNullOrWhiteSpace(useInMemoryDatabaseValue) && 
                           (useInMemoryDatabaseValue.Equals("true", StringComparison.OrdinalIgnoreCase) ||
@@ -31,7 +30,6 @@ var useInMemoryDatabase = !string.IsNullOrWhiteSpace(useInMemoryDatabaseValue) &
 
 if (!useInMemoryDatabase)
 {
-    // Validate JWT signing key with clear error messages (only in non-test mode)
     const string placeholderKey = "DEV_PLACEHOLDER_KEY_MUST_BE_REPLACED";
     if (string.IsNullOrWhiteSpace(jwtOptions.SigningKey))
     {
@@ -55,11 +53,9 @@ if (!useInMemoryDatabase)
     }
 }
 
-// Read CORS origins from configuration
 var corsOrigins = builder.Configuration.GetSection($"{CorsOptions.SectionName}:AllowedOrigins").Get<string[]>();
 if (corsOrigins == null || corsOrigins.Length == 0)
 {
-    // In test mode, use a default CORS origin
     if (useInMemoryDatabase)
     {
         corsOrigins = ["http://localhost:3000"];
@@ -104,7 +100,33 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization();
 
+builder.Services.AddSingleton<ILoggingClient>(sp =>
+{
+    var config = sp.GetRequiredService<IConfiguration>();
+    var logger = sp.GetRequiredService<ILogger<PvpAnalytics.Shared.Services.LoggingClient>>();
+    return new PvpAnalytics.Shared.Services.LoggingClient(config, logger);
+});
+
 var app = builder.Build();
+
+var loggingClient = app.Services.GetRequiredService<ILoggingClient>();
+var serviceName = builder.Configuration["LoggingService:ServiceName"] ?? "PaymentService";
+var serviceEndpoint = builder.Configuration["ASPNETCORE_URLS"]?.Split(';').FirstOrDefault()?.Split("://").LastOrDefault() 
+    ?? "http://localhost:8082";
+var serviceVersion = "1.0.0";
+
+try
+{
+    await loggingClient.RegisterServiceAsync(serviceName, serviceEndpoint, serviceVersion);
+    var heartbeatInterval = TimeSpan.FromSeconds(
+        builder.Configuration.GetValue<int>("LoggingService:HeartbeatIntervalSeconds", 30));
+    loggingClient.StartHeartbeat(serviceName, heartbeatInterval);
+    app.Logger.LogInformation("Registered with LoggingService and started heartbeat");
+}
+catch (Exception ex)
+{
+    app.Logger.LogWarning(ex, "Failed to register with LoggingService, continuing without centralized logging");
+}
 
 var skipMigrations = builder.Configuration.GetValue<bool?>("EfMigrations:Skip") ?? false;
 if (!skipMigrations)

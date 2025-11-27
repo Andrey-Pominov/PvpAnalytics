@@ -46,7 +46,6 @@ public class PvpAnalyticsDbContext(DbContextOptions<PvpAnalyticsDbContext> optio
             .HasIndex(m => m.UniqueHash)
             .IsUnique();
 
-        // Team relationships
         modelBuilder.Entity<TeamMember>()
             .HasOne(tm => tm.Team)
             .WithMany(t => t.Members)
@@ -82,7 +81,6 @@ public class PvpAnalyticsDbContext(DbContextOptions<PvpAnalyticsDbContext> optio
         modelBuilder.Entity<Team>()
             .HasIndex(t => t.CreatedByUserId);
 
-        // Favorite players relationships
         modelBuilder.Entity<FavoritePlayer>()
             .HasOne(fp => fp.TargetPlayer)
             .WithMany()
@@ -96,7 +94,6 @@ public class PvpAnalyticsDbContext(DbContextOptions<PvpAnalyticsDbContext> optio
         modelBuilder.Entity<FavoritePlayer>()
             .HasIndex(fp => fp.OwnerUserId);
 
-        // Rivals relationships
         modelBuilder.Entity<Rival>()
             .HasOne(r => r.OpponentPlayer)
             .WithMany()
@@ -113,11 +110,9 @@ public class PvpAnalyticsDbContext(DbContextOptions<PvpAnalyticsDbContext> optio
         modelBuilder.Entity<Rival>()
             .HasCheckConstraint("CK_Rival_IntensityScore", "IntensityScore >= 1 AND IntensityScore <= 10");
 
-        // User badges
         modelBuilder.Entity<UserBadge>()
             .HasIndex(ub => ub.UserId);
 
-        // Featured matches
         modelBuilder.Entity<FeaturedMatch>()
             .HasOne(fm => fm.Match)
             .WithMany()
@@ -127,7 +122,6 @@ public class PvpAnalyticsDbContext(DbContextOptions<PvpAnalyticsDbContext> optio
         modelBuilder.Entity<FeaturedMatch>()
             .HasIndex(fm => fm.FeaturedAt);
 
-        // Community rankings
         modelBuilder.Entity<CommunityRanking>()
             .HasOne(cr => cr.Player)
             .WithMany()
@@ -146,7 +140,6 @@ public class PvpAnalyticsDbContext(DbContextOptions<PvpAnalyticsDbContext> optio
         modelBuilder.Entity<CommunityRanking>()
             .HasIndex(cr => new { cr.RankingType, cr.Period, cr.Rank });
 
-        // Discussion threads
         modelBuilder.Entity<MatchDiscussionThread>()
             .HasOne(dt => dt.Match)
             .WithMany()
@@ -156,7 +149,6 @@ public class PvpAnalyticsDbContext(DbContextOptions<PvpAnalyticsDbContext> optio
         modelBuilder.Entity<MatchDiscussionThread>()
             .HasIndex(dt => dt.MatchId);
 
-        // Discussion posts
         modelBuilder.Entity<MatchDiscussionPost>()
             .HasOne(dp => dp.Thread)
             .WithMany(dt => dt.Posts)

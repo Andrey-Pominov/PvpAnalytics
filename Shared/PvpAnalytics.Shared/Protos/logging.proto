@@ -1,0 +1,92 @@
+syntax = "proto3";
+
+option csharp_namespace = "PvpAnalytics.Shared.Protos";
+
+package logging;
+
+service LoggingService {
+  rpc CreateLog (CreateLogRequest) returns (LogEntryResponse);
+  rpc GetLogs (LogQueryRequest) returns (LogQueryResponse);
+  rpc GetLogById (LogByIdRequest) returns (LogEntryResponse);
+  rpc GetLogsByService (LogsByServiceRequest) returns (LogQueryResponse);
+  rpc GetLogsByLevel (LogsByLevelRequest) returns (LogQueryResponse);
+  rpc RegisterService (ServiceRegistrationRequest) returns (ServiceRegistrationResponse);
+  rpc Heartbeat (HeartbeatRequest) returns (HeartbeatResponse);
+}
+
+message CreateLogRequest {
+  string level = 1;
+  string service_name = 2;
+  string message = 3;
+  string exception = 4;
+  string user_id = 5;
+  string request_path = 6;
+  string request_method = 7;
+  int32 status_code = 8;
+  double duration = 9;
+  string properties = 10;
+}
+
+message LogEntryResponse {
+  int64 id = 1;
+  string timestamp = 2;
+  string level = 3;
+  string service_name = 4;
+  string message = 5;
+  string exception = 6;
+  string user_id = 7;
+  string request_path = 8;
+  string request_method = 9;
+  int32 status_code = 10;
+  double duration = 11;
+  string properties = 12;
+}
+
+message LogQueryRequest {
+  string service_name = 1;
+  string level = 2;
+  string start_date = 3;
+  string end_date = 4;
+  string user_id = 5;
+  int32 skip = 6;
+  int32 take = 7;
+}
+
+message LogQueryResponse {
+  repeated LogEntryResponse logs = 1;
+  int32 total_count = 2;
+}
+
+message LogByIdRequest {
+  int64 id = 1;
+}
+
+message LogsByServiceRequest {
+  string service_name = 1;
+}
+
+message LogsByLevelRequest {
+  string level = 1;
+}
+
+message ServiceRegistrationRequest {
+  string service_name = 1;
+  string endpoint = 2;
+  string version = 3;
+}
+
+message ServiceRegistrationResponse {
+  bool success = 1;
+  string message = 2;
+  int64 service_id = 3;
+}
+
+message HeartbeatRequest {
+  string service_name = 1;
+}
+
+message HeartbeatResponse {
+  bool success = 1;
+  string message = 2;
+}
+

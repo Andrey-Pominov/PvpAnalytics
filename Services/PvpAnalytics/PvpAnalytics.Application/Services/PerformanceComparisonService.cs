@@ -38,7 +38,6 @@ public class PerformanceComparisonService(PvpAnalyticsDbContext dbContext) : IPe
             RatingMin = ratingMin
         };
 
-        // Get player's match results
         var playerResults = await dbContext.MatchResults
             .Include(mr => mr.Match)
             .Where(mr => mr.PlayerId == playerId && mr.Spec == spec)
@@ -47,7 +46,6 @@ public class PerformanceComparisonService(PvpAnalyticsDbContext dbContext) : IPe
         if (!playerResults.Any())
             return dto;
 
-        // Filter by rating if specified
         if (ratingMin.HasValue)
         {
             playerResults = playerResults.Where(mr => mr.RatingBefore >= ratingMin.Value).ToList();
@@ -55,12 +53,10 @@ public class PerformanceComparisonService(PvpAnalyticsDbContext dbContext) : IPe
 
         var playerMatchIds = playerResults.Select(mr => mr.MatchId).Distinct().ToList();
 
-        // Get player's combat logs
         var playerCombatLogs = await dbContext.CombatLogEntries
             .Where(c => c.SourcePlayerId == playerId && playerMatchIds.Contains(c.MatchId))
             .ToListAsync(ct);
 
-        // Calculate player metrics
         var playerWins = playerResults.Count(mr => mr.IsWinner);
         var playerTotalMatches = playerResults.Count;
         dto.PlayerMetrics = new PlayerMetrics
@@ -74,7 +70,6 @@ public class PerformanceComparisonService(PvpAnalyticsDbContext dbContext) : IPe
             AverageMatchDuration = playerResults.Any() ? Math.Round(playerResults.Average(mr => (double)mr.Match.Duration), 2) : 0
         };
 
-        // Get all players with same spec for comparison
         var allSpecResults = await dbContext.MatchResults
             .Include(mr => mr.Match)
             .Where(mr => mr.Spec == spec)
@@ -88,12 +83,10 @@ public class PerformanceComparisonService(PvpAnalyticsDbContext dbContext) : IPe
         var allSpecPlayerIds = allSpecResults.Select(mr => mr.PlayerId).Distinct().ToList();
         var allSpecMatchIds = allSpecResults.Select(mr => mr.MatchId).Distinct().ToList();
 
-        // Get all combat logs for these players
         var allSpecCombatLogs = await dbContext.CombatLogEntries
             .Where(c => allSpecPlayerIds.Contains(c.SourcePlayerId) && allSpecMatchIds.Contains(c.MatchId))
             .ToListAsync(ct);
 
-        // Calculate top player metrics (average of all players with this spec)
         var topPlayerWins = allSpecResults.Count(mr => mr.IsWinner);
         var topPlayerTotalMatches = allSpecResults.Count;
 
@@ -107,7 +100,6 @@ public class PerformanceComparisonService(PvpAnalyticsDbContext dbContext) : IPe
             AverageMatchDuration = allSpecResults.Any() ? Math.Round(allSpecResults.Average(mr => (double)mr.Match.Duration), 2) : 0
         };
 
-        // Calculate gaps
         dto.Gaps = new ComparisonGaps
         {
             WinRateGap = dto.PlayerMetrics.WinRate - dto.TopPlayerMetrics.AverageWinRate,
@@ -117,7 +109,6 @@ public class PerformanceComparisonService(PvpAnalyticsDbContext dbContext) : IPe
             RatingGap = dto.PlayerMetrics.CurrentRating - dto.TopPlayerMetrics.AverageRating
         };
 
-        // Identify strengths and weaknesses
         if (dto.Gaps.WinRateGap > 5)
             dto.Gaps.Strengths.Add("Win Rate");
         else if (dto.Gaps.WinRateGap < -5)
@@ -145,7 +136,6 @@ public class PerformanceComparisonService(PvpAnalyticsDbContext dbContext) : IPe
         int? ratingMin = null,
         CancellationToken ct = default)
     {
-        // Get player's stats
         var playerResults = await dbContext.MatchResults
             .Include(mr => mr.Match)
             .Where(mr => mr.PlayerId == playerId && mr.Spec == spec)
@@ -170,7 +160,6 @@ public class PerformanceComparisonService(PvpAnalyticsDbContext dbContext) : IPe
         var playerCC = playerCombatLogs.Any() ? playerCombatLogs.Count(c => !string.IsNullOrWhiteSpace(c.CrowdControl)) / (double)playerMatchIds.Count : 0;
         var playerRating = playerResults.OrderByDescending(mr => mr.Match.CreatedOn).First().RatingAfter;
 
-        // Get all players with same spec
         var allSpecResults = await dbContext.MatchResults
             .Include(mr => mr.Match)
             .Where(mr => mr.Spec == spec)
@@ -184,7 +173,6 @@ public class PerformanceComparisonService(PvpAnalyticsDbContext dbContext) : IPe
         var allSpecPlayerIds = allSpecResults.Select(mr => mr.PlayerId).Distinct().ToList();
         var allSpecMatchIds = allSpecResults.Select(mr => mr.MatchId).Distinct().ToList();
 
-        // Calculate stats for all players
         var allPlayerStats = new List<(double winRate, double damage, double healing, double cc, int rating)>();
 
         foreach (var specPlayerId in allSpecPlayerIds)
@@ -204,7 +192,6 @@ public class PerformanceComparisonService(PvpAnalyticsDbContext dbContext) : IPe
             allPlayerStats.Add((winRate, damage, healing, cc, rating));
         }
 
-        // Calculate percentiles
         var totalPlayers = allPlayerStats.Count;
         if (totalPlayers == 0)
             return new PercentileRankings();

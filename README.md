@@ -10,21 +10,20 @@ PvP combat analytics platform for World of Warcraft combat logs. A microservices
 
 - [Project Overview](#project-overview)
 - [Quick Start](#quick-start)
-- [Project Structure](#project-structure)
 - [Services](#services)
-- [Architecture](#architecture)
+- [API Reference](#api-reference)
 - [Setup & Configuration](#setup--configuration)
-- [Development](#development)
 - [Testing](#testing)
 - [License](#license)
 
 ## Project Overview
 
-PvpAnalytics is a microservices platform that processes World of Warcraft combat log files to extract and analyze PvP arena match data. The platform consists of multiple services working together:
+PvpAnalytics is a platform that processes World of Warcraft combat log files to extract and analyze PvP arena match data. The platform consists of multiple services working together:
 
 - **AuthService**: Handles user authentication and authorization
 - **PvpAnalytics Service**: Processes combat logs and provides analytics APIs
 - **PaymentService**: Handles payment transactions and payment management
+- **LoggingService**: Centralized logging service for application logs
 - **UI**: React-based frontend dashboard
 
 ### Key Features
@@ -44,6 +43,10 @@ PvpAnalytics is a microservices platform that processes World of Warcraft combat
    ```bash
    SA_PASSWORD=[YOUR_SA_PASSWORD]
    JWT_SIGNING_KEY=[YOUR_JWT_SIGNING_KEY]
+   POSTGRES_USER=[YOUR_POSTGRES_USER]
+   POSTGRES_PASSWORD=[YOUR_POSTGRES_PASSWORD]
+   POSTGRES_DB=[YOUR_POSTGRES_DB]
+   POSTGRES_PAYMENT_DB=[YOUR_POSTGRES_PAYMENT_DB]
    WowApi__ClientId=[YOUR_WOW_API_CLIENT_ID]
    WowApi__ClientSecret=[YOUR_WOW_API_CLIENT_SECRET]
    ```
@@ -58,6 +61,7 @@ PvpAnalytics is a microservices platform that processes World of Warcraft combat
    - Auth API: `http://localhost:8081`
    - Analytics API: `http://localhost:8080`
    - Payment API: `http://localhost:8082`
+   - Logging API: `http://localhost:8083`
    - UI: `http://localhost:3000`
 
 ### Local Development
@@ -66,142 +70,75 @@ PvpAnalytics is a microservices platform that processes World of Warcraft combat
 
 See [Setup & Configuration](#setup--configuration) for detailed setup instructions.
 
-## Project Structure
-
-The solution is organized into service folders for better clarity and scalability:
-
-```
-PvpAnalytics/
-├── Services/
-│   ├── AuthService/              # Authentication microservice
-│   │   ├── AuthService.Api/
-│   │   ├── AuthService.Application/
-│   │   ├── AuthService.Core/
-│   │   └── AuthService.Infrastructure/
-│   │   └── README.md            # Service-specific documentation
-│   │
-│   ├── PvpAnalytics/            # Analytics microservice
-│   │   ├── PvpAnalytics.Api/
-│   │   ├── PvpAnalytics.Application/
-│   │   ├── PvpAnalytics.Core/
-│   │   └── PvpAnalytics.Infrastructure/
-│   │   └── README.md            # Service-specific documentation
-│   │
-│   └── PaymentService/          # Payment processing microservice
-│       ├── PaymentService.Api/
-│       ├── PaymentService.Application/
-│       ├── PaymentService.Core/
-│       └── PaymentService.Infrastructure/
-│       └── README.md            # Service-specific documentation
-│
-├── Shared/
-│   └── PvpAnalytics.Shared/     # Shared code (JWT options, CORS options)
-│
-├── Workers/
-│   └── PvpAnalytics.Worker/    # Background workers
-│
-├── Tests/
-│   └── PvpAnalytics.Tests/     # Integration and unit tests
-│
-└── ui/
-    └── PvpAnalytics.UI/         # React frontend
-```
-
 ## Services
 
 ### AuthService
 
-Authentication and authorization microservice. Handles user registration, login, and token management.
-
-**Documentation:** See [Services/AuthService/README.md](Services/AuthService/README.md)
+Authentication and authorization service. Handles user registration, login, and token management.
 
 **Key Features:**
 - User registration and login
 - JWT access tokens and refresh tokens
-- ASP.NET Core Identity integration
-- SQL Server database
+- Profile management
 
 **Endpoints:**
 - `POST /api/auth/register` - Register new user
 - `POST /api/auth/login` - Authenticate user
 - `POST /api/auth/refresh` - Refresh access token
+- `GET /api/profile` - Get user profile
+- `PUT /api/profile` - Update user profile
 
 ### PvpAnalytics Service
 
 Core analytics service for processing combat logs and providing data APIs.
-
-**Documentation:** See [Services/PvpAnalytics/README.md](Services/PvpAnalytics/README.md)
 
 **Key Features:**
 - Combat log parsing and ingestion
 - Player data management
 - Match tracking and analytics
 - WoW API integration for player enrichment
-- PostgreSQL database
 
 **Endpoints:**
 - Full CRUD APIs for Players, Matches, MatchResults, CombatLogEntries
 - `POST /api/logs/upload` - Upload and process combat log files
+- `GET /api/players/{id}/stats` - Get player statistics
+- `GET /api/players/{id}/matches` - Get player matches
 
 ### PaymentService
 
-Payment processing microservice for handling payment transactions and payment management.
-
-**Documentation:** See [Services/PaymentService/README.md](Services/PaymentService/README.md)
+Payment processing service for handling payment transactions and payment management.
 
 **Key Features:**
 - Payment transaction management
 - Payment status tracking
 - User-scoped payment access
-- PostgreSQL database
 
 **Endpoints:**
 - Full CRUD APIs for Payments
 - User-scoped access (users see only their payments, admins see all)
 - Payment status management
 
-## Architecture
+### LoggingService
 
-### Clean Architecture
+Centralized logging service for capturing and storing application logs.
 
-Each service follows Clean Architecture principles:
+**Key Features:**
+- Application log storage
+- Log querying and filtering
+- Service-level log aggregation
 
-```
-┌─────────────────────────────────┐
-│   API Layer (Controllers)       │  ← HTTP endpoints
-├─────────────────────────────────┤
-│   Application Layer (Services)  │  ← Business logic
-├─────────────────────────────────┤
-│   Infrastructure Layer (EF)     │  ← Data access
-├─────────────────────────────────┤
-│   Core Layer (Entities)         │  ← Domain models
-└─────────────────────────────────┘
-```
+**Endpoints:**
+- `POST /api/logs` - Create log entry (anonymous)
+- `GET /api/logs` - Query logs (authorized users only)
+- `GET /api/logs/{id}` - Get log by ID
+- `GET /api/logs/service/{serviceName}` - Get logs by service
+- `GET /api/logs/level/{level}` - Get logs by level
 
-### Key Patterns
-
-- **Generic Repository**: `IRepository<TEntity>` with optional unit-of-work
-- **CRUD Services**: `ICrudService<T>` for business logic
-- **Dependency Injection**: Service registration via extension methods
-- **Configuration**: Environment variables for sensitive data
-- **CORS**: Configurable allowed origins
-- **EF Core with PostgreSQL** for analytics data storage
-- **SQL Server** for authentication data storage
-- **Language-agnostic combat log parser** (uses numeric IDs and field mappings)
-
-## Data Model
-
-For detailed data model information, see [Services/PvpAnalytics/README.md](Services/PvpAnalytics/README.md#data-model).
-
-**Core Entities:**
-- **Player**: Character name, realm, class, spec, faction
-- **Match**: Arena match metadata (map, game mode, duration, ratings)
-- **MatchResult**: Player results per match (ratings, win/loss)
-- **CombatLogEntry**: Granular combat log data (damage, healing, CC)
+## API Reference
 
 ### Authentication
 
-Authentication is handled by the **AuthService** microservice. See [Services/AuthService/README.md](Services/AuthService/README.md) for detailed documentation.
+Authentication is handled by the **AuthService**. 
 
 **Quick Start:**
 1. Register a user: `POST http://localhost:8081/api/auth/register`
@@ -209,14 +146,7 @@ Authentication is handled by the **AuthService** microservice. See [Services/Aut
 3. Use access token: `Authorization: Bearer <token>`
 4. Refresh token: `POST http://localhost:8081/api/auth/refresh`
 
-### API Reference
-
-For detailed API documentation, see:
-- **AuthService APIs**: [Services/AuthService/README.md](Services/AuthService/README.md#api-endpoints)
-- **PvpAnalytics APIs**: [Services/PvpAnalytics/README.md](Services/PvpAnalytics/README.md#api-endpoints)
-- **PaymentService APIs**: [Services/PaymentService/README.md](Services/PaymentService/README.md#api-endpoints)
-
-**Quick Reference:**
+### Endpoints
 
 **AuthService** (`http://localhost:8081/api/auth`):
 - `POST /register` - Register new user
@@ -237,6 +167,13 @@ For detailed API documentation, see:
 - `PUT /api/payment/{id}` - Update payment
 - `DELETE /api/payment/{id}` - Delete payment
 
+**LoggingService** (`http://localhost:8083/api/logs`):
+- `POST /api/logs` - Create log entry
+- `GET /api/logs` - Query logs with filters
+- `GET /api/logs/{id}` - Get log by ID
+- `GET /api/logs/service/{serviceName}` - Get logs by service
+- `GET /api/logs/level/{level}` - Get logs by level
+
 **OpenAPI Documentation:**
 - Available at `/openapi/v1.json` in Development mode
 
@@ -249,6 +186,12 @@ Create a `.env` file in the project root with the following variables:
 ```bash
 # SQL Server (AuthService)
 SA_PASSWORD=YourStrong@Password123
+
+# PostgreSQL
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=YourPassword
+POSTGRES_DB=PvpAnalytics
+POSTGRES_PAYMENT_DB=PaymentService
 
 # JWT Configuration (shared between services)
 JWT_SIGNING_KEY=YourSecretKeyHere
@@ -279,64 +222,20 @@ WowApi__ClientSecret=your-client-secret
 - `auth` - AuthService API (port 8081)
 - `pvpanalytics` - PvpAnalytics API (port 8080)
 - `payment` - PaymentService API (port 8082)
+- `logging` - LoggingService API (port 8083)
 - `ui` - Nginx serving React UI (port 3000)
 - `db` - PostgreSQL for analytics (port 5442)
+- `logging-postgres` - PostgreSQL for logging (port 5443)
 - `auth-sql` - SQL Server for authentication (port 1433)
 
 ### Local Development
 
-For local development setup, see:
-- **AuthService**: [Services/AuthService/README.md](Services/AuthService/README.md#running-locally)
-- **PvpAnalytics**: [Services/PvpAnalytics/README.md](Services/PvpAnalytics/README.md#running-locally)
-- **PaymentService**: [Services/PaymentService/README.md](Services/PaymentService/README.md#running-locally)
+For local development, configure connection strings in each service's `appsettings.Development.json`:
 
-## Development
-
-### Project Structure
-
-The solution uses a service-oriented folder structure:
-
-- **Services/** - Individual microservices (AuthService, PvpAnalytics, PaymentService)
-- **Shared/** - Shared code and utilities
-- **Workers/** - Background worker services
-- **Tests/** - Test projects
-- **ui/** - Frontend application
-
-### Log Upload & Parsing
-
-For detailed information about combat log parsing, see [Services/PvpAnalytics/README.md](Services/PvpAnalytics/README.md#combat-log-parsing).
-
-**Quick Overview:**
-- Upload endpoint: `POST /api/logs/upload`
-- Automatically detects arena matches
-- Enriches player data via WoW API
-- Stores matches, players, and combat log entries
-
-## UI Frontend
-
-The `ui/PvpAnalytics.UI/` directory contains a React + TypeScript dashboard.
-
-**Location:** `ui/PvpAnalytics.UI/`
-
-**Tech Stack:**
-- Vite + React + TypeScript
-- Tailwind CSS for styling
-- Responsive design
-
-**Running Locally:**
-```bash
-cd ui/PvpAnalytics.UI
-npm install
-npm run dev
-```
-
-**Production Build:**
-```bash
-npm run build
-npm run lint
-```
-
-The UI is served via Nginx in Docker at `http://localhost:3000`.
+- **AuthService**: SQL Server connection string
+- **PvpAnalytics**: PostgreSQL connection string
+- **PaymentService**: PostgreSQL connection string
+- **LoggingService**: PostgreSQL connection string
 
 ## Testing
 
@@ -346,17 +245,10 @@ dotnet test
 ```
 
 **Test Coverage:**
-- **PvpAnalytics.Tests**: Combat log parsing, API integration tests
-- **Auth Tests**: User registration, login, token refresh flows
-- **Integration Tests**: Full API workflows with in-memory databases
-
-## Additional Documentation
-
-- **AuthService**: [Services/AuthService/README.md](Services/AuthService/README.md)
-- **PvpAnalytics Service**: [Services/PvpAnalytics/README.md](Services/PvpAnalytics/README.md)
-- **PaymentService**: [Services/PaymentService/README.md](Services/PaymentService/README.md)
-- **Spell Maintenance**: [SPELL_MAINTENANCE.md](SPELL_MAINTENANCE.md)
+- Integration tests for API endpoints
+- Authentication and authorization tests
+- Combat log parsing tests
 
 ## License
 
-MIT (or your preferred license)
+MIT

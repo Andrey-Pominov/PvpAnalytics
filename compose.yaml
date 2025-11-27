@@ -17,8 +17,12 @@
       - WowApi__ClientSecret=${WowApi__ClientSecret?WowApi__ClientSecret not set}
       - WowApi__BaseUrl=https://us.api.blizzard.com
       - WowApi__OAuthUrl=https://us.battle.net/oauth/token
+      - LoggingService__GrpcEndpoint=http://logging:50051
+      - LoggingService__ServiceName=PvpAnalytics
+      - LoggingService__HeartbeatIntervalSeconds=30
     depends_on:
       - db
+      - logging
 
   auth:
     image: authservice
@@ -36,11 +40,16 @@
       - Jwt__SigningKey=${JWT_SIGNING_KEY?JWT_SIGNING_KEY not set}
       - Jwt__AccessTokenMinutes=60
       - Jwt__RefreshTokenDays=7
+      - LoggingService__GrpcEndpoint=http://logging:50051
+      - LoggingService__ServiceName=AuthService
+      - LoggingService__HeartbeatIntervalSeconds=30
     depends_on:
       db:
         condition: service_started
       auth-sql:
         condition: service_healthy
+      logging:
+        condition: service_started
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
@@ -62,8 +71,32 @@
       - Jwt__RefreshTokenDays=7
       - Cors__AllowedOrigins=http://localhost:3000,https://localhost:8080,http://localhost:3001
       - EfMigrations__Skip=false
+      - LoggingService__GrpcEndpoint=http://logging:50051
+      - LoggingService__ServiceName=PaymentService
+      - LoggingService__HeartbeatIntervalSeconds=30
     depends_on:
       - db
+      - logging
+
+  logging:
+    image: loggingservice
+    build:
+      context: .
+      dockerfile: Services/LoggingService/LoggingService.Api/Dockerfile
+    ports:
+      - "8083:8083"
+      - "50051:50051"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8083
+      - Kestrel__Endpoints__gRPC__Url=http://+:50051
+      - ConnectionStrings__DefaultConnection=Host=logging-postgres;Port=5432;Username=${POSTGRES_USER?POSTGRES_USER not set};Password=${POSTGRES_PASSWORD?POSTGRES_PASSWORD not set};Database=LoggingService
+      - Jwt__Issuer=PvpAnalytics.Auth
+      - Jwt__Audience=PvpAnalytics.Api
+      - Jwt__SigningKey=${JWT_SIGNING_KEY?JWT_SIGNING_KEY not set}
+      - EfMigrations__Skip=false
+    depends_on:
+      - logging-postgres
 
   ui:
     image: nginx:stable-alpine
@@ -105,6 +138,18 @@
       retries: 10
       start_period: 40s
 
+  logging-postgres:
+    image: postgres:16
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER?POSTGRES_USER not set}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD?POSTGRES_PASSWORD not set}
+      POSTGRES_DB: LoggingService
+    ports:
+      - "5443:5432"
+    volumes:
+      - logging-postgres-data:/var/lib/postgresql/data
 
 volumes:
   auth-sql-data:
+  logging-postgres-data:

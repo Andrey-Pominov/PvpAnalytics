@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using PvpAnalytics.Shared.Security;
+using PvpAnalytics.Shared.Services;
 using PvpAnalytics.Application;
 using PvpAnalytics.Infrastructure;
 
@@ -42,7 +43,33 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization();
 
+builder.Services.AddSingleton<ILoggingClient>(sp =>
+{
+    var config = sp.GetRequiredService<IConfiguration>();
+    var logger = sp.GetRequiredService<ILogger<PvpAnalytics.Shared.Services.LoggingClient>>();
+    return new PvpAnalytics.Shared.Services.LoggingClient(config, logger);
+});
+
 var app = builder.Build();
+
+var loggingClient = app.Services.GetRequiredService<ILoggingClient>();
+var serviceName = builder.Configuration["LoggingService:ServiceName"] ?? "PvpAnalytics";
+var serviceEndpoint = builder.Configuration["ASPNETCORE_URLS"]?.Split(';').FirstOrDefault()?.Split("://").LastOrDefault() 
+    ?? "http://localhost:8080";
+var serviceVersion = "1.0.0";
+
+try
+{
+    await loggingClient.RegisterServiceAsync(serviceName, serviceEndpoint, serviceVersion);
+    var heartbeatInterval = TimeSpan.FromSeconds(
+        builder.Configuration.GetValue<int>("LoggingService:HeartbeatIntervalSeconds", 30));
+    loggingClient.StartHeartbeat(serviceName, heartbeatInterval);
+    app.Logger.LogInformation("Registered with LoggingService and started heartbeat");
+}
+catch (Exception ex)
+{
+    app.Logger.LogWarning(ex, "Failed to register with LoggingService, continuing without centralized logging");
+}
 
 var skipMigrations = builder.Configuration.GetValue<bool?>("EfMigrations:Skip") ?? false;
 if (!skipMigrations)

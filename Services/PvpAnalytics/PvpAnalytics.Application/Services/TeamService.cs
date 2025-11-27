@@ -92,7 +92,6 @@ public class TeamService(
 
         await teamRepo.AddAsync(team, ct);
 
-        // Add members
         foreach (var playerId in dto.PlayerIds)
         {
             var player = await playerRepo.GetByIdAsync(playerId, ct);
@@ -109,7 +108,6 @@ public class TeamService(
             }
         }
 
-        // Reload with members and matches
         await dbContext.Entry(team).Collection(t => t.Members).LoadAsync(ct);
         foreach (var member in team.Members)
         {
@@ -130,7 +128,6 @@ public class TeamService(
 
         if (team == null) return null;
 
-        // Check ownership
         if (team.CreatedByUserId != userId)
             return null;
 
@@ -205,7 +202,6 @@ public class TeamService(
 
     private TeamDto MapToDto(Team team)
     {
-        // Use already-loaded TeamMatches collection (null check for safety)
         var teamMatches = team.TeamMatches ?? new List<TeamMatch>();
 
         var totalMatches = teamMatches.Count;
