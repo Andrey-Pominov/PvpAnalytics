@@ -3,6 +3,7 @@ using AuthService.Infrastructure;
 using AuthService.Infrastructure.Data;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using PvpAnalytics.Shared.Security;
 
@@ -71,7 +72,25 @@ if (!skipMigrations)
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
-    db.Database.Migrate();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    
+    var maxRetries = 10;
+    var delay = TimeSpan.FromSeconds(5);
+    for (var i = 0; i < maxRetries; i++)
+    {
+        try
+        {
+            logger.LogInformation("Attempting to apply database migrations (attempt {Attempt}/{MaxRetries})...", i + 1, maxRetries);
+            db.Database.Migrate();
+            logger.LogInformation("Database migrations applied successfully.");
+            break;
+        }
+        catch (Exception ex) when (i < maxRetries - 1)
+        {
+            logger.LogWarning(ex, "Failed to apply migrations. Retrying in {Delay} seconds...", delay.TotalSeconds);
+            Thread.Sleep(delay);
+        }
+    }
 }
 
 if (app.Environment.IsDevelopment())

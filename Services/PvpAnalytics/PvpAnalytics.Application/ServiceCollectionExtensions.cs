@@ -27,6 +27,14 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IMetaAnalysisService, MetaAnalysisService>();
         services.AddScoped<IPerformanceComparisonService, PerformanceComparisonService>();
         services.AddScoped<ISessionAnalysisService, SessionAnalysisService>();
+        services.AddScoped<ITeamService, TeamService>();
+        services.AddScoped<ITeamSynergyService, TeamSynergyService>();
+        services.AddScoped<ITeamLeaderboardService, TeamLeaderboardService>();
+        services.AddScoped<IFavoritePlayerService, FavoritePlayerService>();
+        services.AddScoped<IRivalService, RivalService>();
+        services.AddScoped<IHighlightsService, HighlightsService>();
+        services.AddScoped<ICommunityRankingService, CommunityRankingService>();
+        services.AddScoped<IDiscussionService, DiscussionService>();
         
         // Configure WoW API with validation
         services.AddOptions<WowApiOptions>()

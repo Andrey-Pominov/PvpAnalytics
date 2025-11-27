@@ -10,6 +10,16 @@ public class PvpAnalyticsDbContext(DbContextOptions<PvpAnalyticsDbContext> optio
     public DbSet<Match> Matches { get; set; }
     public DbSet<MatchResult> MatchResults { get; set; }
     public DbSet<CombatLogEntry> CombatLogEntries { get; set; }
+    public DbSet<Team> Teams { get; set; }
+    public DbSet<TeamMember> TeamMembers { get; set; }
+    public DbSet<TeamMatch> TeamMatches { get; set; }
+    public DbSet<FavoritePlayer> FavoritePlayers { get; set; }
+    public DbSet<Rival> Rivals { get; set; }
+    public DbSet<UserBadge> UserBadges { get; set; }
+    public DbSet<FeaturedMatch> FeaturedMatches { get; set; }
+    public DbSet<CommunityRanking> CommunityRankings { get; set; }
+    public DbSet<MatchDiscussionThread> MatchDiscussionThreads { get; set; }
+    public DbSet<MatchDiscussionPost> MatchDiscussionPosts { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -35,5 +45,131 @@ public class PvpAnalyticsDbContext(DbContextOptions<PvpAnalyticsDbContext> optio
         modelBuilder.Entity<Match>()
             .HasIndex(m => m.UniqueHash)
             .IsUnique();
+
+        // Team relationships
+        modelBuilder.Entity<TeamMember>()
+            .HasOne(tm => tm.Team)
+            .WithMany(t => t.Members)
+            .HasForeignKey(tm => tm.TeamId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<TeamMember>()
+            .HasOne(tm => tm.Player)
+            .WithMany()
+            .HasForeignKey(tm => tm.PlayerId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<TeamMember>()
+            .HasIndex(tm => new { tm.TeamId, tm.PlayerId })
+            .IsUnique();
+
+        modelBuilder.Entity<TeamMatch>()
+            .HasOne(tm => tm.Team)
+            .WithMany(t => t.TeamMatches)
+            .HasForeignKey(tm => tm.TeamId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<TeamMatch>()
+            .HasOne(tm => tm.Match)
+            .WithMany()
+            .HasForeignKey(tm => tm.MatchId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<TeamMatch>()
+            .HasIndex(tm => new { tm.TeamId, tm.MatchId })
+            .IsUnique();
+
+        modelBuilder.Entity<Team>()
+            .HasIndex(t => t.CreatedByUserId);
+
+        // Favorite players relationships
+        modelBuilder.Entity<FavoritePlayer>()
+            .HasOne(fp => fp.TargetPlayer)
+            .WithMany()
+            .HasForeignKey(fp => fp.TargetPlayerId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<FavoritePlayer>()
+            .HasIndex(fp => new { fp.OwnerUserId, fp.TargetPlayerId })
+            .IsUnique();
+
+        modelBuilder.Entity<FavoritePlayer>()
+            .HasIndex(fp => fp.OwnerUserId);
+
+        // Rivals relationships
+        modelBuilder.Entity<Rival>()
+            .HasOne(r => r.OpponentPlayer)
+            .WithMany()
+            .HasForeignKey(r => r.OpponentPlayerId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<Rival>()
+            .HasIndex(r => new { r.OwnerUserId, r.OpponentPlayerId })
+            .IsUnique();
+
+        modelBuilder.Entity<Rival>()
+            .HasIndex(r => r.OwnerUserId);
+
+        modelBuilder.Entity<Rival>()
+            .HasCheckConstraint("CK_Rival_IntensityScore", "IntensityScore >= 1 AND IntensityScore <= 10");
+
+        // User badges
+        modelBuilder.Entity<UserBadge>()
+            .HasIndex(ub => ub.UserId);
+
+        // Featured matches
+        modelBuilder.Entity<FeaturedMatch>()
+            .HasOne(fm => fm.Match)
+            .WithMany()
+            .HasForeignKey(fm => fm.MatchId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<FeaturedMatch>()
+            .HasIndex(fm => fm.FeaturedAt);
+
+        // Community rankings
+        modelBuilder.Entity<CommunityRanking>()
+            .HasOne(cr => cr.Player)
+            .WithMany()
+            .HasForeignKey(cr => cr.PlayerId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<CommunityRanking>()
+            .HasOne(cr => cr.Team)
+            .WithMany()
+            .HasForeignKey(cr => cr.TeamId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<CommunityRanking>()
+            .HasCheckConstraint("CK_CommunityRankings_PlayerOrTeam", "PlayerId IS NOT NULL OR TeamId IS NOT NULL");
+
+        modelBuilder.Entity<CommunityRanking>()
+            .HasIndex(cr => new { cr.RankingType, cr.Period, cr.Rank });
+
+        // Discussion threads
+        modelBuilder.Entity<MatchDiscussionThread>()
+            .HasOne(dt => dt.Match)
+            .WithMany()
+            .HasForeignKey(dt => dt.MatchId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<MatchDiscussionThread>()
+            .HasIndex(dt => dt.MatchId);
+
+        // Discussion posts
+        modelBuilder.Entity<MatchDiscussionPost>()
+            .HasOne(dp => dp.Thread)
+            .WithMany(dt => dt.Posts)
+            .HasForeignKey(dp => dp.ThreadId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<MatchDiscussionPost>()
+            .HasOne(dp => dp.ParentPost)
+            .WithMany()
+            .HasForeignKey(dp => dp.ParentPostId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<MatchDiscussionPost>()
+            .HasIndex(dp => dp.ThreadId);
     }
 }

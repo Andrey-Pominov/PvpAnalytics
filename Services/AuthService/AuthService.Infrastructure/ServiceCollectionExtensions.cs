@@ -54,6 +54,7 @@ public static class ServiceCollectionExtensions
             .AddDefaultTokenProviders();
 
         services.AddScoped<IIdentityService, IdentityService>();
+        services.AddScoped<AuthService.Application.Abstractions.IProfileService, ProfileService>();
 
         return services;
     }
