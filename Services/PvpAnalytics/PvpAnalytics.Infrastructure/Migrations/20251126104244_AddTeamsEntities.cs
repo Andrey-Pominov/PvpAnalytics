@@ -12,20 +12,6 @@ namespace PvpAnalytics.Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<string>(
-                name: "Spec",
-                table: "Players",
-                type: "text",
-                nullable: false,
-                defaultValue: "");
-
-            migrationBuilder.AddColumn<string>(
-                name: "MapName",
-                table: "Matches",
-                type: "text",
-                nullable: false,
-                defaultValue: "");
-
             migrationBuilder.CreateTable(
                 name: "Teams",
                 columns: table => new
@@ -144,14 +130,6 @@ namespace PvpAnalytics.Infrastructure.Migrations
 
             migrationBuilder.DropTable(
                 name: "Teams");
-
-            migrationBuilder.DropColumn(
-                name: "Spec",
-                table: "Players");
-
-            migrationBuilder.DropColumn(
-                name: "MapName",
-                table: "Matches");
         }
     }
 }

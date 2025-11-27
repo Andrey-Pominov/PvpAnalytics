@@ -31,7 +31,7 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:8081
-      - ConnectionStrings__DefaultConnection=Server=auth-sql,1433;Database=AuthService;User Id=sa;Password=${AUTH_PASSWORD?AUTH_PASSWORD not set};TrustServerCertificate=True;Encrypt=True
+      - ConnectionStrings__DefaultConnection=Server=auth-sql,1433;Database=AuthService;User Id=sa;Password=${SA_PASSWORD?SA_PASSWORD not set};TrustServerCertificate=True;Encrypt=True
       - Jwt__Issuer=PvpAnalytics.Auth
       - Jwt__Audience=PvpAnalytics.Api
       - Jwt__SigningKey=${JWT_SIGNING_KEY?JWT_SIGNING_KEY not set}
@@ -93,7 +93,7 @@ services:
     restart: always
     environment:
       - ACCEPT_EULA=Y
-      - MSSQL_SA_PASSWORD=${AUTH_PASSWORD?AUTH_PASSWORD not set}
+      - MSSQL_SA_PASSWORD=${SA_PASSWORD?SA_PASSWORD not set}
       - MSSQL_PID=Developer
     ports:
       - "1433:1433"

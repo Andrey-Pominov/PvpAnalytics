@@ -28,11 +28,39 @@ public class RivalService(
             .ThenByDescending(r => r.CreatedAt)
             .ToListAsync(ct);
 
+        if (rivals.Count == 0)
+            return new List<RivalDto>();
+
         // Get user's player IDs (using FavoritePlayer as a proxy for user-owned players)
         var userPlayerIds = await dbContext.FavoritePlayers
             .Where(fp => fp.OwnerUserId == userId)
             .Select(fp => fp.TargetPlayerId)
             .ToListAsync(ct);
+
+        // Get all rival opponent player IDs
+        var rivalOpponentIds = rivals.Select(r => r.OpponentPlayerId).ToList();
+
+        // Batch load all match results for all rival opponents and user players in a single query
+        var allPlayerIds = userPlayerIds.Union(rivalOpponentIds).ToList();
+        var allMatchResults = await dbContext.MatchResults
+            .Where(mr => allPlayerIds.Contains(mr.PlayerId))
+            .Select(mr => new
+            {
+                mr.MatchId,
+                mr.PlayerId,
+                mr.IsWinner
+            })
+            .ToListAsync(ct);
+
+        // Group match results by match ID for efficient lookup
+        var matchResultsByMatch = allMatchResults
+            .GroupBy(mr => mr.MatchId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        // Group matches by player ID for efficient lookup
+        var matchesByPlayer = allMatchResults
+            .GroupBy(mr => mr.PlayerId)
+            .ToDictionary(g => g.Key, g => g.Select(mr => mr.MatchId).Distinct().ToHashSet());
 
         var result = new List<RivalDto>();
 
@@ -47,32 +75,33 @@ public class RivalService(
             // Only calculate stats if we have user's player IDs
             if (userPlayerIds.Count > 0)
             {
-                // Get matches where both the rival's player and user's players participated
-                var matchesWithRival = await dbContext.MatchResults
-                    .Where(mr => mr.PlayerId == rival.OpponentPlayerId)
-                    .Select(mr => mr.MatchId)
-                    .Distinct()
-                    .ToListAsync(ct);
+                // Get matches where the rival player participated (from pre-loaded data)
+                if (!matchesByPlayer.TryGetValue(rival.OpponentPlayerId, out var rivalMatches))
+                {
+                    rivalMatches = new HashSet<long>();
+                }
 
                 // Get matches where user's players also participated
-                var matchesWithBoth = await dbContext.MatchResults
-                    .Where(mr => matchesWithRival.Contains(mr.MatchId) && userPlayerIds.Contains(mr.PlayerId))
-                    .Select(mr => mr.MatchId)
-                    .Distinct()
-                    .ToListAsync(ct);
+                var userMatches = userPlayerIds
+                    .Where(pid => matchesByPlayer.ContainsKey(pid))
+                    .SelectMany(pid => matchesByPlayer[pid])
+                    .ToHashSet();
 
+                // Find matches where both rival and user players participated
+                var matchesWithBoth = rivalMatches.Intersect(userMatches).ToList();
                 matchesPlayed = matchesWithBoth.Count;
 
                 if (matchesPlayed > 0)
                 {
-                    // Count wins: matches where a user's player won against the rival
-                    wins = await dbContext.MatchResults
-                        .Where(mr => matchesWithBoth.Contains(mr.MatchId) 
-                            && userPlayerIds.Contains(mr.PlayerId) 
-                            && mr.IsWinner)
-                        .Select(mr => mr.MatchId)
-                        .Distinct()
-                        .CountAsync(ct);
+                    // Count wins: matches where a user's player won
+                    wins = matchesWithBoth.Count(matchId =>
+                    {
+                        if (!matchResultsByMatch.TryGetValue(matchId, out var matchResults))
+                            return false;
+
+                        // Check if any user player won in this match
+                        return matchResults.Any(mr => userPlayerIds.Contains(mr.PlayerId) && mr.IsWinner);
+                    });
 
                     losses = matchesPlayed - wins;
                     winRate = Math.Round(wins.Value * 100.0 / matchesPlayed, 2);
@@ -86,12 +115,11 @@ public class RivalService(
             }
             else
             {
-                // If no user players available, just count total matches with rival
-                matchesPlayed = await dbContext.MatchResults
-                    .Where(mr => mr.PlayerId == rival.OpponentPlayerId)
-                    .Select(mr => mr.MatchId)
-                    .Distinct()
-                    .CountAsync(ct);
+                // If no user players available, just count total matches with rival (from pre-loaded data)
+                if (matchesByPlayer.TryGetValue(rival.OpponentPlayerId, out var rivalMatches))
+                {
+                    matchesPlayed = rivalMatches.Count;
+                }
             }
 
             result.Add(new RivalDto

@@ -95,7 +95,7 @@ public class TeamLeaderboardService(PvpAnalyticsDbContext dbContext) : ITeamLead
             Bracket = bracket,
             Region = region,
             Entries = entries,
-            TotalTeams = entries.Count,
+            TotalTeams = teams.Count,
             LastUpdated = DateTime.UtcNow
         };
     }
