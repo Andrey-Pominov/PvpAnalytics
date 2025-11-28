@@ -13,6 +13,11 @@ jobs:
     name: Build and analyze
     runs-on: windows-latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
@@ -30,11 +35,6 @@ jobs:
           node-version: '20'
           cache: 'npm'
           cache-dependency-path: ui/PvpAnalytics.UI/package-lock.json
-
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Install Node.js dependencies
         working-directory: ui/PvpAnalytics.UI
@@ -75,8 +75,7 @@ jobs:
             /k:"Andrey-Pominov_PvpAnalytics" `
             /o:"andrey-pominov" `
             /d:sonar.token="${{ secrets.SONAR_TOKEN }}" `
-            /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml" `
-            /d:sonar.javascript.lcov.reportPaths="ui/PvpAnalytics.UI/coverage/lcov.info" `
+            /d:sonar.cs.opencover.reportsPaths="coverage/opencover/*.xml" `
             /d:sonar.sources="Services,Shared,ui/PvpAnalytics.UI/src" `
             /d:sonar.exclusions="**/bin/**,**/obj/**,**/node_modules/**,**/dist/**,**/*.min.js,**/Migrations/**" `
             /d:sonar.sourceEncoding=UTF-8 `
@@ -90,6 +89,36 @@ jobs:
       - name: Run .NET tests (if any)
         continue-on-error: true
         run: dotnet test PvpAnalytics.sln --configuration Release --no-build --verbosity normal --collect:"XPlat Code Coverage" --results-directory ./coverage
+
+      - name: Install coverage tools
+        run: |
+          dotnet tool install -g dotnet-reportgenerator-globaltool
+          dotnet tool install -g dotnet-coverage
+
+      - name: Convert coverage to OpenCover format
+        continue-on-error: true
+        shell: powershell
+        run: |
+          $coverageFiles = Get-ChildItem -Path ./coverage -Recurse -Filter "*.coverage" | Select-Object -ExpandProperty FullName
+          if ($coverageFiles) {
+            # Convert .coverage files to Cobertura XML format
+            $coberturaDir = "coverage/cobertura"
+            New-Item -ItemType Directory -Path $coberturaDir -Force | Out-Null
+            $coberturaFiles = @()
+            foreach ($file in $coverageFiles) {
+              $outputFile = Join-Path $coberturaDir ([System.IO.Path]::GetFileNameWithoutExtension($file) + ".xml")
+              dotnet-coverage convert -f cobertura -i "$file" -o "$outputFile"
+              $coberturaFiles += $outputFile
+            }
+            # Convert Cobertura to OpenCover using ReportGenerator
+            if ($coberturaFiles.Count -gt 0) {
+              $coberturaPaths = $coberturaFiles -join ";"
+              reportgenerator -reports:"$coberturaPaths" -targetdir:"coverage/opencover" -reporttypes:"OpenCover"
+            }
+          } else {
+            Write-Host "No coverage files found, skipping conversion"
+          }
+        if: always()
 
       - name: End SonarQube analysis
         shell: powershell
