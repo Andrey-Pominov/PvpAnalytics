@@ -28,12 +28,8 @@ public static partial class LuaTableParser
         var matches = new List<LuaMatchData>();
 
         // Pattern to match a match block: { ["Logs"] = { ... }, ["StartTime"] = "...", etc. }
-        // We'll use a simpler approach: find all match blocks
-
-        var regex = new Regex(
-            """\{[\s\S]*?\["Logs"\]\s*=\s*\{([\s\S]*?)\},[\s\S]*?\["StartTime"\]\s*=\s*"([^"]+)",[\s\S]*?\["EndTime"\]\s*=\s*"([^"]+)",[\s\S]*?\["Zone"\]\s*=\s*"([^"]+)",[\s\S]*?\["Faction"\]\s*=\s*"([^"]+)",[\s\S]*?\["Mode"\]\s*=\s*"([^"]+)",[\s\S]*?\}""",
-            RegexOptions.Multiline);
-        var regexMatches = regex.Matches(content);
+        // We'll use a simpler approach: find all match blocks using a compiled, source-generated regex.
+        var regexMatches = MatchBlockRegex().Matches(content);
 
         foreach (Match match in regexMatches)
         {
@@ -67,11 +63,7 @@ public static partial class LuaTableParser
         var logs = new List<string>();
 
         // Pattern to match log entries: "HH:mm:ss - EVENT: details"
-        var logPattern = """
-                         "([^"]+)"
-                         """;
-        var regex = new Regex(logPattern);
-        var matches = regex.Matches(logsContent);
+        var matches = LogEntryRegex().Matches(logsContent);
 
         foreach (Match match in matches)
         {
@@ -283,9 +275,19 @@ public static partial class LuaTableParser
     }
 
     [GeneratedRegex("""
+                    \{[\s\S]*?\["Logs"\]\s*=\s*\{([\s\S]*?)\},[\s\S]*?\["StartTime"\]\s*=\s*"([^"]+)",[\s\S]*?\["EndTime"\]\s*=\s*"([^"]+)",[\s\S]*?\["Zone"\]\s*=\s*"([^"]+)",[\s\S]*?\["Faction"\]\s*=\s*"([^"]+)",[\s\S]*?\["Mode"\]\s*=\s*"([^"]+)",[\s\S]*?\}
+                    """, RegexOptions.Multiline)]
+    private static partial Regex MatchBlockRegex();
+
+    [GeneratedRegex("""
                     "([^"\\]*(\\.[^"\\]*)*)"
                     """)]
     private static partial Regex MyRegex();
+
+    [GeneratedRegex("""
+                    "([^"]+)"
+                    """)]
+    private static partial Regex LogEntryRegex();
 
     [GeneratedRegex("""
                     \["StartTime"\]\s*=\s*"([^"]+)"
