@@ -36,8 +36,8 @@ public class SessionAnalysisService(PvpAnalyticsDbContext dbContext) : ISessionA
         var sessions = GroupMatchesIntoSessions(matchResults, thresholdMinutes);
         dto.Sessions = sessions;
         dto.Summary = CalculateSessionSummary(sessions);
-        dto.OptimalTimes = await GetOptimalPlayTimesAsync(playerId, ct);
-        dto.Fatigue = await GetFatigueAnalysisAsync(playerId, ct);
+        dto.OptimalTimes = CalculateOptimalPlayTimes(sessions);
+        dto.Fatigue = CalculateFatigueAnalysis(sessions);
 
         return dto;
     }
@@ -203,9 +203,16 @@ public class SessionAnalysisService(PvpAnalyticsDbContext dbContext) : ISessionA
 
     public async Task<OptimalPlayTimes> GetOptimalPlayTimesAsync(long playerId, CancellationToken ct = default)
     {
-        var sessions = await GetSessionAnalysisAsync(playerId, 60, null, null, ct);
-        var sessionData = sessions.Sessions;
+        var matchResults = await LoadMatchResultsAsync(playerId, null, null, ct);
+        if (!matchResults.Any())
+            return new OptimalPlayTimes();
 
+        var sessions = GroupMatchesIntoSessions(matchResults, 60);
+        return CalculateOptimalPlayTimes(sessions);
+    }
+
+    private static OptimalPlayTimes CalculateOptimalPlayTimes(List<SessionData> sessionData)
+    {
         if (!sessionData.Any())
             return new OptimalPlayTimes();
 
@@ -249,9 +256,16 @@ public class SessionAnalysisService(PvpAnalyticsDbContext dbContext) : ISessionA
 
     public async Task<FatigueAnalysis> GetFatigueAnalysisAsync(long playerId, CancellationToken ct = default)
     {
-        var sessions = await GetSessionAnalysisAsync(playerId, 60, null, null, ct);
-        var sessionData = sessions.Sessions;
+        var matchResults = await LoadMatchResultsAsync(playerId, null, null, ct);
+        if (!matchResults.Any())
+            return new FatigueAnalysis();
 
+        var sessions = GroupMatchesIntoSessions(matchResults, 60);
+        return CalculateFatigueAnalysis(sessions);
+    }
+
+    private static FatigueAnalysis CalculateFatigueAnalysis(List<SessionData> sessionData)
+    {
         if (!sessionData.Any())
             return new FatigueAnalysis();
 

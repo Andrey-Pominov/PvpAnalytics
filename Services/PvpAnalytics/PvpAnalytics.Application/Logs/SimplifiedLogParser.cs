@@ -78,7 +78,11 @@ public static class SimplifiedLogParser
     private static Match? TryMatchInterrupt(string logLine)
     {
         var match = InterruptPattern.Match(logLine);
-        return match.Success ? match : InterruptPatternAlt.Match(logLine);
+        if (match.Success)
+            return match;
+
+        var altMatch = InterruptPatternAlt.Match(logLine);
+        return altMatch.Success ? altMatch : null;
     }
 
     private static string? DetermineEventType(string details)

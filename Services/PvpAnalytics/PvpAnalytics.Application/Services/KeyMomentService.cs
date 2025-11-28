@@ -34,7 +34,7 @@ public class KeyMomentService(PvpAnalyticsDbContext dbContext) : IKeyMomentServi
         moments.AddRange(DetectCcChains(combatLogs, matchStart));
         moments.AddRange(DetectDamageSpikes(combatLogs, matchStart));
         
-        var ratingMoments = await DetectRatingChangesAsync(matchId, match.CreatedOn, matchStart, ct);
+        var ratingMoments = await DetectRatingChangesAsync(matchId, match.Duration, ct);
         moments.AddRange(ratingMoments);
 
         dto.Moments = moments.OrderBy(m => m.Timestamp).ToList();
@@ -211,13 +211,13 @@ public class KeyMomentService(PvpAnalyticsDbContext dbContext) : IKeyMomentServi
 
     private async Task<List<KeyMoment>> DetectRatingChangesAsync(
         long matchId,
-        DateTime matchCreatedOn,
-        DateTime matchStart,
+        long matchDurationSeconds,
         CancellationToken ct)
     {
         var moments = new List<KeyMoment>();
         var matchResults = await dbContext.MatchResults
             .Where(mr => mr.MatchId == matchId)
+            .Include(mr => mr.Player)
             .ToListAsync(ct);
 
         foreach (var result in matchResults)
@@ -225,7 +225,7 @@ public class KeyMomentService(PvpAnalyticsDbContext dbContext) : IKeyMomentServi
             var ratingChange = result.RatingAfter - result.RatingBefore;
             if (Math.Abs(ratingChange) >= 10)
             {
-                moments.Add(CreateRatingChangeMoment(result, ratingChange, matchCreatedOn, matchStart));
+                moments.Add(CreateRatingChangeMoment(result, ratingChange, matchDurationSeconds));
             }
         }
 
@@ -235,13 +235,11 @@ public class KeyMomentService(PvpAnalyticsDbContext dbContext) : IKeyMomentServi
     private static KeyMoment CreateRatingChangeMoment(
         Core.Entities.MatchResult result,
         int ratingChange,
-        DateTime matchCreatedOn,
-        DateTime matchStart)
+        long matchDurationSeconds)
     {
-        var relativeTime = (long)(matchCreatedOn - matchStart).TotalSeconds;
         return new KeyMoment
         {
-            Timestamp = relativeTime,
+            Timestamp = matchDurationSeconds,
             EventType = "rating_change",
             Description = $"{result.Player?.Name ?? "Unknown"} {(ratingChange > 0 ? "gained" : "lost")} {Math.Abs(ratingChange)} rating",
             TargetPlayerId = result.PlayerId,

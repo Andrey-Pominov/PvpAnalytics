@@ -151,7 +151,7 @@ public class MatchupAnalyticsService(PvpAnalyticsDbContext dbContext) : IMatchup
     {
         return team.Any(mr =>
             mr.Player.Class.Equals(className, StringComparison.OrdinalIgnoreCase) &&
-            (spec == null || mr.Spec == spec));
+            (spec == null || (mr.Spec != null && string.Equals(mr.Spec, spec, StringComparison.OrdinalIgnoreCase))));
     }
 
     private static List<Core.Entities.MatchResult> FilterMatchupResults(

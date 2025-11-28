@@ -49,11 +49,11 @@ public class TeamSynergyService(PvpAnalyticsDbContext dbContext) : ITeamSynergyS
             .ToListAsync(ct);
     }
 
-    private async Task<MatchData> LoadMatchDataAsync(List<long> memberIds, CancellationToken ct)
+    private async Task<TeamSynergyMatchData> LoadMatchDataAsync(List<long> memberIds, CancellationToken ct)
     {
         var allMatchResults = await dbContext.MatchResults
             .Where(mr => memberIds.Contains(mr.PlayerId))
-            .Select(mr => new MatchResultData
+            .Select(mr => new TeamSynergyMatchResultData
             {
                 MatchId = mr.MatchId,
                 PlayerId = mr.PlayerId,
@@ -67,7 +67,7 @@ public class TeamSynergyService(PvpAnalyticsDbContext dbContext) : ITeamSynergyS
             .GroupBy(mr => new MatchTeamKey { MatchId = mr.MatchId, Team = mr.Team })
             .ToDictionary(g => g.Key, g => g.ToList());
 
-        return new MatchData
+        return new TeamSynergyMatchData
         {
             AllMatchResults = allMatchResults,
             MatchResultsByMatchAndTeam = matchResultsByMatchAndTeam
@@ -77,13 +77,13 @@ public class TeamSynergyService(PvpAnalyticsDbContext dbContext) : ITeamSynergyS
     private static List<PartnerSynergyDto> CalculatePartnerSynergies(
         List<long> memberIds,
         Dictionary<long, Player> playerDict,
-        MatchData matchData)
+        TeamSynergyMatchData matchData)
     {
         var partnerSynergies = new List<PartnerSynergyDto>();
 
-        for (int i = 0; i < memberIds.Count; i++)
+        for (var i = 0; i < memberIds.Count; i++)
         {
-            for (int j = i + 1; j < memberIds.Count; j++)
+            for (var j = i + 1; j < memberIds.Count; j++)
             {
                 var player1Id = memberIds[i];
                 var player2Id = memberIds[j];
@@ -107,8 +107,8 @@ public class TeamSynergyService(PvpAnalyticsDbContext dbContext) : ITeamSynergyS
         out Player player1,
         out Player player2)
     {
-        if (playerDict.TryGetValue(player1Id, out player1) &&
-            playerDict.TryGetValue(player2Id, out player2))
+        if (playerDict.TryGetValue(player1Id, out player1!) &&
+            playerDict.TryGetValue(player2Id, out player2!))
         {
             return true;
         }
@@ -123,7 +123,7 @@ public class TeamSynergyService(PvpAnalyticsDbContext dbContext) : ITeamSynergyS
         Player player1,
         long player2Id,
         Player player2,
-        MatchData matchData)
+        TeamSynergyMatchData matchData)
     {
         var togetherMatches = FindMatchesTogether(player1Id, player2Id, matchData.AllMatchResults);
 
@@ -144,7 +144,7 @@ public class TeamSynergyService(PvpAnalyticsDbContext dbContext) : ITeamSynergyS
     private static List<long> FindMatchesTogether(
         long player1Id,
         long player2Id,
-        List<MatchResultData> allMatchResults)
+        List<TeamSynergyMatchResultData> allMatchResults)
     {
         var player1Matches = allMatchResults
             .Where(mr => mr.PlayerId == player1Id)
@@ -162,7 +162,7 @@ public class TeamSynergyService(PvpAnalyticsDbContext dbContext) : ITeamSynergyS
             .Join(player2Matches,
                 p1 => new { p1.MatchId, p1.Team },
                 p2 => new { p2.MatchId, p2.Team },
-                (p1, p2) => p1.MatchId)
+                (p1, _) => p1.MatchId)
             .Distinct()
             .ToList();
     }
@@ -171,7 +171,7 @@ public class TeamSynergyService(PvpAnalyticsDbContext dbContext) : ITeamSynergyS
         long player1Id,
         long player2Id,
         List<long> togetherMatches,
-        MatchData matchData)
+        TeamSynergyMatchData matchData)
     {
         var wins = 0;
         var totalRating = 0.0;
@@ -212,7 +212,7 @@ public class TeamSynergyService(PvpAnalyticsDbContext dbContext) : ITeamSynergyS
         long matchId,
         long player1Id,
         long player2Id,
-        MatchData matchData)
+        TeamSynergyMatchData matchData)
     {
         var player1Result = matchData.AllMatchResults.FirstOrDefault(mr =>
             mr.MatchId == matchId && mr.PlayerId == player1Id);
@@ -283,9 +283,9 @@ public class TeamSynergyService(PvpAnalyticsDbContext dbContext) : ITeamSynergyS
     {
         return teamMatches
             .GroupBy(tm => tm.Match.MapName)
-            .ToDictionary(
+            .ToDictionary<IGrouping<string, TeamMatch>, string, double>(
                 g => g.Key,
-                g => g.Count > 0 ? Math.Round(g.Count(tm => tm.IsWin) * 100.0 / g.Count, 2) : 0.0
+                g => g.Key.Length > 0 ? Math.Round(g.Count(tm => tm.IsWin) * 100.0 / g.Key.Length, 2) : 0.0
             );
     }
 
@@ -353,11 +353,11 @@ public class TeamSynergyService(PvpAnalyticsDbContext dbContext) : ITeamSynergyS
             .Join(player2Matches,
                 p1 => new { p1.MatchId, p1.Team },
                 p2 => new { p2.MatchId, p2.Team },
-                (p1, p2) => p1.MatchId)
+                (p1, _) => p1.MatchId)
             .Distinct()
             .ToList();
 
-        if (!togetherMatches.Any())
+        if (togetherMatches.Count == 0)
         {
             return new PartnerSynergyDto
             {
@@ -419,10 +419,10 @@ public class TeamSynergyService(PvpAnalyticsDbContext dbContext) : ITeamSynergyS
     }
 }
 
-internal class MatchData
+internal class TeamSynergyMatchData
 {
-    public required List<MatchResultData> AllMatchResults { get; init; }
-    public required Dictionary<MatchTeamKey, List<MatchResultData>> MatchResultsByMatchAndTeam { get; init; }
+    public required List<TeamSynergyMatchResultData> AllMatchResults { get; init; }
+    public required Dictionary<MatchTeamKey, List<TeamSynergyMatchResultData>> MatchResultsByMatchAndTeam { get; init; }
 }
 
 internal class MatchTeamKey
@@ -443,7 +443,7 @@ internal class MatchTeamKey
     }
 }
 
-internal class MatchResultData
+internal class TeamSynergyMatchResultData
 {
     public long MatchId { get; init; }
     public long PlayerId { get; init; }

@@ -168,7 +168,16 @@ const PlayerProfilePage = () => {
     }
 
     const isCanceledError = (err: unknown): boolean => {
-      return axios.isCancel(err) || (err as Error).name === 'CanceledError'
+      if (axios.isCancel(err)) {
+        return true
+      }
+      if (err instanceof Error && err.name === 'CanceledError') {
+        return true
+      }
+      if (typeof err === 'object' && err !== null && 'name' in err && (err as any).name === 'CanceledError') {
+        return true
+      }
+      return false
     }
 
     const isNotFoundError = (err: unknown): boolean => {

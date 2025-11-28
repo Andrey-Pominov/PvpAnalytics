@@ -427,10 +427,11 @@ public class CombatLogIngestionService(
             needsUpdate = true;
         }
 
-        if (!string.IsNullOrWhiteSpace(player.Faction) || string.IsNullOrWhiteSpace(apiData.Faction))
-            return needsUpdate;
-        player.Faction = apiData.Faction;
-        needsUpdate = true;
+        if (string.IsNullOrWhiteSpace(player.Faction) && !string.IsNullOrWhiteSpace(apiData.Faction))
+        {
+            player.Faction = apiData.Faction;
+            needsUpdate = true;
+        }
 
         return needsUpdate;
     }

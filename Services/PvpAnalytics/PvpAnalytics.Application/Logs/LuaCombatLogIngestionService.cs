@@ -128,7 +128,7 @@ public class LuaCombatLogIngestionService(
     }
 
     private void AddPlayerToPendingIfValid(string? fullName)
-    {
+                    {
         if (string.IsNullOrEmpty(fullName))
             return;
 
@@ -136,12 +136,12 @@ public class LuaCombatLogIngestionService(
         if (string.IsNullOrEmpty(playerName) || string.IsNullOrWhiteSpace(realm))
             return;
 
-        _playerCache.GetOrAddPending(playerName, realm);
+                    _playerCache.GetOrAddPending(playerName, realm);
         var region = ExtractRegion(fullName);
-        if (!string.IsNullOrEmpty(region))
-        {
-            _playerRegions[playerName] = region;
-        }
+                    if (!string.IsNullOrEmpty(region))
+                    {
+                        _playerRegions[playerName] = region;
+                    }
     }
 
     private void ProcessCombatEvents(List<string> logLines, DateTime startTime, LuaMatchProcessingState state)
@@ -189,13 +189,13 @@ public class LuaCombatLogIngestionService(
         if (string.IsNullOrEmpty(playerName))
             return;
 
-        var cached = _playerCache.GetCached(playerName);
-        if (cached != null)
-        {
-            playersByKey.TryAdd(playerName, cached);
-            participants.Add(playerName);
-        }
-        else if (!string.IsNullOrWhiteSpace(realm))
+                var cached = _playerCache.GetCached(playerName);
+                if (cached != null)
+                {
+                    playersByKey.TryAdd(playerName, cached);
+                    participants.Add(playerName);
+                }
+                else if (!string.IsNullOrWhiteSpace(realm))
         {
             AddPlayerToPending(playerName, realm, fullName);
             participants.Add(playerName);
@@ -208,27 +208,27 @@ public class LuaCombatLogIngestionService(
     }
 
     private void AddPlayerToPending(string playerName, string realm, string fullName)
-    {
-        _playerCache.GetOrAddPending(playerName, realm);
+                {
+                    _playerCache.GetOrAddPending(playerName, realm);
         var region = ExtractRegion(fullName);
-        if (!string.IsNullOrEmpty(region))
-        {
-            _playerRegions[playerName] = region;
-        }
+                    if (!string.IsNullOrEmpty(region))
+                    {
+                        _playerRegions[playerName] = region;
+                    }
     }
 
     private static void TrackSpellForPlayer(
         string playerName,
         string spellName,
         Dictionary<string, HashSet<string>> playerSpells)
-    {
-        if (!playerSpells.TryGetValue(playerName, out var spells))
-        {
-            spells = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            playerSpells[playerName] = spells;
-        }
+                {
+                    if (!playerSpells.TryGetValue(playerName, out var spells))
+                    {
+                        spells = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                        playerSpells[playerName] = spells;
+                    }
         spells.Add(spellName);
-    }
+                }
 
     private void CreateCombatLogEntryIfValid(
         ParsedCombatLogEvent parsed,
@@ -246,17 +246,17 @@ public class LuaCombatLogIngestionService(
             return;
 
         var target = GetTargetPlayer(parsed.TargetName, playersByKey);
-        bufferedEntries.Add(new CombatLogEntry
-        {
-            Timestamp = parsed.Timestamp,
-            SourcePlayerId = source.Id,
-            TargetPlayerId = target?.Id,
-            Ability = parsed.SpellName ?? parsed.EventType,
-            DamageDone = parsed.Damage ?? 0,
-            HealingDone = parsed.Healing ?? 0,
-            CrowdControl = string.Empty
-        });
-    }
+                bufferedEntries.Add(new CombatLogEntry
+                {
+                    Timestamp = parsed.Timestamp,
+                    SourcePlayerId = source.Id,
+                    TargetPlayerId = target?.Id,
+                    Ability = parsed.SpellName ?? parsed.EventType,
+                    DamageDone = parsed.Damage ?? 0,
+                    HealingDone = parsed.Healing ?? 0,
+                    CrowdControl = string.Empty
+                });
+            }
 
     private static Player? GetTargetPlayer(string? targetName, Dictionary<string, Player> playersByKey)
     {
@@ -397,11 +397,11 @@ public class LuaCombatLogIngestionService(
     }
 
     private async Task EnrichSinglePlayerAsync(Player player, CancellationToken ct)
-    {
-        try
         {
-            var region = _playerRegions.GetValueOrDefault(player.Name, "eu");
-            var apiData = await wowApiService.GetPlayerDataAsync(player.Realm, player.Name, region, ct);
+            try
+            {
+                var region = _playerRegions.GetValueOrDefault(player.Name, "eu");
+                var apiData = await wowApiService.GetPlayerDataAsync(player.Realm, player.Name, region, ct);
 
             if (apiData == null)
                 return;
@@ -421,20 +421,20 @@ public class LuaCombatLogIngestionService(
     }
 
     private static bool UpdatePlayerFromApiData(Player player, WowPlayerData apiData)
-    {
-        var needsUpdate = false;
+                {
+                    var needsUpdate = false;
 
-        if (string.IsNullOrWhiteSpace(player.Class) && !string.IsNullOrWhiteSpace(apiData.Class))
-        {
-            player.Class = apiData.Class;
-            needsUpdate = true;
-        }
+                    if (string.IsNullOrWhiteSpace(player.Class) && !string.IsNullOrWhiteSpace(apiData.Class))
+                    {
+                        player.Class = apiData.Class;
+                        needsUpdate = true;
+                    }
 
-        if (string.IsNullOrWhiteSpace(player.Faction) && !string.IsNullOrWhiteSpace(apiData.Faction))
-        {
-            player.Faction = apiData.Faction;
-            needsUpdate = true;
-        }
+                    if (string.IsNullOrWhiteSpace(player.Faction) && !string.IsNullOrWhiteSpace(apiData.Faction))
+                    {
+                        player.Faction = apiData.Faction;
+                        needsUpdate = true;
+                    }
 
         return needsUpdate;
     }
@@ -493,7 +493,7 @@ public class LuaCombatLogIngestionService(
         try
         {
             match = await matchRepo.AddAsync(match, ct);
-            logger.LogInformation("Persisted new match {MatchId} with UniqueHash {UniqueHash} and {ParticipantCount} participants.",
+            logger.LogInformation("Persisted new match {MatchId} with UniqueHash {UniqueHash} and {ParticipantCount} participants.", 
                 match.Id, uniqueHash, participantCount);
             return match;
         }
@@ -511,17 +511,17 @@ public class LuaCombatLogIngestionService(
     private static bool IsUniqueConstraintViolation(Exception ex)
     {
         return ex.GetType().FullName?.Contains("DbUpdateException") == true &&
-               ex.InnerException?.GetType().FullName?.Contains("PostgresException") == true &&
-               (ex.InnerException.GetType().GetProperty("SqlState")?.GetValue(ex.InnerException)?.ToString() == "23505" ||
-                ex.Message.Contains("23505") ||
-                ex.Message.Contains("duplicate key value") ||
-                ex.Message.Contains("IX_Matches_UniqueHash"));
+                                              ex.InnerException?.GetType().FullName?.Contains("PostgresException") == true &&
+                                              (ex.InnerException.GetType().GetProperty("SqlState")?.GetValue(ex.InnerException)?.ToString() == "23505" ||
+                                               ex.Message.Contains("23505") ||
+                                               ex.Message.Contains("duplicate key value") ||
+                                               ex.Message.Contains("IX_Matches_UniqueHash"));
     }
 
     private async Task<Match> HandleDuplicateMatchAsync(string uniqueHash, CancellationToken ct)
-    {
-        logger.LogInformation("Match with UniqueHash {UniqueHash} already exists in database, returning existing match.", uniqueHash);
-        var existingMatches = await matchRepo.ListAsync(m => m.UniqueHash == uniqueHash, ct);
+            {
+                logger.LogInformation("Match with UniqueHash {UniqueHash} already exists in database, returning existing match.", uniqueHash);
+                var existingMatches = await matchRepo.ListAsync(m => m.UniqueHash == uniqueHash, ct);
         return existingMatches.Count > 0
             ? existingMatches[0]
             : throw new InvalidOperationException($"Match with UniqueHash {uniqueHash} was reported as duplicate but not found in database.");

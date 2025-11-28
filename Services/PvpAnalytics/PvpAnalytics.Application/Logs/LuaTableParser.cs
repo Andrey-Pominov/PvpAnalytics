@@ -128,10 +128,50 @@ public static partial class LuaTableParser
 
     private static void UpdateBraceDepth(string line, ManualParserState state)
     {
-        foreach (var c in line)
+        var insideString = false;
+        var stringChar = '\0'; // Tracks which quote type we're inside (' or ")
+
+        for (int i = 0; i < line.Length; i++)
         {
-            if (c == '{') state.BraceDepth++;
-            if (c == '}') state.BraceDepth--;
+            var c = line[i];
+
+            // Check if we're encountering a quote
+            if (c == '"' || c == '\'')
+            {
+                // Check if this quote is escaped by counting preceding backslashes
+                var backslashCount = 0;
+                for (int j = i - 1; j >= 0 && line[j] == '\\'; j--)
+                {
+                    backslashCount++;
+                }
+
+                // If odd number of backslashes, the quote is escaped (ignore it)
+                if (backslashCount % 2 == 1)
+                    continue;
+
+                // Toggle string state
+                if (!insideString)
+                {
+                    // Entering a string
+                    insideString = true;
+                    stringChar = c;
+                }
+                else if (c == stringChar)
+                {
+                    // Exiting the string (matching quote type)
+                    insideString = false;
+                    stringChar = '\0';
+                }
+                // If inside a string but quote type doesn't match, it's part of the string content
+                continue;
+            }
+
+            // Only count braces when outside of strings
+            if (!insideString)
+            {
+                if (c == '{') state.BraceDepth++;
+                if (c == '}') state.BraceDepth--;
+            }
         }
     }
 
@@ -156,6 +196,10 @@ public static partial class LuaTableParser
 
     private static void ExtractLogEntry(string line, ManualParserState state)
     {
+        // Guard against accessing CurrentMatch when null (can occur if InLogsArray becomes true before a match starts)
+        if (state.CurrentMatch == null)
+            return;
+
         var logMatch = MyRegex().Match(line);
         if (!logMatch.Success)
             return;
@@ -163,7 +207,7 @@ public static partial class LuaTableParser
         var logLine = logMatch.Groups[1].Value.Replace("\\\"", "\"").Replace(@"\\", "\\");
         if (logLine.Contains(" - "))
         {
-            state.CurrentMatch!.Logs.Add(logLine);
+            state.CurrentMatch.Logs.Add(logLine);
         }
     }
 

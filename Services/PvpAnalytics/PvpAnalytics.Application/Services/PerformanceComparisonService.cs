@@ -68,17 +68,16 @@ public class PerformanceComparisonService(PvpAnalyticsDbContext dbContext) : IPe
     private async Task<List<Core.Entities.MatchResult>> LoadPlayerResultsAsync(
         long playerId, string spec, int? ratingMin, CancellationToken ct)
     {
-        var results = await dbContext.MatchResults
+        var query = dbContext.MatchResults
             .Include(mr => mr.Match)
-            .Where(mr => mr.PlayerId == playerId && mr.Spec == spec)
-            .ToListAsync(ct);
+            .Where(mr => mr.PlayerId == playerId && mr.Spec == spec);
 
         if (ratingMin.HasValue)
         {
-            results = results.Where(mr => mr.RatingBefore >= ratingMin.Value).ToList();
+            query = query.Where(mr => mr.RatingBefore >= ratingMin.Value);
         }
 
-        return results;
+        return await query.ToListAsync(ct);
     }
 
     private async Task<List<Core.Entities.CombatLogEntry>> LoadPlayerCombatLogsAsync(
@@ -135,6 +134,11 @@ public class PerformanceComparisonService(PvpAnalyticsDbContext dbContext) : IPe
 
     private static int GetCurrentRating(List<Core.Entities.MatchResult> results)
     {
+        if (results == null || !results.Any())
+        {
+            throw new ArgumentException("results must contain at least one MatchResult", nameof(results));
+        }
+
         return results.OrderByDescending(mr => mr.Match.CreatedOn).First().RatingAfter;
     }
 
@@ -151,17 +155,16 @@ public class PerformanceComparisonService(PvpAnalyticsDbContext dbContext) : IPe
     private async Task<List<Core.Entities.MatchResult>> LoadAllSpecResultsAsync(
         string spec, int? ratingMin, CancellationToken ct)
     {
-        var results = await dbContext.MatchResults
+        var query = dbContext.MatchResults
             .Include(mr => mr.Match)
-            .Where(mr => mr.Spec == spec)
-            .ToListAsync(ct);
+            .Where(mr => mr.Spec == spec);
 
         if (ratingMin.HasValue)
         {
-            results = results.Where(mr => mr.RatingBefore >= ratingMin.Value).ToList();
+            query = query.Where(mr => mr.RatingBefore >= ratingMin.Value);
         }
 
-        return results;
+        return await query.ToListAsync(ct);
     }
 
     private async Task<List<Core.Entities.CombatLogEntry>> LoadAllSpecCombatLogsAsync(
@@ -256,11 +259,17 @@ public class PerformanceComparisonService(PvpAnalyticsDbContext dbContext) : IPe
         List<Core.Entities.CombatLogEntry> playerCombatLogs,
         int matchCount)
     {
+        if (playerResults.Count == 0)
+        {
+            return (0, 0, 0, 0, 0);
+        }
+
         var winRate = playerResults.Count(mr => mr.IsWinner) / (double)playerResults.Count;
         var damage = playerCombatLogs.Count != 0 ? playerCombatLogs.Average(c => (double)c.DamageDone) : 0;
         var healing = playerCombatLogs.Count != 0 ? playerCombatLogs.Average(c => (double)c.HealingDone) : 0;
         var cc = CalculateCCForPercentiles(playerCombatLogs, matchCount);
-        var rating = playerResults.OrderByDescending(mr => mr.Match.CreatedOn).First().RatingAfter;
+        var latestResult = playerResults.OrderByDescending(mr => mr.Match.CreatedOn).FirstOrDefault();
+        var rating = latestResult?.RatingAfter ?? 0;
 
         return (winRate, damage, healing, cc, rating);
     }

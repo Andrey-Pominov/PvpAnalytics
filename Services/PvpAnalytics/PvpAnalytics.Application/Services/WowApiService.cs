@@ -17,7 +17,6 @@ public class WowApiService(
     ILogger<WowApiService> logger) : IWowApiService
 {
     private readonly WowApiOptions _options = options.Value;
-    private readonly ILogger<WowApiService> _logger = logger;
     private string? _accessToken;
     private DateTime? _tokenExpiry;
 
@@ -34,10 +33,6 @@ public class WowApiService(
             var baseUrl = GetBaseUrlForRegion(region);
 
             var profileData = await FetchProfileDataAsync(baseUrl, realmSlug, nameSlug, region, ct);
-            if (profileData == null)
-                return null;
-
-            await FetchCharacterMediaAsync(baseUrl, realmSlug, nameSlug, region, ct);
 
             var playerData = ParsePlayerData(profileData, name, realm);
             ParseClass(playerData, profileData);
@@ -47,7 +42,7 @@ public class WowApiService(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error fetching player data from WoW API for {Name} on {Realm}", name, realm);
+            logger.LogError(ex, "Error fetching player data from WoW API for {Name} on {Realm}", name, realm);
             return null;
         }
     }
@@ -58,7 +53,7 @@ public class WowApiService(
 
         if (string.IsNullOrEmpty(_accessToken))
         {
-            _logger.LogWarning("Failed to obtain access token for WoW API");
+            logger.LogWarning("Failed to obtain access token for WoW API");
             return false;
         }
 
@@ -72,19 +67,17 @@ public class WowApiService(
             : "https://us.api.blizzard.com";
     }
 
-    private async Task<JsonElement?> FetchProfileDataAsync(
+    private async Task<JsonElement> FetchProfileDataAsync(
         string baseUrl, string realmSlug, string nameSlug, string region, CancellationToken ct)
     {
         var profileUrl = $"{baseUrl}/profile/wow/character/{realmSlug}/{nameSlug}?namespace=profile-{region}&locale=en_US";
         var response = await SendAuthenticatedRequestAsync(HttpMethod.Get, profileUrl, ct);
 
-        if (response == null)
-            return null;
 
-        if (!response.IsSuccessStatusCode)
+        if (response is not { IsSuccessStatusCode: true })
         {
             HandleProfileRequestError(response, realmSlug, nameSlug);
-            return null;
+            return new JsonElement();
         }
 
         return await response.Content.ReadFromJsonAsync<JsonElement>(ct);
@@ -100,28 +93,16 @@ public class WowApiService(
         return await httpClient.SendAsync(request, ct);
     }
 
-    private void HandleProfileRequestError(HttpResponseMessage response, string realm, string name)
+    private void HandleProfileRequestError(HttpResponseMessage? response, string realm, string name)
     {
-        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+        if (response is { StatusCode: System.Net.HttpStatusCode.NotFound })
         {
-            _logger.LogDebug("Player {Name} on realm {Realm} not found in WoW API", name, realm);
+            logger.LogDebug("Player {Name} on realm {Realm} not found in WoW API", name, realm);
         }
         else
         {
-            _logger.LogWarning("WoW API returned status {StatusCode} for {Name} on {Realm}",
-                response.StatusCode, name, realm);
-        }
-    }
-
-    private async Task FetchCharacterMediaAsync(
-        string baseUrl, string realmSlug, string nameSlug, string region, CancellationToken ct)
-    {
-        var summaryUrl = $"{baseUrl}/profile/wow/character/{realmSlug}/{nameSlug}/character-media?namespace=profile-{region}&locale=en_US";
-        var summaryResponse = await SendAuthenticatedRequestAsync(HttpMethod.Get, summaryUrl, ct);
-
-        if (summaryResponse?.IsSuccessStatusCode == true)
-        {
-            await summaryResponse.Content.ReadFromJsonAsync<JsonElement>(ct);
+            logger.LogWarning("WoW API returned status {StatusCode} for {Name} on {Realm}",
+                response?.StatusCode, name, realm);
         }
     }
 
@@ -170,7 +151,14 @@ public class WowApiService(
 
         playerData.Race = ExtractStringProperty(raceProp, "name");
         
-        if (playerData.Race != null)
+        // Extract faction from API response (authoritative source)
+        if (profileData.TryGetProperty("faction", out var factionProp))
+        {
+            playerData.Faction = ExtractStringProperty(factionProp, "name");
+        }
+        
+        // Fallback to race-based inference only if faction is not available from API
+        if (string.IsNullOrWhiteSpace(playerData.Faction) && playerData.Race != null)
         {
             playerData.Faction = DetermineFactionFromRace(playerData.Race);
         }
@@ -230,7 +218,7 @@ public class WowApiService(
 
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogError("Failed to obtain OAuth token. Status: {StatusCode}", response.StatusCode);
+                logger.LogError("Failed to obtain OAuth token. Status: {StatusCode}", response.StatusCode);
                 _accessToken = null;
                 _tokenExpiry = null;
                 return;
@@ -242,18 +230,18 @@ public class WowApiService(
             {
                 _accessToken = tokenProp.GetString();
                 _tokenExpiry = DateTime.UtcNow.AddMinutes(55);
-                _logger.LogDebug("Obtained new OAuth token for WoW API");
+                logger.LogDebug("Obtained new OAuth token for WoW API");
             }
             else
             {
-                _logger.LogError("OAuth token response missing access_token");
+                logger.LogError("OAuth token response missing access_token");
                 _accessToken = null;
                 _tokenExpiry = null;
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error obtaining OAuth token for WoW API");
+            logger.LogError(ex, "Error obtaining OAuth token for WoW API");
             _accessToken = null;
             _tokenExpiry = null;
         }
