@@ -34,13 +34,8 @@ public static class SimplifiedLogParser
         if (string.IsNullOrWhiteSpace(logLine))
             return null;
 
-        // Check for interrupt first (has special format with color codes)
-        var interruptMatch = InterruptPattern.Match(logLine);
-        if (!interruptMatch.Success)
-        {
-            interruptMatch = InterruptPatternAlt.Match(logLine);
-        }
-        if (interruptMatch.Success)
+        var interruptMatch = TryMatchInterrupt(logLine);
+        if (interruptMatch != null)
         {
             return ParseInterruptEvent(interruptMatch, baseDate);
         }
@@ -54,40 +49,19 @@ public static class SimplifiedLogParser
         var amountStr = match.Groups[3].Success ? match.Groups[3].Value : null;
         var targetStr = match.Groups[4].Success ? match.Groups[4].Value : null;
 
-        // Determine event type from details
-        string eventType;
-        if (details.Contains("healed", StringComparison.OrdinalIgnoreCase))
-            eventType = "HEAL";
-        else if (details.Contains("used", StringComparison.OrdinalIgnoreCase))
-            eventType = "DAMAGE";
-        else
+        var eventType = DetermineEventType(details);
+        if (eventType == null)
             return null;
 
-        // Parse timestamp
-        if (!TimeSpan.TryParse(timeStr, out var timeOfDay))
+        if (!TryParseTimestamp(timeStr, baseDate, out var timestamp))
             return null;
 
-        var timestamp = baseDate.Date.Add(timeOfDay);
-
-        // Parse event type
         var parsedEventType = ParseEventType(eventType, details);
         if (parsedEventType == null)
             return null;
 
-        // Extract source player and spell/ability
         var (sourceName, spellName, _) = ParseEventDetails(eventType, details, amountStr);
-
-        // Parse amount
-        int? damage = null;
-        int? healing = null;
-
-        if (!string.IsNullOrEmpty(amountStr) && int.TryParse(amountStr, out var parsedAmount))
-        {
-            if (eventType == "HEAL")
-                healing = parsedAmount;
-            else if (eventType == "DAMAGE")
-                damage = parsedAmount;
-        }
+        var (damage, healing) = ParseAmount(eventType, amountStr);
 
         return new ParsedCombatLogEvent
         {
@@ -99,6 +73,43 @@ public static class SimplifiedLogParser
             Damage = damage,
             Healing = healing
         };
+    }
+
+    private static Match? TryMatchInterrupt(string logLine)
+    {
+        var match = InterruptPattern.Match(logLine);
+        return match.Success ? match : InterruptPatternAlt.Match(logLine);
+    }
+
+    private static string? DetermineEventType(string details)
+    {
+        if (details.Contains("healed", StringComparison.OrdinalIgnoreCase))
+            return "HEAL";
+        
+        if (details.Contains("used", StringComparison.OrdinalIgnoreCase))
+            return "DAMAGE";
+        
+        return null;
+    }
+
+    private static bool TryParseTimestamp(string timeStr, DateTime baseDate, out DateTime timestamp)
+    {
+        timestamp = DateTime.MinValue;
+        if (!TimeSpan.TryParse(timeStr, out var timeOfDay))
+            return false;
+
+        timestamp = baseDate.Date.Add(timeOfDay);
+        return true;
+    }
+
+    private static (int? damage, int? healing) ParseAmount(string eventType, string? amountStr)
+    {
+        if (string.IsNullOrEmpty(amountStr) || !int.TryParse(amountStr, out var parsedAmount))
+            return (null, null);
+
+        return eventType == "HEAL"
+            ? (null, parsedAmount)
+            : (parsedAmount, null);
     }
 
     private static ParsedCombatLogEvent? ParseInterruptEvent(Match match, DateTime baseDate)

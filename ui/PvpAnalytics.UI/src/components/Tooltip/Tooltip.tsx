@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useState, useRef, useEffect, type ReactNode } from 'react'
 
 interface TooltipProps {
   content: string
@@ -8,6 +8,7 @@ interface TooltipProps {
 
 const Tooltip = ({ content, children, position = 'top' }: TooltipProps) => {
   const [isVisible, setIsVisible] = useState(false)
+  const tooltipId = useRef(`tooltip-${Math.random().toString(36).substr(2, 9)}`)
 
   const positionClasses = {
     top: 'bottom-full left-1/2 -translate-x-1/2 mb-2',
@@ -16,17 +17,48 @@ const Tooltip = ({ content, children, position = 'top' }: TooltipProps) => {
     right: 'left-full top-1/2 -translate-y-1/2 ml-2',
   }
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      setIsVisible(false)
+    }
+  }
+
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isVisible) {
+        setIsVisible(false)
+      }
+    }
+
+    if (isVisible) {
+      document.addEventListener('keydown', handleEscape)
+      return () => {
+        document.removeEventListener('keydown', handleEscape)
+      }
+    }
+  }, [isVisible])
+
   return (
     <div
       className="relative inline-block"
+      role="group"
+      aria-describedby={isVisible ? tooltipId.current : undefined}
       onMouseEnter={() => setIsVisible(true)}
       onMouseLeave={() => setIsVisible(false)}
+      onFocus={() => setIsVisible(true)}
+      onBlur={() => setIsVisible(false)}
+      onTouchStart={() => setIsVisible(true)}
+      onTouchEnd={() => setIsVisible(false)}
+      onKeyDown={handleKeyDown}
+      tabIndex={0}
     >
       {children}
       {isVisible && (
         <div
+          id={tooltipId.current}
           className={`absolute z-50 rounded-lg bg-gray-900 px-3 py-2 text-xs text-white shadow-lg ${positionClasses[position]}`}
           role="tooltip"
+          aria-live="polite"
         >
           {content}
           <div

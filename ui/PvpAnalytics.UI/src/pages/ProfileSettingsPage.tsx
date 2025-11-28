@@ -67,7 +67,7 @@ const ProfileSettingsPage = () => {
         <h2 className="text-xl font-semibold mb-4">Public Profile</h2>
         <div className="flex flex-col gap-4">
           <div>
-            <label className="block text-sm font-semibold mb-2">Display Name</label>
+            <label className="block text-sm font-semibold mb-2">Display Name
             <input
               type="text"
               value={formData.displayName || ''}
@@ -75,9 +75,10 @@ const ProfileSettingsPage = () => {
               className="w-full px-4 py-2 border border-accent-muted/30 rounded-lg bg-background text-text"
               placeholder="Your display name"
             />
+            </label>
           </div>
           <div>
-            <label className="block text-sm font-semibold mb-2">Bio</label>
+            <label className="block text-sm font-semibold mb-2">Bio
             <textarea
               value={formData.bio || ''}
               onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
@@ -85,9 +86,10 @@ const ProfileSettingsPage = () => {
               placeholder="Tell us about yourself..."
               rows={4}
             />
+            </label>
           </div>
           <div>
-            <label className="block text-sm font-semibold mb-2">Avatar URL</label>
+            <label className="block text-sm font-semibold mb-2">Avatar URL
             <input
               type="url"
               value={formData.avatarUrl || ''}
@@ -95,6 +97,7 @@ const ProfileSettingsPage = () => {
               className="w-full px-4 py-2 border border-accent-muted/30 rounded-lg bg-background text-text"
               placeholder="https://example.com/avatar.jpg"
             />
+            </label>
           </div>
         </div>
       </Card>

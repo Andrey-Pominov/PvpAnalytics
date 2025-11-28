@@ -65,8 +65,8 @@ const CustomMetricsPage = () => {
 
     const variables: Record<string, number> = {}
     for (const [key, value] of Object.entries(testVariables)) {
-      const numValue = parseFloat(value)
-      if (!isNaN(numValue)) {
+      const numValue = Number.parseFloat(value)
+      if (!Number.isNaN(numValue)) {
         variables[key] = numValue
       }
     }
@@ -96,25 +96,29 @@ const CustomMetricsPage = () => {
         <Card title={editingId ? 'Edit Metric' : 'Create New Metric'}>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-semibold text-text-muted mb-1">Name</label>
+              <label htmlFor="metric-name" className="block text-sm font-semibold text-text-muted mb-1">Name
               <input
+                id="metric-name"
                 type="text"
                 value={formName}
                 onChange={(e) => setFormName(e.target.value)}
                 placeholder="e.g., Kills per Minute"
                 className="w-full rounded-lg border border-accent-muted/40 bg-surface/50 px-4 py-2 text-text focus:border-accent focus:outline-none"
               />
+              </label>
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-text-muted mb-1">Expression</label>
+              <label htmlFor="metric-expression" className="block text-sm font-semibold text-text-muted mb-1">Expression
               <textarea
+                id="metric-expression"
                 value={formExpression}
                 onChange={(e) => setFormExpression(e.target.value)}
                 placeholder="e.g., Kills / (Duration / 60)"
                 rows={3}
                 className="w-full rounded-lg border border-accent-muted/40 bg-surface/50 px-4 py-2 text-text focus:border-accent focus:outline-none font-mono text-sm"
               />
+              </label>
               {parsedExpression.variables.length > 0 && (
                 <p className="mt-1 text-xs text-text-muted">
                   Variables: {parsedExpression.variables.join(', ')}
@@ -126,16 +130,18 @@ const CustomMetricsPage = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-text-muted mb-1">
+              <label htmlFor="metric-description" className="block text-sm font-semibold text-text-muted mb-1">
                 Description (optional)
-              </label>
+              
               <input
+                id="metric-description"
                 type="text"
                 value={formDescription}
                 onChange={(e) => setFormDescription(e.target.value)}
                 placeholder="Brief description of what this metric measures"
                 className="w-full rounded-lg border border-accent-muted/40 bg-surface/50 px-4 py-2 text-text focus:border-accent focus:outline-none"
               />
+              </label>
             </div>
 
             {/* Test Section */}
@@ -145,8 +151,9 @@ const CustomMetricsPage = () => {
                 <div className="space-y-2">
                   {parsedExpression.variables.map((varName) => (
                     <div key={varName} className="flex items-center gap-2">
-                      <label className="w-24 text-sm text-text-muted">{varName}:</label>
+                      <label htmlFor={`test-var-${varName}`} className="w-24 text-sm text-text-muted">{varName}:
                       <input
+                        id={`test-var-${varName}`}
                         type="number"
                         value={testVariables[varName] || ''}
                         onChange={(e) =>
@@ -155,6 +162,7 @@ const CustomMetricsPage = () => {
                         placeholder="0"
                         className="flex-1 rounded-lg border border-accent-muted/40 bg-surface/50 px-3 py-1 text-text focus:border-accent focus:outline-none"
                       />
+                      </label>
                     </div>
                   ))}
                 </div>

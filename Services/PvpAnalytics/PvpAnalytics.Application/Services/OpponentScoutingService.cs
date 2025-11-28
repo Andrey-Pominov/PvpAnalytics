@@ -16,9 +16,6 @@ public interface IOpponentScoutingService
 
 public class OpponentScoutingService(
     IRepository<Player> playerRepo,
-    IRepository<MatchResult> matchResultRepo,
-    IRepository<Match> matchRepo,
-    IRepository<CombatLogEntry> combatLogRepo,
     PvpAnalyticsDbContext dbContext) : IOpponentScoutingService
 {
     public async Task<OpponentScoutDto?> GetScoutingDataAsync(long playerId, CancellationToken ct = default)
@@ -34,31 +31,26 @@ public class OpponentScoutingService(
             Class = player.Class,
         };
 
-        // Get match results with matches
         var matchResults = await dbContext.MatchResults
             .Include(mr => mr.Match)
             .Where(mr => mr.PlayerId == playerId)
             .ToListAsync(ct);
 
-        if (!matchResults.Any())
+        if (matchResults.Count == 0)
             return scout;
 
-        // Calculate basic stats
         var totalMatches = matchResults.Count;
         var wins = matchResults.Count(mr => mr.IsWinner);
         scout.TotalMatches = totalMatches;
-        scout.WinRate = totalMatches > 0 ? Math.Round(wins * 100.0 / totalMatches, 2) : 0;
+        scout.WinRate = Math.Round(wins * 100.0 / totalMatches, 2);
 
-        // Get current and peak rating
         var latestResult = matchResults.OrderByDescending(mr => mr.Match.CreatedOn).First();
         scout.CurrentRating = latestResult.RatingAfter;
         scout.PeakRating = matchResults.Max(mr => Math.Max(mr.RatingBefore, mr.RatingAfter));
         scout.CurrentSpec = latestResult.Spec;
 
-        // Get common compositions (team compositions this player plays)
         scout.CommonCompositions = await GetPlayerCompositionsAsync(playerId, ct);
 
-        // Get preferred maps
         var mapStats = matchResults
             .GroupBy(mr => mr.Match.MapName)
             .Select(g => new MapPreference
@@ -66,7 +58,7 @@ public class OpponentScoutingService(
                 MapName = g.Key,
                 Matches = g.Count(),
                 Wins = g.Count(m => m.IsWinner),
-                WinRate = g.Count() > 0 ? Math.Round(g.Count(m => m.IsWinner) * 100.0 / g.Count(), 2) : 0
+                WinRate = g.Any() ? Math.Round(g.Count(m => m.IsWinner) * 100.0 / g.Count(), 2) : 0
             })
             .OrderByDescending(m => m.Matches)
             .Take(10)
@@ -74,7 +66,6 @@ public class OpponentScoutingService(
 
         scout.PreferredMaps = mapStats;
 
-        // Calculate playstyle pattern
         var combatLogs = await dbContext.CombatLogEntries
             .Where(c => c.SourcePlayerId == playerId)
             .ToListAsync(ct);
@@ -84,38 +75,42 @@ public class OpponentScoutingService(
             .Where(m => matchIds.Contains(m.Id))
             .ToListAsync(ct);
 
-        var avgDamage = combatLogs.Any() ? combatLogs.Average(c => (double)c.DamageDone) : 0;
-        var avgHealing = combatLogs.Any() ? combatLogs.Average(c => (double)c.HealingDone) : 0;
-        var avgCC = combatLogs.Any() ? combatLogs.Count(c => !string.IsNullOrWhiteSpace(c.CrowdControl)) / (double)matchIds.Count : 0;
-        var avgDuration = matches.Any() ? matches.Average(m => (double)m.Duration) : 0;
+        var avgDamage = combatLogs.Count != 0 ? combatLogs.Average(c => (double)c.DamageDone) : 0;
+        var avgHealing = combatLogs.Count != 0 ? combatLogs.Average(c => (double)c.HealingDone) : 0;
+        var avgCc = combatLogs.Count != 0
+            ? combatLogs.Count(c => !string.IsNullOrWhiteSpace(c.CrowdControl)) / (double)matchIds.Count
+            : 0;
+        var avgDuration = matches.Count != 0 ? matches.Average(m => (double)m.Duration) : 0;
 
         scout.Playstyle = new PlaystylePattern
         {
             AverageDamagePerMatch = Math.Round(avgDamage, 2),
             AverageHealingPerMatch = Math.Round(avgHealing, 2),
-            AverageCCPerMatch = Math.Round(avgCC, 2),
+            AverageCCPerMatch = Math.Round(avgCc, 2),
             AverageMatchDuration = Math.Round(avgDuration, 2),
-            Style = DeterminePlaystyle(avgDamage, avgHealing, avgCC)
+            Style = DeterminePlaystyle(avgDamage, avgHealing)
         };
 
-        // Get class matchups
         scout.ClassMatchups = await GetPlayerMatchupsAsync(playerId, ct);
 
         return scout;
     }
 
-    public async Task<List<OpponentScoutDto>> SearchPlayersAsync(string name, string? realm = null, CancellationToken ct = default)
+    public async Task<List<OpponentScoutDto>> SearchPlayersAsync(string name, string? realm = null,
+        CancellationToken ct = default)
     {
         var query = dbContext.Players.AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(name))
         {
-            query = query.Where(p => p.Name.Contains(name, StringComparison.OrdinalIgnoreCase));
+            var nameLower = name.ToLower();
+            query = query.Where(p => p.Name.ToLower().Contains(nameLower));
         }
 
         if (!string.IsNullOrWhiteSpace(realm))
         {
-            query = query.Where(p => p.Realm.Contains(realm, StringComparison.OrdinalIgnoreCase));
+            var realmLower = realm.ToLower();
+            query = query.Where(p => p.Realm.ToLower().Contains(realmLower));
         }
 
         var players = await query.Take(20).ToListAsync(ct);
@@ -131,19 +126,18 @@ public class OpponentScoutingService(
         return results;
     }
 
-    public async Task<List<CompositionWinRate>> GetPlayerCompositionsAsync(long playerId, CancellationToken ct = default)
+    public async Task<List<CompositionWinRate>> GetPlayerCompositionsAsync(long playerId,
+        CancellationToken ct = default)
     {
-        // Get all matches where player participated
         var playerMatches = await dbContext.MatchResults
             .Where(mr => mr.PlayerId == playerId)
             .Select(mr => mr.MatchId)
             .Distinct()
             .ToListAsync(ct);
 
-        if (!playerMatches.Any())
-            return new List<CompositionWinRate>();
+        if (playerMatches.Count == 0)
+            return [];
 
-        // Get all match results for these matches, grouped by match and team
         var teamCompositions = await dbContext.MatchResults
             .Include(mr => mr.Player)
             .Include(mr => mr.Match)
@@ -151,22 +145,21 @@ public class OpponentScoutingService(
             .GroupBy(mr => new { mr.MatchId, mr.Team })
             .Select(g => new
             {
-                MatchId = g.Key.MatchId,
-                Team = g.Key.Team,
+                g.Key.MatchId,
+                g.Key.Team,
                 Players = g.Select(mr => new { mr.Player.Class, mr.Spec }).ToList(),
                 IsWinner = g.Any(mr => mr.IsWinner),
                 Rating = g.Average(mr => (double)mr.RatingBefore)
             })
             .ToListAsync(ct);
 
-        // Group by composition (sorted class names)
         var compositionGroups = teamCompositions
-            .Where(tc => tc.Players.Any(p => p.Class != null))
+            .Where(tc => tc.Players.Any(_ => true))
             .GroupBy(tc =>
             {
                 var classes = tc.Players
                     .Where(p => !string.IsNullOrWhiteSpace(p.Class))
-                    .Select(p => p.Class!)
+                    .Select(p => p.Class)
                     .OrderBy(c => c)
                     .ToList();
                 return string.Join("-", classes);
@@ -176,7 +169,7 @@ public class OpponentScoutingService(
                 Composition = g.Key,
                 Matches = g.Count(),
                 Wins = g.Count(tc => tc.IsWinner),
-                WinRate = g.Count() > 0 ? Math.Round(g.Count(tc => tc.IsWinner) * 100.0 / g.Count(), 2) : 0,
+                WinRate = g.Any() ? Math.Round(g.Count(tc => tc.IsWinner) * 100.0 / g.Count(), 2) : 0,
                 AverageRating = Math.Round(g.Average(tc => tc.Rating), 0)
             })
             .OrderByDescending(c => c.Matches)
@@ -188,16 +181,14 @@ public class OpponentScoutingService(
 
     public async Task<List<ClassMatchup>> GetPlayerMatchupsAsync(long playerId, CancellationToken ct = default)
     {
-        // Get all matches where player participated
         var playerMatchIds = await dbContext.MatchResults
             .Where(mr => mr.PlayerId == playerId)
             .Select(mr => mr.MatchId)
             .ToListAsync(ct);
 
-        if (!playerMatchIds.Any())
-            return new List<ClassMatchup>();
+        if (playerMatchIds.Count == 0)
+            return [];
 
-        // Get opponent classes/specs from same matches but different teams
         var playerTeam = await dbContext.MatchResults
             .Where(mr => mr.PlayerId == playerId)
             .Select(mr => new { mr.MatchId, mr.Team })
@@ -206,19 +197,19 @@ public class OpponentScoutingService(
         var opponentResults = await dbContext.MatchResults
             .Include(mr => mr.Player)
             .Include(mr => mr.Match)
-            .Where(mr => playerMatchIds.Contains(mr.MatchId) && 
-                        !playerTeam.Any(pt => pt.MatchId == mr.MatchId && pt.Team == mr.Team))
+            .Where(mr => playerMatchIds.Contains(mr.MatchId) &&
+                         !playerTeam.Any(pt => pt.MatchId == mr.MatchId && pt.Team == mr.Team))
             .ToListAsync(ct);
 
         var matchups = opponentResults
             .GroupBy(mr => new { mr.Player.Class, mr.Spec })
             .Select(g => new ClassMatchup
             {
-                OpponentClass = g.Key.Class ?? "Unknown",
+                OpponentClass = g.Key.Class,
                 OpponentSpec = g.Key.Spec,
                 Matches = g.Count(),
                 Wins = g.Count(mr => !mr.IsWinner), // Opponent lost = player won
-                WinRate = g.Count() > 0 ? Math.Round(g.Count(mr => !mr.IsWinner) * 100.0 / g.Count(), 2) : 0
+                WinRate = g.Any() ? Math.Round(g.Count(mr => !mr.IsWinner) * 100.0 / g.Count(), 2) : 0
             })
             .OrderByDescending(m => m.Matches)
             .Take(20)
@@ -227,13 +218,10 @@ public class OpponentScoutingService(
         return matchups;
     }
 
-    private static string DeterminePlaystyle(double avgDamage, double avgHealing, double avgCC)
+    private static string DeterminePlaystyle(double avgDamage, double avgHealing)
     {
         if (avgDamage > avgHealing * 2)
             return "Aggressive";
-        if (avgHealing > avgDamage * 2)
-            return "Defensive";
-        return "Balanced";
+        return avgHealing > avgDamage * 2 ? "Defensive" : "Balanced";
     }
 }
-

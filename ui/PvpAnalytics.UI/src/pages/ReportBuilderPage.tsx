@@ -158,9 +158,21 @@ const ReportBuilderPage = () => {
                             {WIDGET_TYPES.map((widget) => (
                                 <div
                                     key={widget.type}
+                                    role="button"
+                                    tabIndex={0}
                                     draggable
                                     onDragStart={() => handleDragStart(widget.type)}
-                                    className="flex cursor-move items-center gap-2 rounded-lg border border-accent-muted/40 bg-surface/50 px-4 py-2 text-sm text-text transition-colors hover:bg-surface/70"
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' || e.key === ' ') {
+                                            e.preventDefault()
+                                            // For keyboard users, add the widget directly
+                                            if (currentLayout) {
+                                                addWidget(widget.type)
+                                            }
+                                        }
+                                    }}
+                                    aria-label={`Add ${widget.label} widget to canvas. Drag to reposition or press Enter to add.`}
+                                    className="flex cursor-move items-center gap-2 rounded-lg border border-accent-muted/40 bg-surface/50 px-4 py-2 text-sm text-text transition-colors hover:bg-surface/70 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-background"
                                 >
                                     <span>{widget.icon}</span>
                                     <span>{widget.label}</span>
@@ -187,6 +199,8 @@ const ReportBuilderPage = () => {
                         }
                     >
                         <div
+                            role="region"
+                            aria-label="Dashboard canvas. Drag widgets here to build your dashboard."
                             className="min-h-[600px] rounded-lg border-2 border-dashed border-accent-muted/40 bg-surface/30 p-6"
                             onDragOver={handleDragOver}
                             onDrop={handleDrop}

@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using PvpAnalytics.Application.Services;
 using PvpAnalytics.Core.Entities;
 using PvpAnalytics.Core.Enum;
+using PvpAnalytics.Core.Models;
 using PvpAnalytics.Core.Repositories;
 using PvpAnalytics.Core.Logs;
 
@@ -18,7 +19,7 @@ public class CombatLogIngestionService(
     ILoggerFactory loggerFactory)
     : ICombatLogIngestionService
 {
-    private readonly PlayerCache _playerCache = new PlayerCache(playerRepo);
+    private readonly PlayerCache _playerCache = new(playerRepo);
 
     private readonly Dictionary<string, string>
         _playerRegions = new(StringComparer.OrdinalIgnoreCase); // Track region per player for WoW API
@@ -38,286 +39,295 @@ public class CombatLogIngestionService(
     {
         logger.LogInformation("Combat log ingestion started.");
 
-        // Detect format and route to appropriate service
         var format = CombatLogFormatDetector.DetectFormat(fileStream);
-        
         if (format == CombatLogFormat.LuaTable)
         {
-            logger.LogInformation("Detected Lua table format, routing to Lua parser.");
-            var luaLogger = loggerFactory.CreateLogger<LuaCombatLogIngestionService>();
-            var luaService = new LuaCombatLogIngestionService(
-                playerRepo,
-                matchRepo,
-                resultRepo,
-                entryRepo,
-                wowApiService,
-                luaLogger);
-            return await luaService.IngestAsync(fileStream, ct);
+            return await RouteToLuaServiceAsync(fileStream, ct);
         }
 
-        // Continue with traditional format parsing
         logger.LogInformation("Detected traditional format, using standard parser.");
-        using var reader = new StreamReader(fileStream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true,
-            leaveOpen: true);
-
-        // Track all persisted matches
-        var allPersistedMatches = new List<Match>();
-
-        // Current match buffers
-        var playersByKey = new Dictionary<string, Player>(StringComparer.OrdinalIgnoreCase);
-        var participants = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var bufferedEntries = new List<CombatLogEntry>();
-        var playerSpells =
-            new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase); // Track spells per player
-        DateTime? matchStart = null;
-        DateTime? matchEnd = null;
-        int? currentZoneId = null;
-        string? currentArenaMatchId = null;
-        bool matchInProgress = false;
-
-        while (await reader.ReadLineAsync(ct) is { } line)
-        {
-            if (string.IsNullOrWhiteSpace(line)) continue;
-            if (line.StartsWith("#")) continue;
-
-            var parsed = CombatLogParser.ParseLine(line);
-            if (parsed == null) continue;
-
-            switch (parsed.EventType)
-            {
-                case CombatLogEventTypes.ArenaMatchStart:
-                {
-                    matchStart = parsed.Timestamp;
-                    currentArenaMatchId = parsed.ArenaMatchId;
-                    matchInProgress = true;
-                    participants.Clear();
-                    bufferedEntries.Clear();
-                    playerSpells.Clear();
-                    playersByKey.Clear();
-
-                    if (parsed.ZoneId.HasValue)
-                    {
-                        currentZoneId = parsed.ZoneId;
-                        ArenaZoneIds.GetNameOrDefault(currentZoneId.Value);
-                    }
-
-                    logger.LogInformation("Arena match started: {ArenaMatchId} at {Timestamp}", currentArenaMatchId,
-                        matchStart);
-                    continue;
-                }
-                case CombatLogEventTypes.ZoneChange:
-                {
-                    if (matchInProgress && currentArenaMatchId != null)
-                    {
-                        matchEnd = parsed.Timestamp;
-
-                        await _playerCache.BatchLookupAsync(ct);
-
-                        foreach (var name in participants)
-                        {
-                            var cached = _playerCache.GetCached(name);
-                            if (cached != null)
-                            {
-                                playersByKey.TryAdd(name, cached);
-                            }
-                        }
-
-                        await UpdatePlayersFromSpellsAsync(playersByKey, playerSpells, ct);
-
-                        var gameMode =
-                            GameModeHelper.GetGameModeFromParticipantCount(participants.Count, currentArenaMatchId);
-                        var arenaZone = currentZoneId.HasValue
-                            ? ArenaZoneIds.GetArenaZone(currentZoneId.Value)
-                            : ArenaZone.Unknown;
-                        var mapName = ArenaZoneIds.GetDisplayName(arenaZone);
-                        var persistedMatch = await FinalizeAndPersistAsync(arenaZone, matchStart, matchEnd,
-                            participants, bufferedEntries, playersByKey, playerSpells, ct, gameMode,
-                            currentArenaMatchId, mapName);
-                        if (persistedMatch.Id > 0)
-                        {
-                            allPersistedMatches.Add(persistedMatch);
-                            logger.LogInformation("Persisted match {MatchId} with arena match ID {ArenaMatchId}.",
-                                persistedMatch.Id, currentArenaMatchId);
-                        }
-
-                        participants.Clear();
-                        bufferedEntries.Clear();
-                        playerSpells.Clear();
-                        playersByKey.Clear();
-                        matchStart = null;
-                        matchEnd = null;
-                        currentArenaMatchId = null;
-                        matchInProgress = false;
-                    }
-
-                    if (parsed.ZoneId.HasValue)
-                    {
-                        currentZoneId = parsed.ZoneId;
-                        _ = parsed.ZoneName ?? ArenaZoneIds.GetNameOrDefault(currentZoneId.Value);
-                    }
-
-                    continue;
-                }
-            }
-
-            if (!matchInProgress)
-                continue;
-
-            var srcName = parsed.SourceName;
-            var tgtName = parsed.TargetName;
-            var spellName = parsed.SpellName;
-
-            if (!string.IsNullOrEmpty(srcName) && !string.IsNullOrEmpty(spellName))
-            {
-                var (playerName, _) = PlayerInfoExtractor.ParsePlayerName(srcName);
-                if (!string.IsNullOrEmpty(playerName))
-                {
-                    if (!playerSpells.TryGetValue(playerName, out var spells))
-                    {
-                        spells = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                        playerSpells[playerName] = spells;
-                    }
-
-                    spells.Add(spellName);
-                }
-            }
-
-            if (!string.IsNullOrEmpty(srcName))
-            {
-                var (playerName, realm) = PlayerInfoExtractor.ParsePlayerName(srcName);
-                var region = ExtractRegion(srcName);
-                if (!string.IsNullOrEmpty(playerName))
-                {
-                    var cached = _playerCache.GetCached(playerName);
-                    if (cached != null)
-                    {
-                        playersByKey.TryAdd(playerName, cached);
-                        participants.Add(playerName);
-                    }
-                    else
-                    {
-                        // Add to pending creates if realm is present
-                        if (!string.IsNullOrWhiteSpace(realm))
-                        {
-                            _playerCache.GetOrAddPending(playerName, realm);
-                            if (!string.IsNullOrEmpty(region))
-                            {
-                                _playerRegions[playerName] = region;
-                            }
-
-                            participants.Add(playerName);
-                        }
-                    }
-                }
-            }
-
-            if (!string.IsNullOrEmpty(tgtName))
-            {
-                var (playerName, realm) = PlayerInfoExtractor.ParsePlayerName(tgtName);
-                var region = ExtractRegion(tgtName);
-                if (!string.IsNullOrEmpty(playerName))
-                {
-                    // Check cache first
-                    var cached = _playerCache.GetCached(playerName);
-                    if (cached != null)
-                    {
-                        playersByKey.TryAdd(playerName, cached);
-                        participants.Add(playerName);
-                    }
-                    else
-                    {
-                        // Add to pending creates if realm is present
-                        if (!string.IsNullOrWhiteSpace(realm))
-                        {
-                            _playerCache.GetOrAddPending(playerName, realm);
-                            if (!string.IsNullOrEmpty(region))
-                            {
-                                _playerRegions[playerName] = region;
-                            }
-
-                            participants.Add(playerName);
-                        }
-                    }
-                }
-            }
-
-            matchEnd = parsed.Timestamp;
-
-            var (sourceName, _) = !string.IsNullOrEmpty(srcName)
-                ? PlayerInfoExtractor.ParsePlayerName(srcName)
-                : (string.Empty, string.Empty);
-            var (targetName, _) = !string.IsNullOrEmpty(tgtName)
-                ? PlayerInfoExtractor.ParsePlayerName(tgtName)
-                : (string.Empty, string.Empty);
-
-            var source = !string.IsNullOrEmpty(sourceName) && playersByKey.TryGetValue(sourceName, out var src)
-                ? src
-                : null;
-            var target = !string.IsNullOrEmpty(targetName) && playersByKey.TryGetValue(targetName, out var tgt)
-                ? tgt
-                : null;
-
-            if (source is { Id: > 0 })
-            {
-                bufferedEntries.Add(new CombatLogEntry
-                {
-                    Timestamp = parsed.Timestamp,
-                    SourcePlayerId = source.Id,
-                    TargetPlayerId = target?.Id,
-                    Ability = spellName ?? parsed.EventType,
-                    DamageDone = parsed.Damage ?? 0,
-                    HealingDone = parsed.Healing ?? 0,
-                    CrowdControl = string.Empty
-                });
-            }
-        }
-
-        if (matchInProgress && currentArenaMatchId != null)
-        {
-            await _playerCache.BatchLookupAsync(ct);
-
-            foreach (var name in participants)
-            {
-                var cached = _playerCache.GetCached(name);
-                if (cached != null)
-                {
-                    playersByKey.TryAdd(name, cached);
-                }
-            }
-
-            await UpdatePlayersFromSpellsAsync(playersByKey, playerSpells, ct);
-
-            var gameMode = GameModeHelper.GetGameModeFromParticipantCount(participants.Count, currentArenaMatchId);
-            var arenaZone = currentZoneId.HasValue
-                ? ArenaZoneIds.GetArenaZone(currentZoneId.Value)
-                : ArenaZone.Unknown;
-            var mapName = ArenaZoneIds.GetDisplayName(arenaZone);
-            var persistedMatch = await FinalizeAndPersistAsync(arenaZone, matchStart, matchEnd, participants,
-                bufferedEntries, playersByKey, playerSpells, ct, gameMode, currentArenaMatchId, mapName);
-            if (persistedMatch.Id > 0)
-            {
-                allPersistedMatches.Add(persistedMatch);
-                logger.LogInformation("Persisted final match {MatchId} with arena match ID {ArenaMatchId}.",
-                    persistedMatch.Id, currentArenaMatchId);
-            }
-        }
-
-        // Capture pending player names before persisting (for enrichment)
-        var pendingPlayerNames = _playerCache.GetPendingCreates().Keys.ToList();
-
-        // Batch persist all pending creates and updates at file end
-        await _playerCache.BatchPersistAsync(ct);
-
-        // Enrich players with WoW API data if missing information
-        // Pass the names of players that were just created so enrichment can find them in cache
-        await EnrichPlayersWithWowApiAsync(pendingPlayerNames, ct);
-
-        // Persist any updates from enrichment
-        await _playerCache.BatchPersistAsync(ct);
+        var allPersistedMatches = await ProcessTraditionalFormatAsync(fileStream, ct);
+        await FinalizeIngestionAsync(ct);
 
         logger.LogInformation("Combat log ingestion completed. Persisted {MatchCount} match(es).",
             allPersistedMatches.Count);
         return allPersistedMatches;
+    }
+
+    private async Task<List<Match>> RouteToLuaServiceAsync(Stream fileStream, CancellationToken ct)
+    {
+        logger.LogInformation("Detected Lua table format, routing to Lua parser.");
+        var luaLogger = loggerFactory.CreateLogger<LuaCombatLogIngestionService>();
+        var luaService = new LuaCombatLogIngestionService(
+            playerRepo,
+            matchRepo,
+            resultRepo,
+            entryRepo,
+            wowApiService,
+            luaLogger);
+        return await luaService.IngestAsync(fileStream, ct);
+    }
+
+    private async Task<List<Match>> ProcessTraditionalFormatAsync(Stream fileStream, CancellationToken ct)
+    {
+        using var reader = new StreamReader(fileStream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true,
+            leaveOpen: true);
+
+        var allPersistedMatches = new List<Match>();
+        var matchState = new MatchProcessingState();
+
+        while (await reader.ReadLineAsync(ct) is { } line)
+        {
+            if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#")) continue;
+
+            var parsed = CombatLogParser.ParseLine(line);
+            if (parsed == null) continue;
+
+            var handled = await ProcessParsedLineAsync(parsed, matchState, allPersistedMatches, ct);
+            if (handled) continue;
+
+            if (matchState.MatchInProgress)
+            {
+                await ProcessCombatEventAsync(parsed, matchState);
+            }
+        }
+
+        await FinalizePendingMatchAsync(matchState, allPersistedMatches, ct);
+        return allPersistedMatches;
+    }
+
+    private async Task<bool> ProcessParsedLineAsync(
+        ParsedCombatLogEvent parsed,
+        MatchProcessingState state,
+        List<Match> allPersistedMatches,
+        CancellationToken ct)
+    {
+        return parsed.EventType switch
+        {
+            CombatLogEventTypes.ArenaMatchStart => HandleArenaMatchStart(parsed, state),
+            CombatLogEventTypes.ZoneChange => await HandleZoneChangeAsync(parsed, state, allPersistedMatches, ct),
+            _ => false
+        };
+    }
+
+    private bool HandleArenaMatchStart(ParsedCombatLogEvent parsed, MatchProcessingState state)
+    {
+        state.MatchStart = parsed.Timestamp;
+        state.CurrentArenaMatchId = parsed.ArenaMatchId;
+        state.MatchInProgress = true;
+        state.ResetMatchBuffers();
+
+        if (parsed.ZoneId.HasValue)
+        {
+            state.CurrentZoneId = parsed.ZoneId;
+            ArenaZoneIds.GetNameOrDefault(parsed.ZoneId.Value);
+        }
+
+        logger.LogInformation("Arena match started: {ArenaMatchId} at {Timestamp}", state.CurrentArenaMatchId,
+            state.MatchStart);
+        return true;
+    }
+
+    private async Task<bool> HandleZoneChangeAsync(
+        ParsedCombatLogEvent parsed,
+        MatchProcessingState state,
+        List<Match> allPersistedMatches,
+        CancellationToken ct)
+    {
+        if (state is { MatchInProgress: true, CurrentArenaMatchId: not null })
+        {
+            state.MatchEnd = parsed.Timestamp;
+            var persistedMatch = await FinalizeCurrentMatchAsync(state, ct);
+            if (persistedMatch.Id > 0)
+            {
+                allPersistedMatches.Add(persistedMatch);
+                logger.LogInformation("Persisted match {MatchId} with arena match ID {ArenaMatchId}.",
+                    persistedMatch.Id, state.CurrentArenaMatchId);
+            }
+            state.ResetMatchState();
+        }
+
+        if (parsed.ZoneId.HasValue)
+        {
+            state.CurrentZoneId = parsed.ZoneId;
+            _ = parsed.ZoneName ?? ArenaZoneIds.GetNameOrDefault(parsed.ZoneId.Value);
+        }
+
+        return true;
+    }
+
+    private Task ProcessCombatEventAsync(ParsedCombatLogEvent parsed, MatchProcessingState state)
+    {
+        TrackSpellIfPresent(parsed, state);
+        ProcessPlayer(parsed.SourceName, state);
+        ProcessPlayer(parsed.TargetName, state);
+        CreateCombatLogEntryIfValid(parsed, state);
+        state.MatchEnd = parsed.Timestamp;
+        return Task.CompletedTask;
+    }
+
+    private void TrackSpellIfPresent(ParsedCombatLogEvent parsed, MatchProcessingState state)
+    {
+        if (string.IsNullOrEmpty(parsed.SourceName) || string.IsNullOrEmpty(parsed.SpellName))
+            return;
+
+        var (playerName, _) = PlayerInfoExtractor.ParsePlayerName(parsed.SourceName);
+        if (string.IsNullOrEmpty(playerName))
+            return;
+
+        if (!state.PlayerSpells.TryGetValue(playerName, out var spells))
+        {
+            spells = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            state.PlayerSpells[playerName] = spells;
+        }
+
+        spells.Add(parsed.SpellName);
+    }
+
+    private void ProcessPlayer(string? fullName, MatchProcessingState state)
+    {
+        if (string.IsNullOrEmpty(fullName))
+            return;
+
+        var (playerName, realm) = PlayerInfoExtractor.ParsePlayerName(fullName);
+        if (string.IsNullOrEmpty(playerName))
+            return;
+
+        var cached = _playerCache.GetCached(playerName);
+        if (cached != null)
+        {
+            state.PlayersByKey.TryAdd(playerName, cached);
+            state.Participants.Add(playerName);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(realm))
+            return;
+
+        _playerCache.GetOrAddPending(playerName, realm);
+        var region = ExtractRegion(fullName);
+        if (!string.IsNullOrEmpty(region))
+        {
+            _playerRegions[playerName] = region;
+        }
+
+        state.Participants.Add(playerName);
+    }
+
+    private void CreateCombatLogEntryIfValid(ParsedCombatLogEvent parsed, MatchProcessingState state)
+    {
+        var (sourceName, _) = !string.IsNullOrEmpty(parsed.SourceName)
+            ? PlayerInfoExtractor.ParsePlayerName(parsed.SourceName)
+            : (string.Empty, string.Empty);
+
+        if (string.IsNullOrEmpty(sourceName) || !state.PlayersByKey.TryGetValue(sourceName, out var source))
+            return;
+
+        if (source.Id <= 0)
+            return;
+
+        var (targetName, _) = !string.IsNullOrEmpty(parsed.TargetName)
+            ? PlayerInfoExtractor.ParsePlayerName(parsed.TargetName)
+            : (string.Empty, string.Empty);
+
+        var target = !string.IsNullOrEmpty(targetName) && state.PlayersByKey.TryGetValue(targetName, out var tgt)
+            ? tgt
+            : null;
+
+        state.BufferedEntries.Add(new CombatLogEntry
+        {
+            Timestamp = parsed.Timestamp,
+            SourcePlayerId = source.Id,
+            TargetPlayerId = target?.Id,
+            Ability = parsed.SpellName ?? parsed.EventType,
+            DamageDone = parsed.Damage ?? 0,
+            HealingDone = parsed.Healing ?? 0,
+            CrowdControl = string.Empty
+        });
+    }
+
+    private async Task<Match> FinalizeCurrentMatchAsync(MatchProcessingState state, CancellationToken ct)
+    {
+        await _playerCache.BatchLookupAsync(ct);
+        LoadCachedPlayersIntoState(state);
+        await UpdatePlayersFromSpellsAsync(state.PlayersByKey, state.PlayerSpells);
+
+        var gameMode = GameModeHelper.GetGameModeFromParticipantCount(state.Participants.Count, state.CurrentArenaMatchId);
+        var arenaZone = state.CurrentZoneId.HasValue
+            ? ArenaZoneIds.GetArenaZone(state.CurrentZoneId.Value)
+            : ArenaZone.Unknown;
+        var mapName = ArenaZoneIds.GetDisplayName(arenaZone);
+
+        return await FinalizeAndPersistAsync(arenaZone, state.MatchStart, state.MatchEnd,
+            state.Participants, state.BufferedEntries, state.PlayersByKey, state.PlayerSpells, ct, gameMode,
+            state.CurrentArenaMatchId!, mapName);
+    }
+
+    private void LoadCachedPlayersIntoState(MatchProcessingState state)
+    {
+        foreach (var name in state.Participants)
+        {
+            var cached = _playerCache.GetCached(name);
+            if (cached != null)
+            {
+                state.PlayersByKey.TryAdd(name, cached);
+            }
+        }
+    }
+
+    private async Task FinalizePendingMatchAsync(
+        MatchProcessingState state,
+        List<Match> allPersistedMatches,
+        CancellationToken ct)
+    {
+        if (!state.MatchInProgress || state.CurrentArenaMatchId == null)
+            return;
+
+        var persistedMatch = await FinalizeCurrentMatchAsync(state, ct);
+        if (persistedMatch.Id > 0)
+        {
+            allPersistedMatches.Add(persistedMatch);
+            logger.LogInformation("Persisted final match {MatchId} with arena match ID {ArenaMatchId}.",
+                persistedMatch.Id, state.CurrentArenaMatchId);
+        }
+    }
+
+    private async Task FinalizeIngestionAsync(CancellationToken ct)
+    {
+        var pendingPlayerNames = _playerCache.GetPendingCreates().Keys.ToList();
+        await _playerCache.BatchPersistAsync(ct);
+        await EnrichPlayersWithWowApiAsync(pendingPlayerNames, ct);
+        await _playerCache.BatchPersistAsync(ct);
+    }
+
+    private class MatchProcessingState
+    {
+        public Dictionary<string, Player> PlayersByKey { get; } = new(StringComparer.OrdinalIgnoreCase);
+        public HashSet<string> Participants { get; } = new(StringComparer.OrdinalIgnoreCase);
+        public List<CombatLogEntry> BufferedEntries { get; } = new();
+        public Dictionary<string, HashSet<string>> PlayerSpells { get; } = new(StringComparer.OrdinalIgnoreCase);
+        public DateTime? MatchStart { get; set; }
+        public DateTime? MatchEnd { get; set; }
+        public int? CurrentZoneId { get; set; }
+        public string? CurrentArenaMatchId { get; set; }
+        public bool MatchInProgress { get; set; }
+
+        public void ResetMatchBuffers()
+        {
+            Participants.Clear();
+            BufferedEntries.Clear();
+            PlayerSpells.Clear();
+            PlayersByKey.Clear();
+        }
+
+        public void ResetMatchState()
+        {
+            ResetMatchBuffers();
+            MatchStart = null;
+            MatchEnd = null;
+            CurrentArenaMatchId = null;
+            MatchInProgress = false;
+        }
     }
 
     private static string ExtractRegion(string fullName)
@@ -340,8 +350,7 @@ public class CombatLogIngestionService(
 
     private Task UpdatePlayersFromSpellsAsync(
         Dictionary<string, Player> playersByKey,
-        Dictionary<string, HashSet<string>> playerSpells,
-        CancellationToken ct)
+        Dictionary<string, HashSet<string>> playerSpells)
     {
         foreach (var (playerName, spells) in playerSpells)
         {
@@ -367,48 +376,63 @@ public class CombatLogIngestionService(
     {
         // Get players from cache that were just created and need enrichment
         // Note: Spec is not available from WoW API, so we only enrich for missing Class/Faction
-        var playersToEnrich = playerNamesToEnrich
+        var playersToEnrich = GetPlayersNeedingEnrichment(playerNamesToEnrich);
+
+        foreach (var player in playersToEnrich)
+        {
+            await EnrichSinglePlayerAsync(player, ct);
+        }
+    }
+
+    private List<Player> GetPlayersNeedingEnrichment(List<string> playerNamesToEnrich)
+    {
+        return playerNamesToEnrich
             .Select(name => _playerCache.GetCached(name))
             .OfType<Player>()
             .Where(cached => string.IsNullOrWhiteSpace(cached.Class) || string.IsNullOrWhiteSpace(cached.Faction))
             .ToList();
+    }
 
-        foreach (var player in playersToEnrich)
+    private async Task EnrichSinglePlayerAsync(Player player, CancellationToken ct)
+    {
+        try
         {
-            try
+            var region = _playerRegions.GetValueOrDefault(player.Name, "eu");
+            var apiData = await wowApiService.GetPlayerDataAsync(player.Realm, player.Name, region, ct);
+
+            if (apiData == null)
+                return;
+
+            var updated = UpdatePlayerFromApiData(player, apiData);
+            if (updated)
             {
-                var region = _playerRegions.GetValueOrDefault(player.Name, "eu");
-                var apiData = await wowApiService.GetPlayerDataAsync(player.Realm, player.Name, region, ct);
-
-                if (apiData != null)
-                {
-                    var needsUpdate = false;
-
-                    if (string.IsNullOrWhiteSpace(player.Class) && !string.IsNullOrWhiteSpace(apiData.Class))
-                    {
-                        player.Class = apiData.Class;
-                        needsUpdate = true;
-                    }
-
-                    if (string.IsNullOrWhiteSpace(player.Faction) && !string.IsNullOrWhiteSpace(apiData.Faction))
-                    {
-                        player.Faction = apiData.Faction;
-                        needsUpdate = true;
-                    }
-
-                    if (needsUpdate)
-                    {
-                        _playerCache.MarkForUpdate(player);
-                        logger.LogDebug("Enriched player {PlayerName} from WoW API: Class={Class}, Faction={Faction}",
-                            player.Name, player.Class, player.Faction);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Failed to enrich player {PlayerName} from WoW API", player.Name);
+                _playerCache.MarkForUpdate(player);
+                logger.LogDebug("Enriched player {PlayerName} from WoW API: Class={Class}, Faction={Faction}",
+                    player.Name, player.Class, player.Faction);
             }
         }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to enrich player {PlayerName} from WoW API", player.Name);
+        }
+    }
+
+    private static bool UpdatePlayerFromApiData(Player player, WowPlayerData apiData)
+    {
+        var needsUpdate = false;
+
+        if (string.IsNullOrWhiteSpace(player.Class) && !string.IsNullOrWhiteSpace(apiData.Class))
+        {
+            player.Class = apiData.Class;
+            needsUpdate = true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(player.Faction) || string.IsNullOrWhiteSpace(apiData.Faction))
+            return needsUpdate;
+        player.Faction = apiData.Faction;
+        needsUpdate = true;
+
+        return needsUpdate;
     }
 
     private async Task<Match> FinalizeAndPersistAsync(
@@ -425,8 +449,25 @@ public class CombatLogIngestionService(
         string mapName)
     {
         var uniqueHash = ComputeMatchHash(participants, start, end, arenaMatchId);
+        var match = CreateMatchEntity(arenaZone, start, end, arenaMatchId, gameMode, mapName, uniqueHash);
 
-        var match = new Match
+        match = await PersistMatchWithDuplicateHandlingAsync(match, uniqueHash, participants.Count, ct);
+        await PersistCombatLogEntriesAsync(entries, match.Id, ct);
+        await PersistMatchResultsAsync(participants, playersByKey, playerSpells, match.Id, ct);
+
+        return match;
+    }
+
+    private static Match CreateMatchEntity(
+        ArenaZone arenaZone,
+        DateTime? start,
+        DateTime? end,
+        string arenaMatchId,
+        GameMode gameMode,
+        string mapName,
+        string uniqueHash)
+    {
+        return new Match
         {
             CreatedOn = start ?? DateTime.UtcNow,
             ArenaZone = arenaZone,
@@ -437,60 +478,76 @@ public class CombatLogIngestionService(
             IsRanked = true,
             UniqueHash = uniqueHash
         };
+    }
 
+    private async Task<Match> PersistMatchWithDuplicateHandlingAsync(
+        Match match,
+        string uniqueHash,
+        int participantCount,
+        CancellationToken ct)
+    {
         try
         {
             match = await matchRepo.AddAsync(match, ct);
-            logger.LogInformation("Persisted new match {MatchId} with UniqueHash {UniqueHash} and {ParticipantCount} participants.", 
-                match.Id, uniqueHash, participants.Count);
+            logger.LogInformation("Persisted new match {MatchId} with UniqueHash {UniqueHash} and {ParticipantCount} participants.",
+                match.Id, uniqueHash, participantCount);
+            return match;
         }
         catch (Exception ex)
         {
-            // Check if this is a unique constraint violation (PostgreSQL error code 23505)
-            var isUniqueConstraintViolation = ex.GetType().FullName?.Contains("DbUpdateException") == true &&
-                                              ex.InnerException?.GetType().FullName?.Contains("PostgresException") == true &&
-                                              (ex.InnerException.GetType().GetProperty("SqlState")?.GetValue(ex.InnerException)?.ToString() == "23505" ||
-                                               ex.Message.Contains("23505") ||
-                                               ex.Message.Contains("duplicate key value") ||
-                                               ex.Message.Contains("IX_Matches_UniqueHash"));
-
-            if (isUniqueConstraintViolation)
+            if (IsUniqueConstraintViolation(ex))
             {
-                // Unique constraint violation - match already exists
-                logger.LogInformation("Match with UniqueHash {UniqueHash} already exists in database, returning existing match.", uniqueHash);
-                
-                // Re-query to get the existing match
-                var existingMatches = await matchRepo.ListAsync(m => m.UniqueHash == uniqueHash, ct);
-                if (existingMatches.Count > 0)
-                {
-                    return existingMatches[0]; // Return existing match (skip creating entries/results for duplicate)
-                }
+                return await HandleDuplicateMatchAsync(uniqueHash, ct);
             }
-            
-            // If not a unique constraint violation or query failed, re-throw
+
             throw;
         }
+    }
 
+    private static bool IsUniqueConstraintViolation(Exception ex)
+    {
+        return ex.GetType().FullName?.Contains("DbUpdateException") == true &&
+               ex.InnerException?.GetType().FullName?.Contains("PostgresException") == true &&
+               (ex.InnerException.GetType().GetProperty("SqlState")?.GetValue(ex.InnerException)?.ToString() == "23505" ||
+                ex.Message.Contains("23505") ||
+                ex.Message.Contains("duplicate key value") ||
+                ex.Message.Contains("IX_Matches_UniqueHash"));
+    }
+
+    private async Task<Match> HandleDuplicateMatchAsync(string uniqueHash, CancellationToken ct)
+    {
+        logger.LogInformation("Match with UniqueHash {UniqueHash} already exists in database, returning existing match.", uniqueHash);
+        var existingMatches = await matchRepo.ListAsync(m => m.UniqueHash == uniqueHash, ct);
+        return existingMatches.Count > 0
+            ? existingMatches[0]
+            : throw new InvalidOperationException($"Match with UniqueHash {uniqueHash} was reported as duplicate but not found in database.");
+    }
+
+    private async Task PersistCombatLogEntriesAsync(List<CombatLogEntry> entries, long matchId, CancellationToken ct)
+    {
         foreach (var e in entries)
         {
-            e.MatchId = match.Id;
+            e.MatchId = matchId;
             await entryRepo.AddAsync(e, ct);
         }
+    }
 
+    private async Task PersistMatchResultsAsync(
+        HashSet<string> participants,
+        Dictionary<string, Player> playersByKey,
+        Dictionary<string, HashSet<string>> playerSpells,
+        long matchId,
+        CancellationToken ct)
+    {
         foreach (var name in participants)
         {
             if (!playersByKey.TryGetValue(name, out var player))
                 continue;
 
-            var matchSpec = string.Empty;
-            if (playerSpells.TryGetValue(name, out var spells))
-            {
-                matchSpec = PlayerInfoExtractor.DetermineSpecForMatch(spells);
-            }
-
+            var matchSpec = GetMatchSpecForPlayer(name, playerSpells);
             await resultRepo.AddAsync(new MatchResult
             {
-                MatchId = match.Id,
+                MatchId = matchId,
                 PlayerId = player.Id,
                 Team = "Unknown",
                 RatingBefore = 0,
@@ -499,8 +556,13 @@ public class CombatLogIngestionService(
                 Spec = matchSpec
             }, ct);
         }
+    }
 
-        return match;
+    private static string GetMatchSpecForPlayer(string playerName, Dictionary<string, HashSet<string>> playerSpells)
+    {
+        return playerSpells.TryGetValue(playerName, out var spells)
+            ? PlayerInfoExtractor.DetermineSpecForMatch(spells)
+            : string.Empty;
     }
 
 

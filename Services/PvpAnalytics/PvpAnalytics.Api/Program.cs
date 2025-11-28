@@ -92,7 +92,7 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-app.Run();
+await app.RunAsync();
 
 static string GetServiceEndpoint(IConfiguration configuration, string defaultEndpoint)
 {

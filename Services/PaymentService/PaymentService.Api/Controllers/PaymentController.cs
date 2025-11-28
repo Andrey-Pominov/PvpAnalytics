@@ -56,65 +56,102 @@ public class PaymentController(ICrudService<Payment> service, IRepository<Paymen
             return Unauthorized("User ID claim not found in token.");
         }
 
-        // Validate pagination parameters
-        if (page < 1) page = 1;
-        if (pageSize < 1) pageSize = DefaultPageSize;
-        if (pageSize > MaxPageSize) pageSize = MaxPageSize;
+        var (validatedPage, validatedPageSize) = ValidatePaginationParameters(page, pageSize);
+        var query = ApplyFilters(repository.GetQueryable(), currentUserId, userId, status, startDate, endDate);
+        query = ApplySorting(query, sortBy, sortOrder);
 
-        // Start with queryable
-        var query = repository.GetQueryable();
-
-        // Apply user scope filter (non-admins only see their own payments)
-        if (!IsAdmin())
-        {
-            query = query.Where(p => p.UserId == currentUserId);
-        }
-        else if (!string.IsNullOrWhiteSpace(userId))
-        {
-            // Admins can filter by userId if provided
-            query = query.Where(p => p.UserId == userId);
-        }
-
-        // Apply status filter
-        if (status.HasValue)
-        {
-            query = query.Where(p => p.Status == status.Value);
-        }
-
-        // Apply date range filters
-        if (startDate.HasValue)
-        {
-            query = query.Where(p => p.CreatedAt >= startDate.Value);
-        }
-        if (endDate.HasValue)
-        {
-            query = query.Where(p => p.CreatedAt <= endDate.Value);
-        }
-
-        // Apply sorting
-        query = sortBy.ToLower() switch
-        {
-            "id" => sortOrder.ToLower() == "asc" ? query.OrderBy(p => p.Id) : query.OrderByDescending(p => p.Id),
-            "amount" => sortOrder.ToLower() == "asc" ? query.OrderBy(p => p.Amount) : query.OrderByDescending(p => p.Amount),
-            "status" => sortOrder.ToLower() == "asc" ? query.OrderBy(p => p.Status) : query.OrderByDescending(p => p.Status),
-            "userid" => sortOrder.ToLower() == "asc" ? query.OrderBy(p => p.UserId) : query.OrderByDescending(p => p.UserId),
-            "createdat" => sortOrder.ToLower() == "asc" ? query.OrderBy(p => p.CreatedAt) : query.OrderByDescending(p => p.CreatedAt),
-            "updatedat" => sortOrder.ToLower() == "asc" ? query.OrderBy(p => p.UpdatedAt) : query.OrderByDescending(p => p.UpdatedAt),
-            _ => query.OrderByDescending(p => p.CreatedAt) // Default to createdAt desc
-        };
-
-        // Get paginated results
-        var (items, total) = await repository.GetPagedAsync(query, page, pageSize, ct);
+        var (items, total) = await repository.GetPagedAsync(query, validatedPage, validatedPageSize, ct);
 
         var response = new PaginatedResponse<Payment>
         {
             Items = items,
             Total = total,
-            Page = page,
-            PageSize = pageSize
+            Page = validatedPage,
+            PageSize = validatedPageSize
         };
 
         return Ok(response);
+    }
+
+    private static (int page, int pageSize) ValidatePaginationParameters(int page, int pageSize)
+    {
+        if (page < 1) page = 1;
+        if (pageSize < 1) pageSize = DefaultPageSize;
+        if (pageSize > MaxPageSize) pageSize = MaxPageSize;
+        return (page, pageSize);
+    }
+
+    private IQueryable<Payment> ApplyFilters(
+        IQueryable<Payment> query,
+        string currentUserId,
+        string? userId,
+        PaymentStatus? status,
+        DateTime? startDate,
+        DateTime? endDate)
+    {
+        query = ApplyUserScopeFilter(query, currentUserId, userId);
+        query = ApplyStatusFilter(query, status);
+        query = ApplyDateRangeFilters(query, startDate, endDate);
+        return query;
+    }
+
+    private IQueryable<Payment> ApplyUserScopeFilter(IQueryable<Payment> query, string currentUserId, string? userId)
+    {
+        if (!IsAdmin())
+        {
+            return query.Where(p => p.UserId == currentUserId);
+        }
+
+        if (!string.IsNullOrWhiteSpace(userId))
+        {
+            return query.Where(p => p.UserId == userId);
+        }
+
+        return query;
+    }
+
+    private static IQueryable<Payment> ApplyStatusFilter(IQueryable<Payment> query, PaymentStatus? status)
+    {
+        if (status.HasValue)
+        {
+            query = query.Where(p => p.Status == status.Value);
+        }
+        return query;
+    }
+
+    private static IQueryable<Payment> ApplyDateRangeFilters(
+        IQueryable<Payment> query,
+        DateTime? startDate,
+        DateTime? endDate)
+    {
+        if (startDate.HasValue)
+        {
+            query = query.Where(p => p.CreatedAt >= startDate.Value);
+        }
+
+        if (endDate.HasValue)
+        {
+            query = query.Where(p => p.CreatedAt <= endDate.Value);
+        }
+
+        return query;
+    }
+
+    private static IQueryable<Payment> ApplySorting(IQueryable<Payment> query, string sortBy, string sortOrder)
+    {
+        var isAscending = sortOrder.ToLower() == "asc";
+        var sortField = sortBy.ToLower();
+
+        return sortField switch
+        {
+            "id" => isAscending ? query.OrderBy(p => p.Id) : query.OrderByDescending(p => p.Id),
+            "amount" => isAscending ? query.OrderBy(p => p.Amount) : query.OrderByDescending(p => p.Amount),
+            "status" => isAscending ? query.OrderBy(p => p.Status) : query.OrderByDescending(p => p.Status),
+            "userid" => isAscending ? query.OrderBy(p => p.UserId) : query.OrderByDescending(p => p.UserId),
+            "createdat" => isAscending ? query.OrderBy(p => p.CreatedAt) : query.OrderByDescending(p => p.CreatedAt),
+            "updatedat" => isAscending ? query.OrderBy(p => p.UpdatedAt) : query.OrderByDescending(p => p.UpdatedAt),
+            _ => query.OrderByDescending(p => p.CreatedAt)
+        };
     }
 
     [HttpGet("{id:long}")]
