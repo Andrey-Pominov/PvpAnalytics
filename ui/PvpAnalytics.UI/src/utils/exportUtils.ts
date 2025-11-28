@@ -27,7 +27,7 @@ export function convertToCSV<T extends Record<string, unknown>>(
     const str = String(value)
     // If contains comma, quote, or newline, wrap in quotes and escape quotes
     if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-      return `"${str.replace(/"/g, '""')}"`
+      return `"${str.replaceAll('"', '""')}"`
     }
     return str
   }

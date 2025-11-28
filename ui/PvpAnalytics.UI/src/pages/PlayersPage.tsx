@@ -151,10 +151,12 @@ const PlayersPage = () => {
         ) : (
           <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
             {filteredPlayers.map((player) => (
-              <div
+              <button
                 key={player.id}
+                type="button"
                 onClick={() => navigate(`/players/${player.id}`)}
-                className="p-4 rounded-xl border border-accent-muted/30 bg-surface/50 hover:bg-surface/70 transition-colors cursor-pointer"
+                aria-label={`View profile for ${player.name} from ${player.realm}`}
+                className="w-full text-left p-4 rounded-xl border border-accent-muted/30 bg-surface/50 hover:bg-surface/70 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-background"
               >
                 <div className="flex items-start gap-3">
                   <div className="grid h-12 w-12 flex-shrink-0 place-items-center rounded-lg bg-gradient-to-br from-accent to-sky-400 text-lg font-bold text-white">
@@ -177,7 +179,7 @@ const PlayersPage = () => {
                     </div>
                   </div>
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         )}

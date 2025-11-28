@@ -15,7 +15,7 @@ export interface ParsedMetric {
  * Escapes special regex characters in a string to make it safe for use in RegExp
  */
 function escapeRegex(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return str.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
 /**
@@ -23,7 +23,7 @@ function escapeRegex(str: string): string {
  */
 function isValidMathExpression(expression: string): { valid: boolean; error?: string } {
   // Remove whitespace for validation
-  const cleaned = expression.replace(/\s/g, '')
+  const cleaned = expression.replaceAll(/\s/g, '')
 
   // Check for dangerous patterns
   const dangerousPatterns = [
@@ -72,7 +72,7 @@ function isValidMathExpression(expression: string): { valid: boolean; error?: st
   // Allow only: numbers, operators, parentheses, Math functions, and variable names
   // Variable names must be alphanumeric with underscores, starting with letter
   const allowedPattern = /^[0-9+\-*/().\s,a-zA-Z_]+$/
-  if (!allowedPattern.test(cleaned.replace(/Math\.\w+/g, 'MATHFUNC'))) {
+  if (!allowedPattern.test(cleaned.replaceAll(/Math\.\w+/g, 'MATHFUNC'))) {
     return { valid: false, error: 'Expression contains invalid characters' }
   }
 
@@ -217,7 +217,7 @@ export function evaluateMetric(
       }
       // Replace Math.log with Math.log (natural log) - JavaScript's Math.log is natural log
       // Replace Math.ln with Math.log if present (some expressions might use ln)
-      substituted = substituted.replace(/\bMath\.ln\b/g, 'Math.log')
+      substituted = substituted.replaceAll(/\bMath\.ln\b/g, 'Math.log')
     }
 
     // Evaluate using Function constructor with strict validation

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using PvpAnalytics.Core.DTOs;
+using PvpAnalytics.Core.Entities;
 using PvpAnalytics.Infrastructure;
 
 namespace PvpAnalytics.Application.Services;
@@ -26,21 +27,59 @@ public class SessionAnalysisService(PvpAnalyticsDbContext dbContext) : ISessionA
         CancellationToken ct = default)
     {
         var player = await dbContext.Players.FindAsync([playerId], ct);
-        var dto = new SessionAnalysisDto
+        var dto = CreateInitialDto(playerId, player?.Name, thresholdMinutes, startDate, endDate);
+
+        var matchResults = await LoadMatchResultsAsync(playerId, startDate, endDate, ct);
+        if (matchResults.Count == 0)
+            return dto;
+
+        var sessions = GroupMatchesIntoSessions(matchResults, thresholdMinutes);
+        dto.Sessions = sessions;
+        dto.Summary = CalculateSessionSummary(sessions);
+        dto.OptimalTimes = CalculateOptimalPlayTimes(sessions);
+        dto.Fatigue = CalculateFatigueAnalysis(sessions);
+
+        return dto;
+    }
+
+    private static SessionAnalysisDto CreateInitialDto(
+        long playerId,
+        string? playerName,
+        int thresholdMinutes,
+        DateTime? startDate,
+        DateTime? endDate)
+    {
+        return new SessionAnalysisDto
         {
             PlayerId = playerId,
-            PlayerName = player?.Name ?? "Unknown",
+            PlayerName = playerName ?? "Unknown",
             ThresholdMinutes = thresholdMinutes,
             StartDate = startDate,
             EndDate = endDate
         };
+    }
 
+    private async Task<List<MatchResult>> LoadMatchResultsAsync(
+        long playerId,
+        DateTime? startDate,
+        DateTime? endDate,
+        CancellationToken ct)
+    {
         var query = dbContext.MatchResults
             .Include(mr => mr.Match)
             .Where(mr => mr.PlayerId == playerId)
             .OrderBy(mr => mr.Match.CreatedOn)
             .AsQueryable();
 
+        query = ApplyDateFilters(query, startDate, endDate);
+        return await query.ToListAsync(ct);
+    }
+
+    private static IQueryable<MatchResult> ApplyDateFilters(
+        IQueryable<MatchResult> query,
+        DateTime? startDate,
+        DateTime? endDate)
+    {
         if (startDate.HasValue)
         {
             query = query.Where(mr => mr.Match.CreatedOn >= startDate.Value);
@@ -51,74 +90,86 @@ public class SessionAnalysisService(PvpAnalyticsDbContext dbContext) : ISessionA
             query = query.Where(mr => mr.Match.CreatedOn <= endDate.Value);
         }
 
-        var matchResults = await query.ToListAsync(ct);
+        return query;
+    }
 
-        if (!matchResults.Any())
-            return dto;
-
-        // Group matches into sessions based on time threshold
+    private static List<SessionData> GroupMatchesIntoSessions(
+        List<MatchResult> matchResults,
+        int thresholdMinutes)
+    {
         var sessions = new List<SessionData>();
         var currentSession = new List<(DateTime matchDate, int ratingBefore, int ratingAfter, bool isWinner, long matchId, long duration)>();
 
-        for (int i = 0; i < matchResults.Count; i++)
+        foreach (var current in matchResults)
         {
-            var current = matchResults[i];
             var matchDate = current.Match.CreatedOn;
+            var matchData = (matchDate, current.RatingBefore, current.RatingAfter, current.IsWinner, current.MatchId, current.Match.Duration);
 
-            if (currentSession.Count == 0)
+            if (ShouldStartNewSession(currentSession, matchDate, thresholdMinutes))
             {
-                // Start new session
-                currentSession.Add((matchDate, current.RatingBefore, current.RatingAfter, current.IsWinner, current.MatchId, current.Match.Duration));
+                FinalizeCurrentSession(currentSession, sessions);
+                currentSession = [matchData];
             }
             else
             {
-                var lastMatchDate = currentSession.Last().matchDate;
-                var timeDiff = (matchDate - lastMatchDate).TotalMinutes;
-
-                if (timeDiff <= thresholdMinutes)
-                {
-                    // Continue current session
-                    currentSession.Add((matchDate, current.RatingBefore, current.RatingAfter, current.IsWinner, current.MatchId, current.Match.Duration));
-                }
-                else
-                {
-                    // End current session and start new one
-                    sessions.Add(CreateSessionData(currentSession, sessions.Count + 1));
-                    currentSession = new List<(DateTime, int, int, bool, long, long)>
-                    {
-                        (matchDate, current.RatingBefore, current.RatingAfter, current.IsWinner, current.MatchId, current.Match.Duration)
-                    };
-                }
+                currentSession.Add(matchData);
             }
         }
 
-        // Add final session
-        if (currentSession.Any())
+        FinalizeCurrentSession(currentSession, sessions);
+        return sessions;
+    }
+
+    private static bool ShouldStartNewSession(
+        List<(DateTime matchDate, int ratingBefore, int ratingAfter, bool isWinner, long matchId, long duration)> currentSession,
+        DateTime matchDate,
+        int thresholdMinutes)
+    {
+        if (currentSession.Count == 0)
+            return false;
+
+        var lastMatchDate = currentSession.Last().matchDate;
+        var timeDiff = (matchDate - lastMatchDate).TotalMinutes;
+        return timeDiff > thresholdMinutes;
+    }
+
+    private static void FinalizeCurrentSession(
+        List<(DateTime matchDate, int ratingBefore, int ratingAfter, bool isWinner, long matchId, long duration)> currentSession,
+        List<SessionData> sessions)
+    {
+        if (currentSession.Count != 0)
         {
             sessions.Add(CreateSessionData(currentSession, sessions.Count + 1));
         }
+    }
 
-        dto.Sessions = sessions;
+    private static SessionSummary CalculateSessionSummary(List<SessionData> sessions)
+    {
+        if (sessions.Count == 0)
+        {
+            return new SessionSummary();
+        }
 
-        // Calculate summary
-        dto.Summary = new SessionSummary
+        return new SessionSummary
         {
             TotalSessions = sessions.Count,
-            AverageSessionDuration = sessions.Any() ? Math.Round(sessions.Average(s => s.Duration.TotalMinutes), 2) : 0,
-            AverageMatchesPerSession = sessions.Any() ? Math.Round(sessions.Average(s => (double)s.MatchCount), 2) : 0,
-            AverageWinRate = sessions.Any() ? Math.Round(sessions.Average(s => s.WinRate), 2) : 0,
-            TotalRatingGain = sessions.Sum(s => s.RatingChange > 0 ? s.RatingChange : 0),
-            TotalRatingLoss = Math.Abs(sessions.Sum(s => s.RatingChange < 0 ? s.RatingChange : 0)),
+            AverageSessionDuration = Math.Round(sessions.Average(s => s.Duration.TotalMinutes), 2),
+            AverageMatchesPerSession = Math.Round(sessions.Average(s => (double)s.MatchCount), 2),
+            AverageWinRate = Math.Round(sessions.Average(s => s.WinRate), 2),
+            TotalRatingGain = CalculateTotalRatingGain(sessions),
+            TotalRatingLoss = CalculateTotalRatingLoss(sessions),
             NetRatingChange = sessions.Sum(s => s.RatingChange)
         };
+    }
 
-        // Get optimal times
-        dto.OptimalTimes = await GetOptimalPlayTimesAsync(playerId, ct);
+    private static int CalculateTotalRatingGain(List<SessionData> sessions)
+    {
+        return sessions.Sum(s => s.RatingChange > 0 ? s.RatingChange : 0);
+    }
 
-        // Get fatigue analysis
-        dto.Fatigue = await GetFatigueAnalysisAsync(playerId, ct);
-
-        return dto;
+    private static int CalculateTotalRatingLoss(List<SessionData> sessions)
+    {
+        return Math.Abs(sessions.Sum(s => s.RatingChange < 0 ? s.RatingChange : 0));
     }
 
     private static SessionData CreateSessionData(
@@ -144,7 +195,7 @@ public class SessionAnalysisService(PvpAnalyticsDbContext dbContext) : ISessionA
             RatingStart = ratingStart,
             RatingEnd = ratingEnd,
             RatingChange = ratingEnd - ratingStart,
-            AverageMatchDuration = matches.Any() ? Math.Round(matches.Average(m => (double)m.duration), 2) : 0,
+            AverageMatchDuration = matches.Count != 0 ? Math.Round(matches.Average(m => (double)m.duration), 2) : 0,
             DayOfWeek = startTime.DayOfWeek.ToString(),
             HourOfDay = startTime.Hour
         };
@@ -152,10 +203,17 @@ public class SessionAnalysisService(PvpAnalyticsDbContext dbContext) : ISessionA
 
     public async Task<OptimalPlayTimes> GetOptimalPlayTimesAsync(long playerId, CancellationToken ct = default)
     {
-        var sessions = await GetSessionAnalysisAsync(playerId, 60, null, null, ct);
-        var sessionData = sessions.Sessions;
+        var matchResults = await LoadMatchResultsAsync(playerId, null, null, ct);
+        if (matchResults.Count == 0)
+            return new OptimalPlayTimes();
 
-        if (!sessionData.Any())
+        var sessions = GroupMatchesIntoSessions(matchResults, 60);
+        return CalculateOptimalPlayTimes(sessions);
+    }
+
+    private static OptimalPlayTimes CalculateOptimalPlayTimes(List<SessionData> sessionData)
+    {
+        if (sessionData.Count == 0)
             return new OptimalPlayTimes();
 
         // Group by hour
@@ -165,8 +223,8 @@ public class SessionAnalysisService(PvpAnalyticsDbContext dbContext) : ISessionA
             {
                 TimeSlot = $"{g.Key}-{g.Key + 1}",
                 Sessions = g.Count(),
-                WinRate = g.Count() > 0 ? Math.Round(g.Average(s => s.WinRate), 2) : 0,
-                AverageRatingChange = g.Count() > 0 ? Math.Round(g.Average(s => (double)s.RatingChange), 2) : 0
+                WinRate = g.Any() ? Math.Round(g.Average(s => s.WinRate), 2) : 0,
+                AverageRatingChange = g.Any() ? Math.Round(g.Average(s => (double)s.RatingChange), 2) : 0
             })
             .OrderByDescending(t => t.WinRate)
             .ToList();
@@ -178,8 +236,8 @@ public class SessionAnalysisService(PvpAnalyticsDbContext dbContext) : ISessionA
             {
                 TimeSlot = g.Key,
                 Sessions = g.Count(),
-                WinRate = g.Count() > 0 ? Math.Round(g.Average(s => s.WinRate), 2) : 0,
-                AverageRatingChange = g.Count() > 0 ? Math.Round(g.Average(s => (double)s.RatingChange), 2) : 0
+                WinRate = g.Any() ? Math.Round(g.Average(s => s.WinRate), 2) : 0,
+                AverageRatingChange = g.Any() ? Math.Round(g.Average(s => (double)s.RatingChange), 2) : 0
             })
             .OrderByDescending(t => t.WinRate)
             .ToList();
@@ -198,9 +256,16 @@ public class SessionAnalysisService(PvpAnalyticsDbContext dbContext) : ISessionA
 
     public async Task<FatigueAnalysis> GetFatigueAnalysisAsync(long playerId, CancellationToken ct = default)
     {
-        var sessions = await GetSessionAnalysisAsync(playerId, 60, null, null, ct);
-        var sessionData = sessions.Sessions;
+        var matchResults = await LoadMatchResultsAsync(playerId, null, null, ct);
+        if (matchResults.Count == 0)
+            return new FatigueAnalysis();
 
+        var sessions = GroupMatchesIntoSessions(matchResults, 60);
+        return CalculateFatigueAnalysis(sessions);
+    }
+
+    private static FatigueAnalysis CalculateFatigueAnalysis(List<SessionData> sessionData)
+    {
         if (!sessionData.Any())
             return new FatigueAnalysis();
 
@@ -221,8 +286,8 @@ public class SessionAnalysisService(PvpAnalyticsDbContext dbContext) : ISessionA
             {
                 SessionOrder = g.Key,
                 SessionCount = g.Count(),
-                AverageWinRate = g.Count() > 0 ? Math.Round(g.Average(s => s.Session.WinRate), 2) : 0,
-                AverageRatingChange = g.Count() > 0 ? Math.Round(g.Average(s => (double)s.Session.RatingChange), 2) : 0
+                AverageWinRate = g.Any() ? Math.Round(g.Average(s => s.Session.WinRate), 2) : 0,
+                AverageRatingChange = g.Any() ? Math.Round(g.Average(s => (double)s.Session.RatingChange), 2) : 0
             })
             .OrderBy(p => p.SessionOrder)
             .ToList();
@@ -231,8 +296,8 @@ public class SessionAnalysisService(PvpAnalyticsDbContext dbContext) : ISessionA
         var firstHalf = performanceByOrder.Take(performanceByOrder.Count / 2).ToList();
         var secondHalf = performanceByOrder.Skip(performanceByOrder.Count / 2).ToList();
 
-        var firstHalfAvg = firstHalf.Any() ? firstHalf.Average(p => p.AverageWinRate) : 0;
-        var secondHalfAvg = secondHalf.Any() ? secondHalf.Average(p => p.AverageWinRate) : 0;
+        var firstHalfAvg = firstHalf.Count != 0 ? firstHalf.Average(p => p.AverageWinRate) : 0;
+        var secondHalfAvg = secondHalf.Count != 0 ? secondHalf.Average(p => p.AverageWinRate) : 0;
 
         var showsFatigue = secondHalfAvg < firstHalfAvg - 5; // 5% drop indicates fatigue
         var fatiguePattern = showsFatigue ? "Declining" : (secondHalfAvg > firstHalfAvg + 5 ? "Improving" : "Stable");
@@ -243,7 +308,7 @@ public class SessionAnalysisService(PvpAnalyticsDbContext dbContext) : ISessionA
             .Take(Math.Max(1, sessionData.Count / 4))
             .ToList();
 
-        var optimalLength = bestSessions.Any() ? (int)Math.Round(bestSessions.Average(s => s.Duration.TotalMinutes)) : 60;
+        var optimalLength = bestSessions.Count != 0 ? (int)Math.Round(bestSessions.Average(s => s.Duration.TotalMinutes)) : 60;
 
         return new FatigueAnalysis
         {

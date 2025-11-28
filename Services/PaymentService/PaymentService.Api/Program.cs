@@ -17,55 +17,10 @@ builder.Services.AddApplication(builder.Configuration);
 
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
 
-var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>();
-if (jwtOptions == null)
-{
-    throw new InvalidOperationException("Jwt configuration section is missing.");
-}
-
-var useInMemoryDatabaseValue = builder.Configuration["UseInMemoryDatabase"];
-var useInMemoryDatabase = !string.IsNullOrWhiteSpace(useInMemoryDatabaseValue) && 
-                          (useInMemoryDatabaseValue.Equals("true", StringComparison.OrdinalIgnoreCase) ||
-                           useInMemoryDatabaseValue.Equals("1", StringComparison.OrdinalIgnoreCase));
-
-if (!useInMemoryDatabase)
-{
-    const string placeholderKey = "DEV_PLACEHOLDER_KEY_MUST_BE_REPLACED";
-    if (string.IsNullOrWhiteSpace(jwtOptions.SigningKey))
-    {
-        throw new InvalidOperationException(
-            "JWT signing key is not configured. " +
-            "Please provide a valid signing key using one of the following methods:\n" +
-            "  1. User Secrets: dotnet user-secrets set \"Jwt:SigningKey\" \"your-secret-key-here\"\n" +
-            "  2. Environment Variable: set Jwt__SigningKey=your-secret-key-here\n" +
-            "  3. appsettings.Development.json (local only, never commit real keys to source control)");
-    }
-
-    if (jwtOptions.SigningKey.Equals(placeholderKey, StringComparison.OrdinalIgnoreCase))
-    {
-        throw new InvalidOperationException(
-            "JWT signing key is still set to the placeholder value. " +
-            "You must replace 'DEV_PLACEHOLDER_KEY_MUST_BE_REPLACED' with a real signing key.\n" +
-            "Please provide a valid signing key using one of the following methods:\n" +
-            "  1. User Secrets: dotnet user-secrets set \"Jwt:SigningKey\" \"your-secret-key-here\"\n" +
-            "  2. Environment Variable: set Jwt__SigningKey=your-secret-key-here\n" +
-            "  3. appsettings.Development.json (local only, never commit real keys to source control)");
-    }
-}
-
-var corsOrigins = builder.Configuration.GetSection($"{CorsOptions.SectionName}:AllowedOrigins").Get<string[]>();
-if (corsOrigins == null || corsOrigins.Length == 0)
-{
-    if (useInMemoryDatabase)
-    {
-        corsOrigins = ["http://localhost:3000"];
-    }
-    else
-    {
-        throw new InvalidOperationException(
-            $"CORS allowed origins are not configured. Set the '{CorsOptions.SectionName}__AllowedOrigins' environment variable or configure '{CorsOptions.SectionName}:AllowedOrigins' in appsettings.json.");
-    }
-}
+var jwtOptions = GetJwtOptions(builder.Configuration);
+var useInMemoryDatabase = IsInMemoryDatabaseEnabled(builder.Configuration);
+ValidateJwtOptions(jwtOptions, useInMemoryDatabase);
+var corsOrigins = GetCorsOrigins(builder.Configuration, useInMemoryDatabase);
 
 builder.Services.AddCors(options =>
 {
@@ -103,8 +58,8 @@ builder.Services.AddAuthorization();
 builder.Services.AddSingleton<ILoggingClient>(sp =>
 {
     var config = sp.GetRequiredService<IConfiguration>();
-    var logger = sp.GetRequiredService<ILogger<PvpAnalytics.Shared.Services.LoggingClient>>();
-    return new PvpAnalytics.Shared.Services.LoggingClient(config, logger);
+    var logger = sp.GetRequiredService<ILogger<LoggingClient>>();
+    return new LoggingClient(config, logger);
 });
 
 var app = builder.Build();
@@ -112,13 +67,13 @@ var app = builder.Build();
 var loggingClient = app.Services.GetRequiredService<ILoggingClient>();
 var serviceName = builder.Configuration["LoggingService:ServiceName"] ?? "PaymentService";
 var serviceEndpoint = GetServiceEndpoint(builder.Configuration, "localhost:8082");
-var serviceVersion = "1.0.0";
+const string serviceVersion = "1.0.0";
 
 try
 {
     await loggingClient.RegisterServiceAsync(serviceName, serviceEndpoint, serviceVersion);
     var heartbeatInterval = TimeSpan.FromSeconds(
-        builder.Configuration.GetValue<int>("LoggingService:HeartbeatIntervalSeconds", 30));
+        builder.Configuration.GetValue("LoggingService:HeartbeatIntervalSeconds", 30));
     loggingClient.StartHeartbeat(serviceName, heartbeatInterval);
     app.Logger.LogInformation("Registered with LoggingService and started heartbeat");
 }
@@ -148,7 +103,7 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-app.Run();
+await app.RunAsync();
 
 static string GetServiceEndpoint(IConfiguration configuration, string defaultEndpoint)
 {
@@ -188,6 +143,68 @@ static string NormalizeEndpoint(string endpoint)
     
     // If no scheme, assume it's already in host:port format
     return endpoint;
+}
+
+static JwtOptions GetJwtOptions(IConfiguration configuration)
+{
+    var jwtOptions = configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>();
+    if (jwtOptions == null)
+    {
+        throw new InvalidOperationException("Jwt configuration section is missing.");
+    }
+    return jwtOptions;
+}
+
+static bool IsInMemoryDatabaseEnabled(IConfiguration configuration)
+{
+    var useInMemoryDatabaseValue = configuration["UseInMemoryDatabase"];
+    return !string.IsNullOrWhiteSpace(useInMemoryDatabaseValue) && 
+           (useInMemoryDatabaseValue.Equals("true", StringComparison.OrdinalIgnoreCase) ||
+            useInMemoryDatabaseValue.Equals("1", StringComparison.OrdinalIgnoreCase));
+}
+
+static void ValidateJwtOptions(JwtOptions jwtOptions, bool useInMemoryDatabase)
+{
+    if (useInMemoryDatabase)
+    {
+        return;
+    }
+
+    const string placeholderKey = "DEV_PLACEHOLDER_KEY_MUST_BE_REPLACED";
+    const string errorMessage = "Please provide a valid signing key using one of the following methods:\n" +
+                                 "  1. User Secrets: dotnet user-secrets set \"Jwt:SigningKey\" \"your-secret-key-here\"\n" +
+                                 "  2. Environment Variable: set Jwt__SigningKey=your-secret-key-here\n" +
+                                 "  3. appsettings.Development.json (local only, never commit real keys to source control)";
+
+    if (string.IsNullOrWhiteSpace(jwtOptions.SigningKey))
+    {
+        throw new InvalidOperationException("JWT signing key is not configured. " + errorMessage);
+    }
+
+    if (jwtOptions.SigningKey.Equals(placeholderKey, StringComparison.OrdinalIgnoreCase))
+    {
+        throw new InvalidOperationException(
+            "JWT signing key is still set to the placeholder value. " +
+            "You must replace 'DEV_PLACEHOLDER_KEY_MUST_BE_REPLACED' with a real signing key.\n" +
+            errorMessage);
+    }
+}
+
+static string[] GetCorsOrigins(IConfiguration configuration, bool useInMemoryDatabase)
+{
+    var corsOrigins = configuration.GetSection($"{CorsOptions.SectionName}:AllowedOrigins").Get<string[]>();
+    if (corsOrigins is { Length: > 0 })
+    {
+        return corsOrigins;
+    }
+
+    if (useInMemoryDatabase)
+    {
+        return ["http://localhost:3000"];
+    }
+
+    throw new InvalidOperationException(
+        $"CORS allowed origins are not configured. Set the '{CorsOptions.SectionName}__AllowedOrigins' environment variable or configure '{CorsOptions.SectionName}:AllowedOrigins' in appsettings.json.");
 }
 
 namespace PaymentService.Api

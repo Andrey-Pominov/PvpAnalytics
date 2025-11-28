@@ -156,15 +156,23 @@ const ReportBuilderPage = () => {
                     <Card title="Widgets" subtitle="Drag widgets to the canvas">
                         <div className="flex flex-wrap gap-3">
                             {WIDGET_TYPES.map((widget) => (
-                                <div
+                                <button
                                     key={widget.type}
+                                    type="button"
                                     draggable
                                     onDragStart={() => handleDragStart(widget.type)}
-                                    className="flex cursor-move items-center gap-2 rounded-lg border border-accent-muted/40 bg-surface/50 px-4 py-2 text-sm text-text transition-colors hover:bg-surface/70"
+                                    onClick={() => {
+                                        // For click users, add the widget directly
+                                        if (currentLayout) {
+                                            addWidget(widget.type)
+                                        }
+                                    }}
+                                    aria-label={`Add ${widget.label} widget to canvas. Drag to reposition or press Enter to add.`}
+                                    className="flex cursor-move items-center gap-2 rounded-lg border border-accent-muted/40 bg-surface/50 px-4 py-2 text-sm text-text transition-colors hover:bg-surface/70 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-background"
                                 >
                                     <span>{widget.icon}</span>
                                     <span>{widget.label}</span>
-                                </div>
+                                </button>
                             ))}
                         </div>
                     </Card>
@@ -186,7 +194,8 @@ const ReportBuilderPage = () => {
                             </button>
                         }
                     >
-                        <div
+                        <section
+                            aria-label="Dashboard canvas. Drag widgets here to build your dashboard."
                             className="min-h-[600px] rounded-lg border-2 border-dashed border-accent-muted/40 bg-surface/30 p-6"
                             onDragOver={handleDragOver}
                             onDrop={handleDrop}
@@ -227,7 +236,7 @@ const ReportBuilderPage = () => {
                                     ))}
                                 </div>
                             )}
-                        </div>
+                        </section>
                     </Card>
                 </>
             )}

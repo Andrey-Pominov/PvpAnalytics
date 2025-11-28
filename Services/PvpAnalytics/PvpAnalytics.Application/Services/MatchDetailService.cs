@@ -14,8 +14,26 @@ public class MatchDetailService(PvpAnalyticsDbContext dbContext) : IMatchDetailS
 {
     public async Task<MatchDetailDto?> GetMatchDetailAsync(long matchId, CancellationToken ct = default)
     {
-        // Load match with related entities
-        var match = await dbContext.Matches
+        var match = await LoadMatchWithRelatedDataAsync(matchId, ct);
+        if (match == null)
+            return null;
+
+        var basicInfo = CreateMatchBasicInfo(match);
+        var participantStats = AggregateParticipantStats(match.CombatLogs);
+        var teams = BuildTeams(match.Results, participantStats);
+        var timelineEvents = BuildTimelineEvents(match.CombatLogs, match.CreatedOn);
+
+        return new MatchDetailDto
+        {
+            BasicInfo = basicInfo,
+            Teams = teams,
+            TimelineEvents = timelineEvents,
+        };
+    }
+
+    private async Task<Core.Entities.Match?> LoadMatchWithRelatedDataAsync(long matchId, CancellationToken ct)
+    {
+        return await dbContext.Matches
             .Include(m => m.Results)
             .ThenInclude(r => r.Player)
             .Include(m => m.CombatLogs)
@@ -24,16 +42,11 @@ public class MatchDetailService(PvpAnalyticsDbContext dbContext) : IMatchDetailS
             .ThenInclude(e => e.TargetPlayer)
             .AsNoTracking()
             .FirstOrDefaultAsync(m => m.Id == matchId, ct);
+    }
 
-        if (match == null)
-        {
-            return null;
-        }
-
-        var matchStartTime = match.CreatedOn;
-
-        // Build basic info
-        var basicInfo = new MatchBasicInfo
+    private static MatchBasicInfo CreateMatchBasicInfo(Core.Entities.Match match)
+    {
+        return new MatchBasicInfo
         {
             Id = match.Id,
             UniqueHash = match.UniqueHash,
@@ -44,126 +57,140 @@ public class MatchDetailService(PvpAnalyticsDbContext dbContext) : IMatchDetailS
             Duration = match.Duration,
             IsRanked = match.IsRanked,
         };
+    }
 
-        // Group participants by team and aggregate stats
-        var participantsByTeam = match.Results
-            .GroupBy(r => r.Team)
-            .ToList();
-
-        var teams = new List<TeamInfo>();
+    private static Dictionary<long, (long damage, long healing, int cc)> AggregateParticipantStats(
+        ICollection<Core.Entities.CombatLogEntry> combatLogs)
+    {
         var participantStats = new Dictionary<long, (long damage, long healing, int cc)>();
 
-        // Aggregate stats from combat logs
-        foreach (var entry in match.CombatLogs)
+        foreach (var entry in combatLogs)
         {
-            if (entry.SourcePlayerId > 0)
+            if (entry.SourcePlayerId <= 0)
+                continue;
+
+            if (!participantStats.ContainsKey(entry.SourcePlayerId))
             {
-                if (!participantStats.ContainsKey(entry.SourcePlayerId))
-                {
-                    participantStats[entry.SourcePlayerId] = (0, 0, 0);
-                }
-
-                var stats = participantStats[entry.SourcePlayerId];
-                stats.damage += entry.DamageDone;
-                stats.healing += entry.HealingDone;
-                if (!string.IsNullOrWhiteSpace(entry.CrowdControl))
-                {
-                    stats.cc++;
-                }
-
-                participantStats[entry.SourcePlayerId] = stats;
+                participantStats[entry.SourcePlayerId] = (0, 0, 0);
             }
+
+            var stats = participantStats[entry.SourcePlayerId];
+            stats.damage += entry.DamageDone;
+            stats.healing += entry.HealingDone;
+            if (!string.IsNullOrWhiteSpace(entry.CrowdControl))
+            {
+                stats.cc++;
+            }
+
+            participantStats[entry.SourcePlayerId] = stats;
         }
 
-        // Build teams
+        return participantStats;
+    }
+
+    private static List<TeamInfo> BuildTeams(
+        ICollection<Core.Entities.MatchResult> matchResults,
+        Dictionary<long, (long damage, long healing, int cc)> participantStats)
+    {
+        var teams = new List<TeamInfo>();
+        var participantsByTeam = matchResults.GroupBy(r => r.Team).ToList();
+
         foreach (var teamGroup in participantsByTeam)
         {
-            var teamName = teamGroup.Key;
-            var participants = teamGroup.Select(r =>
-            {
-                var stats = participantStats.GetValueOrDefault(r.PlayerId, (0, 0, 0));
-                return new ParticipantInfo
-                {
-                    PlayerId = r.PlayerId,
-                    PlayerName = r.Player.Name,
-                    Realm = r.Player.Realm,
-                    Class = r.Player.Class,
-                    Spec = r.Spec,
-                    Team = r.Team,
-                    RatingBefore = r.RatingBefore,
-                    RatingAfter = r.RatingAfter,
-                    IsWinner = r.IsWinner,
-                    TotalDamage = stats.damage,
-                    TotalHealing = stats.healing,
-                    TotalCC = stats.cc,
-                };
-            }).ToList();
-
-            var teamDamage = participants.Sum(p => p.TotalDamage);
-            var teamHealing = participants.Sum(p => p.TotalHealing);
-            var isWinner = participants.Any(p => p.IsWinner);
-
-            teams.Add(new TeamInfo
-            {
-                TeamName = teamName,
-                Participants = participants,
-                TotalDamage = teamDamage,
-                TotalHealing = teamHealing,
-                IsWinner = isWinner,
-            });
+            var participants = CreateParticipantsForTeam(teamGroup, participantStats);
+            teams.Add(CreateTeamInfo(teamGroup.Key, participants));
         }
 
-        // Build timeline events
-        var timelineEvents = match.CombatLogs
-            .OrderBy(e => e.Timestamp)
-            .Select(e =>
-            {
-                var relativeTimestamp = (long)(e.Timestamp - matchStartTime).TotalSeconds;
-                var isCooldown = ImportantAbilities.IsCooldownOrDefensive(e.Ability);
-                var isCC = ImportantAbilities.IsCrowdControl(e.Ability);
-                var isImportant =
-                    isCooldown || isCC || e.DamageDone > 50000 || e.HealingDone > 30000; // Flag high-impact events
+        return teams;
+    }
 
-                string eventType = "damage";
-                if (e.HealingDone > 0)
-                {
-                    eventType = "healing";
-                }
-                else if (!string.IsNullOrWhiteSpace(e.CrowdControl))
-                {
-                    eventType = "cc";
-                }
-                else if (isCooldown)
-                {
-                    eventType = "cooldown";
-                }
-
-                return new TimelineEvent
-                {
-                    Timestamp = relativeTimestamp,
-                    EventType = eventType,
-                    SourcePlayerId = e.SourcePlayerId,
-                    SourcePlayerName = e.SourcePlayer?.Name,
-                    TargetPlayerId = e.TargetPlayerId,
-                    TargetPlayerName = e.TargetPlayer?.Name,
-                    Ability = e.Ability,
-                    DamageDone = e.DamageDone > 0 ? e.DamageDone : null,
-                    HealingDone = e.HealingDone > 0 ? e.HealingDone : null,
-                    CrowdControl = !string.IsNullOrWhiteSpace(e.CrowdControl) ? e.CrowdControl : null,
-                    IsImportant = isImportant,
-                    IsCooldown = isCooldown,
-                    IsCC = isCC,
-                };
-            })
-            .Where(e => e.IsImportant || e.DamageDone > 10000 ||
-                        e.HealingDone > 5000) // Filter to important events only
-            .ToList();
-
-        return new MatchDetailDto
+    private static List<ParticipantInfo> CreateParticipantsForTeam(
+        IGrouping<string, Core.Entities.MatchResult> teamGroup,
+        Dictionary<long, (long damage, long healing, int cc)> participantStats)
+    {
+        return teamGroup.Select(r =>
         {
-            BasicInfo = basicInfo,
-            Teams = teams,
-            TimelineEvents = timelineEvents,
+            var stats = participantStats.GetValueOrDefault(r.PlayerId, (0, 0, 0));
+            return new ParticipantInfo
+            {
+                PlayerId = r.PlayerId,
+                PlayerName = r.Player.Name,
+                Realm = r.Player.Realm,
+                Class = r.Player.Class,
+                Spec = r.Spec,
+                Team = r.Team,
+                RatingBefore = r.RatingBefore,
+                RatingAfter = r.RatingAfter,
+                IsWinner = r.IsWinner,
+                TotalDamage = stats.damage,
+                TotalHealing = stats.healing,
+                TotalCC = stats.cc,
+            };
+        }).ToList();
+    }
+
+    private static TeamInfo CreateTeamInfo(string teamName, List<ParticipantInfo> participants)
+    {
+        return new TeamInfo
+        {
+            TeamName = teamName,
+            Participants = participants,
+            TotalDamage = participants.Sum(p => p.TotalDamage),
+            TotalHealing = participants.Sum(p => p.TotalHealing),
+            IsWinner = participants.Any(p => p.IsWinner),
         };
+    }
+
+    private static List<TimelineEvent> BuildTimelineEvents(
+        ICollection<Core.Entities.CombatLogEntry> combatLogs,
+        DateTime matchStartTime)
+    {
+        return combatLogs
+            .OrderBy(e => e.Timestamp)
+            .Select(e => CreateTimelineEvent(e, matchStartTime))
+            .Where(e => e.IsImportant || e.DamageDone > 10000 || e.HealingDone > 5000)
+            .ToList();
+    }
+
+    private static TimelineEvent CreateTimelineEvent(
+        Core.Entities.CombatLogEntry entry,
+        DateTime matchStartTime)
+    {
+        var relativeTimestamp = (long)(entry.Timestamp - matchStartTime).TotalSeconds;
+        var isCooldown = ImportantAbilities.IsCooldownOrDefensive(entry.Ability);
+        var isCC = ImportantAbilities.IsCrowdControl(entry.Ability);
+        var isImportant = isCooldown || isCC || entry.DamageDone > 50000 || entry.HealingDone > 30000;
+        var eventType = DetermineEventType(entry, isCooldown);
+
+        return new TimelineEvent
+        {
+            Timestamp = relativeTimestamp,
+            EventType = eventType,
+            SourcePlayerId = entry.SourcePlayerId,
+            SourcePlayerName = entry.SourcePlayer?.Name,
+            TargetPlayerId = entry.TargetPlayerId,
+            TargetPlayerName = entry.TargetPlayer?.Name,
+            Ability = entry.Ability,
+            DamageDone = entry.DamageDone > 0 ? entry.DamageDone : null,
+            HealingDone = entry.HealingDone > 0 ? entry.HealingDone : null,
+            CrowdControl = !string.IsNullOrWhiteSpace(entry.CrowdControl) ? entry.CrowdControl : null,
+            IsImportant = isImportant,
+            IsCooldown = isCooldown,
+            IsCC = isCC,
+        };
+    }
+
+    private static string DetermineEventType(Core.Entities.CombatLogEntry entry, bool isCooldown)
+    {
+        if (entry.HealingDone > 0)
+            return "healing";
+        
+        if (!string.IsNullOrWhiteSpace(entry.CrowdControl))
+            return "cc";
+        
+        if (isCooldown)
+            return "cooldown";
+        
+        return "damage";
     }
 }

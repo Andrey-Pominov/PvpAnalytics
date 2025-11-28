@@ -37,106 +37,141 @@ const Navigation = () => {
   // Handle search: distinguish between player ID and match ID
   // Numeric IDs are checked as match first, then player; non-numeric searches go to players page
   const handleSearch = async (term: string) => {
-    if (!term.trim()) {
-      // Clear search if empty
-      if (location.pathname === '/players') {
-        navigate('/players')
-      }
+    const trimmedTerm = term.trim()
+    
+    if (!trimmedTerm) {
+      handleEmptySearch()
       return
     }
 
-    // Abort any previous search
+    const abortController = initializeSearch()
+    const currentToken = searchTokenRef.current
+
+    if (isNumericSearch(trimmedTerm)) {
+      await handleNumericSearch(trimmedTerm, abortController, currentToken)
+    } else {
+      navigateToPlayersSearch(trimmedTerm)
+    }
+  }
+
+  const handleEmptySearch = () => {
+    if (location.pathname === '/players') {
+      navigate('/players')
+    }
+  }
+
+  const initializeSearch = (): AbortController => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort()
     }
 
-    // Create new abort controller and increment search token
     const abortController = new AbortController()
     abortControllerRef.current = abortController
-    const currentToken = ++searchTokenRef.current
+    searchTokenRef.current++
+    return abortController
+  }
 
-    const trimmedTerm = term.trim()
-    const isNumericId = /^\d+$/.test(trimmedTerm)
+  const isNumericSearch = (term: string): boolean => {
+    return /^\d+$/.test(term)
+  }
+
+  const isSearchAborted = (abortController: AbortController, token: number): boolean => {
+    return abortController.signal.aborted || token !== searchTokenRef.current
+  }
+
+  const navigateToPlayersSearch = (term: string) => {
+    navigate(`/players?search=${encodeURIComponent(term)}`)
+  }
+
+  const handleNumericSearch = async (
+    term: string,
+    abortController: AbortController,
+    token: number
+  ) => {
+    setSearchLoading(true)
     
-    if (isNumericId) {
-      setSearchLoading(true)
-      try {
-        const baseUrl = import.meta.env.VITE_ANALYTICS_API_BASE_URL || 'http://localhost:8080/api'
-        
-        // Try to fetch as match first (matches are typically searched by numeric ID)
-        try {
-          const { data: match } = await axios.get<{ id: number }>(`${baseUrl}/matches/${trimmedTerm}`, {
-            validateStatus: (status) => status === 200 || status === 404,
-            signal: abortController.signal,
-          })
-          
-          // Check if this search is still current and not aborted
-          if (currentToken !== searchTokenRef.current || abortController.signal.aborted) {
-            return
-          }
-          
-          if (match?.id) {
-            // Match found - navigate to match detail page
-            navigate(`/matches/${trimmedTerm}`)
-            return
-          }
-        } catch (error) {
-          // Check if aborted or outdated
-          if (abortController.signal.aborted || currentToken !== searchTokenRef.current) {
-            return
-          }
-          // Match not found or error - continue to player lookup
-        }
-        
-        // Try to fetch as player
-        try {
-          const { data: player } = await axios.get<{ id: number }>(`${baseUrl}/players/${trimmedTerm}`, {
-            validateStatus: (status) => status === 200 || status === 404,
-            signal: abortController.signal,
-          })
-          
-          // Check if this search is still current and not aborted
-          if (currentToken !== searchTokenRef.current || abortController.signal.aborted) {
-            return
-          }
-          
-          if (player?.id) {
-            // Player found - navigate to player profile page
-            navigate(`/players/${trimmedTerm}`)
-            return
-          }
-        } catch (error) {
-          // Check if aborted or outdated
-          if (abortController.signal.aborted || currentToken !== searchTokenRef.current) {
-            return
-          }
-          // Player not found or error
-          console.debug('Player lookup failed:', error)
-        }
-        
-        // Check if this search is still current and not aborted before navigating
-        if (currentToken === searchTokenRef.current && !abortController.signal.aborted) {
-          // Neither match nor player found - navigate to players page with search query
-          navigate(`/players?search=${encodeURIComponent(trimmedTerm)}`)
-        }
-      } catch (error) {
-        // Check if aborted or outdated
-        if (abortController.signal.aborted || currentToken !== searchTokenRef.current) {
-          return
-        }
-        console.error('Search error:', error)
-        // On error, fallback to players page with search query
-        navigate(`/players?search=${encodeURIComponent(trimmedTerm)}`)
-      } finally {
-        // Only update loading state if this is still the current search
-        if (currentToken === searchTokenRef.current && !abortController.signal.aborted) {
-          setSearchLoading(false)
-        }
+    try {
+      const matchFound = await tryFindMatch(term, abortController, token)
+      if (matchFound) return
+
+      const playerFound = await tryFindPlayer(term, abortController, token)
+      if (playerFound) return
+
+      if (!isSearchAborted(abortController, token)) {
+        navigateToPlayersSearch(term)
       }
-    } else {
-      // Non-numeric search - navigate to players page with search query
-      navigate(`/players?search=${encodeURIComponent(trimmedTerm)}`)
+    } catch (error) {
+      if (!isSearchAborted(abortController, token)) {
+        console.error('Search error:', error)
+        navigateToPlayersSearch(term)
+      }
+    } finally {
+      if (!isSearchAborted(abortController, token)) {
+        setSearchLoading(false)
+      }
     }
+  }
+
+  const tryFindMatch = async (
+    term: string,
+    abortController: AbortController,
+    token: number
+  ): Promise<boolean> => {
+    try {
+      const baseUrl = getBaseUrl()
+      const { data: match } = await axios.get<{ id: number }>(`${baseUrl}/matches/${term}`, {
+        validateStatus: (status) => status === 200 || status === 404,
+        signal: abortController.signal,
+      })
+
+      if (isSearchAborted(abortController, token)) {
+        return false
+      }
+
+      if (match?.id) {
+        navigate(`/matches/${term}`)
+        return true
+      }
+    } catch (error) {
+      if (!isSearchAborted(abortController, token)) {
+        // Match not found or error - continue to player lookup
+      }
+    }
+
+    return false
+  }
+
+  const tryFindPlayer = async (
+    term: string,
+    abortController: AbortController,
+    token: number
+  ): Promise<boolean> => {
+    try {
+      const baseUrl = getBaseUrl()
+      const { data: player } = await axios.get<{ id: number }>(`${baseUrl}/players/${term}`, {
+        validateStatus: (status) => status === 200 || status === 404,
+        signal: abortController.signal,
+      })
+
+      if (isSearchAborted(abortController, token)) {
+        return false
+      }
+
+      if (player?.id) {
+        navigate(`/players/${term}`)
+        return true
+      }
+    } catch (error) {
+      if (!isSearchAborted(abortController, token)) {
+        console.debug('Player lookup failed:', error)
+      }
+    }
+
+    return false
+  }
+
+  const getBaseUrl = (): string => {
+    return import.meta.env.VITE_ANALYTICS_API_BASE_URL || 'http://localhost:8080/api'
   }
 
   return (

@@ -15,7 +15,7 @@ public static class PlayerAttributeMappings
     /// <summary>
     /// Maps spell names to player classes. These are class-defining spells that only one class can use.
     /// </summary>
-    public static readonly Dictionary<string, string> SpellToClass = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly Dictionary<string, string> SpellToClass = new(StringComparer.OrdinalIgnoreCase)
     {
         // Mage spells
         { "Arcane Intellect", "Mage" },
@@ -130,7 +130,7 @@ public static class PlayerAttributeMappings
     /// <summary>
     /// Maps spell names to player specializations. These are spec-defining spells.
     /// </summary>
-    public static readonly Dictionary<string, string> SpellToSpec = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly Dictionary<string, string> SpellToSpec = new(StringComparer.OrdinalIgnoreCase)
     {
         // Mage specs
         { "Combustion", "Fire" },
@@ -220,7 +220,7 @@ public static class PlayerAttributeMappings
     /// <summary>
     /// Maps ability names to player races/factions. These are racial abilities.
     /// </summary>
-    public static readonly Dictionary<string, string> AbilityToFaction = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly Dictionary<string, string> AbilityToFaction = new(StringComparer.OrdinalIgnoreCase)
     {
         // Night Elf
         { "Shadowmeld", "Night Elf" },
@@ -362,7 +362,7 @@ public static class PlayerAttributeMappings
     /// </summary>
     public static string? DetermineClass(HashSet<string> spells)
     {
-        if (spells == null || spells.Count == 0)
+        if (spells.Count == 0)
             return null;
 
         // First pass: Check for high-confidence class-defining spells
@@ -484,7 +484,7 @@ public static class PlayerAttributeMappings
     /// </summary>
     public static string? DetermineSpec(HashSet<string> spells)
     {
-        if (spells == null || spells.Count == 0)
+        if (spells.Count == 0)
             return null;
 
         // Collect all candidate specs with their priorities
@@ -495,9 +495,7 @@ public static class PlayerAttributeMappings
             if (SpellToSpec.TryGetValue(spell, out var spec))
             {
                 // Get priority for this spell (default to 50 if not in priority map)
-                var priority = SpellPriority.TryGetValue(spell, out var spellPriority) 
-                    ? spellPriority 
-                    : 50;
+                var priority = SpellPriority.GetValueOrDefault(spell, 50);
                 
                 // Keep the highest priority for each spec
                 if (!candidates.TryGetValue(spec, out var existingPriority) || priority > existingPriority)
@@ -525,7 +523,7 @@ public static class PlayerAttributeMappings
     /// </summary>
     public static string? DetermineFaction(HashSet<string> spells)
     {
-        if (spells == null || spells.Count == 0)
+        if (spells.Count == 0)
             return null;
 
         foreach (var spell in spells)

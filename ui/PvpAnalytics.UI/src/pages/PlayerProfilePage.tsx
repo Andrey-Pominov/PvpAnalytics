@@ -23,83 +23,175 @@ const PlayerProfilePage = () => {
     if (!id) return
 
     const abortController = new AbortController()
-    const playerId = parseInt(id, 10)
+    const playerId = Number.parseInt(id, 10)
 
     const loadPlayerData = async () => {
       setLoading(true)
       setError(null)
+      
       try {
-        const baseUrl = import.meta.env.VITE_ANALYTICS_API_BASE_URL || 'http://localhost:8080/api'
-
-        if (baseUrl === 'mock') {
-          await new Promise((resolve) => setTimeout(resolve, 500))
-          if (abortController.signal.aborted) return
-
-          const mockPlayer = mockPlayers.find((p) => p.id === playerId)
-          if (!mockPlayer) {
-            setError('Player not found')
-            return
-          }
-
-          setPlayer(mockPlayer)
-          setStats(mockPlayerStats[playerId] || null)
-          setMatches(mockPlayerMatches[playerId] || [])
+        if (await loadMockDataIfNeeded(abortController, playerId)) {
           return
         }
 
-        // Fetch player
-        const playerResponse = await axios.get<Player>(`${baseUrl}/players/${playerId}`, {
+        await loadApiData(abortController, playerId)
+      } catch (err) {
+        handleLoadError(err, abortController)
+      } finally {
+        finalizeLoading(abortController)
+      }
+    }
+
+    const loadMockDataIfNeeded = async (
+      abortController: AbortController,
+      playerId: number
+    ): Promise<boolean> => {
+      const baseUrl = getBaseUrl()
+      if (baseUrl !== 'mock') {
+        return false
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      if (abortController.signal.aborted) return true
+
+      const mockPlayer = mockPlayers.find((p) => p.id === playerId)
+      if (!mockPlayer) {
+        setError('Player not found')
+        return true
+      }
+
+      setPlayer(mockPlayer)
+      setStats(mockPlayerStats[playerId] || null)
+      setMatches(mockPlayerMatches[playerId] || [])
+      return true
+    }
+
+    const loadApiData = async (
+      abortController: AbortController,
+      playerId: number
+    ): Promise<void> => {
+      const baseUrl = getBaseUrl()
+      
+      await loadPlayer(abortController, playerId, baseUrl)
+      await loadPlayerStats(abortController, playerId, baseUrl)
+      await loadPlayerMatches(abortController, playerId, baseUrl)
+    }
+
+    const loadPlayer = async (
+      abortController: AbortController,
+      playerId: number,
+      baseUrl: string
+    ): Promise<void> => {
+      const playerResponse = await axios.get<Player>(`${baseUrl}/players/${playerId}`, {
+        signal: abortController.signal,
+      })
+      
+      if (abortController.signal.aborted) return
+      setPlayer(playerResponse.data)
+    }
+
+    const loadPlayerStats = async (
+      abortController: AbortController,
+      playerId: number,
+      baseUrl: string
+    ): Promise<void> => {
+      try {
+        const statsResponse = await axios.get<PlayerStats>(`${baseUrl}/players/${playerId}/stats`, {
           signal: abortController.signal,
         })
-        if (abortController.signal.aborted) return
-        setPlayer(playerResponse.data)
-
-        // Fetch stats
-        try {
-          const statsResponse = await axios.get<PlayerStats>(`${baseUrl}/players/${playerId}/stats`, {
-            signal: abortController.signal,
-          })
-          if (!abortController.signal.aborted) {
-            setStats(statsResponse.data)
-          }
-        } catch (err) {
-          if (!abortController.signal.aborted && !axios.isCancel(err)) {
-            console.warn('Failed to load player stats', err)
-            // Use mock stats as fallback
-            setStats(mockPlayerStats[playerId] || null)
-          }
-        }
-
-        // Fetch matches
-        try {
-          const matchesResponse = await axios.get<PlayerMatch[]>(`${baseUrl}/players/${playerId}/matches`, {
-            signal: abortController.signal,
-          })
-          if (!abortController.signal.aborted) {
-            setMatches(matchesResponse.data)
-          }
-        } catch (err) {
-          if (!abortController.signal.aborted && !axios.isCancel(err)) {
-            console.warn('Failed to load player matches', err)
-            // Use mock matches as fallback
-            setMatches(mockPlayerMatches[playerId] || [])
-          }
+        
+        if (!abortController.signal.aborted) {
+          setStats(statsResponse.data)
         }
       } catch (err) {
-        if (abortController.signal.aborted) return
-        if (axios.isCancel(err) || (err as Error).name === 'CanceledError') return
-
-        if (axios.isAxiosError(err) && err.response?.status === 404) {
-          setError('Player not found')
-        } else {
-          console.error('Failed to load player data', err)
-          setError('Failed to load player data. Please try again later.')
-        }
-      } finally {
-        if (!abortController.signal.aborted) {
-          setLoading(false)
-        }
+        handleStatsError(err, abortController, playerId)
       }
+    }
+
+    const loadPlayerMatches = async (
+      abortController: AbortController,
+      playerId: number,
+      baseUrl: string
+    ): Promise<void> => {
+      try {
+        const matchesResponse = await axios.get<PlayerMatch[]>(`${baseUrl}/players/${playerId}/matches`, {
+          signal: abortController.signal,
+        })
+        
+        if (!abortController.signal.aborted) {
+          setMatches(matchesResponse.data)
+        }
+      } catch (err) {
+        handleMatchesError(err, abortController, playerId)
+      }
+    }
+
+    const handleStatsError = (
+      err: unknown,
+      abortController: AbortController,
+      playerId: number
+    ): void => {
+      if (abortController.signal.aborted || axios.isCancel(err)) {
+        return
+      }
+
+      console.warn('Failed to load player stats', err)
+      setStats(mockPlayerStats[playerId] || null)
+    }
+
+    const handleMatchesError = (
+      err: unknown,
+      abortController: AbortController,
+      playerId: number
+    ): void => {
+      if (abortController.signal.aborted || axios.isCancel(err)) {
+        return
+      }
+
+      console.warn('Failed to load player matches', err)
+      setMatches(mockPlayerMatches[playerId] || [])
+    }
+
+    const handleLoadError = (
+      err: unknown,
+      abortController: AbortController
+    ): void => {
+      if (abortController.signal.aborted) return
+      if (isCanceledError(err)) return
+
+      if (isNotFoundError(err)) {
+        setError('Player not found')
+      } else {
+        console.error('Failed to load player data', err)
+        setError('Failed to load player data. Please try again later.')
+      }
+    }
+
+    const isCanceledError = (err: unknown): boolean => {
+      if (axios.isCancel(err)) {
+        return true
+      }
+      if (err instanceof Error && err.name === 'CanceledError') {
+        return true
+      }
+      if (typeof err === 'object' && err !== null && 'name' in err && (err as any).name === 'CanceledError') {
+        return true
+      }
+      return false
+    }
+
+    const isNotFoundError = (err: unknown): boolean => {
+      return axios.isAxiosError(err) && err.response?.status === 404
+    }
+
+    const finalizeLoading = (abortController: AbortController): void => {
+      if (!abortController.signal.aborted) {
+        setLoading(false)
+      }
+    }
+
+    const getBaseUrl = (): string => {
+      return import.meta.env.VITE_ANALYTICS_API_BASE_URL || 'http://localhost:8080/api'
     }
 
     loadPlayerData()
