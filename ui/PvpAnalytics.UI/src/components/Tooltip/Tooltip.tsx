@@ -48,6 +48,7 @@ const Tooltip = ({ content, children, position = 'top' }: TooltipProps) => {
     <div className="relative inline-block">
       <div
         className="inline-block border-0 bg-transparent p-0 text-inherit cursor-inherit"
+        tabIndex={0}
         aria-describedby={isVisible ? tooltipId.current : undefined}
         onMouseEnter={() => setIsVisible(true)}
         onMouseLeave={() => setIsVisible(false)}

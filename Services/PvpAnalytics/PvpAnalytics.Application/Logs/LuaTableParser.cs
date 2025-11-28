@@ -97,6 +97,16 @@ public static partial class LuaTableParser
             UpdateBraceDepth(line, parserState);
             ProcessLogsArray(line, trimmedLine, parserState);
             ExtractMetadataFields(line, parserState);
+
+            // If we've closed the current match block (brace depth back to 0),
+            // finalize this match and allow a new one to start later.
+            if (parserState.BraceDepth <= 0 && parserState.CurrentMatch is { Logs.Count: > 0 })
+            {
+                matches.Add(parserState.CurrentMatch);
+                parserState.CurrentMatch = null;
+                parserState.InLogsArray = false;
+                parserState.BraceDepth = 0;
+            }
         }
 
         FinalizePendingMatch(parserState, matches);
@@ -109,7 +119,10 @@ public static partial class LuaTableParser
             return false;
 
         var prevLine = lines[index - 1].Trim();
-        if (prevLine != "PvPAnalyticsDB = {" && prevLine != "{" && !prevLine.EndsWith('{'))
+        if (prevLine != "PvPAnalyticsDB = {" &&
+            prevLine != "{" &&
+            prevLine != "}," &&
+            !prevLine.EndsWith('{'))
             return false;
 
         state.CurrentMatch = new LuaMatchData();
