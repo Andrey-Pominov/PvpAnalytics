@@ -29,9 +29,10 @@ public static partial class LuaTableParser
 
         // Pattern to match a match block: { ["Logs"] = { ... }, ["StartTime"] = "...", etc. }
         // We'll use a simpler approach: find all match blocks
-        const string matchPattern = """\{[\s\S]*?\["Logs"\]\s*=\s*\{([\s\S]*?)\},[\s\S]*?\["StartTime"\]\s*=\s*"([^"]+)",[\s\S]*?\["EndTime"\]\s*=\s*"([^"]+)",[\s\S]*?\["Zone"\]\s*=\s*"([^"]+)",[\s\S]*?\["Faction"\]\s*=\s*"([^"]+)",[\s\S]*?\["Mode"\]\s*=\s*"([^"]+)",[\s\S]*?\}""";
 
-        var regex = new Regex(matchPattern, RegexOptions.Multiline);
+        var regex = new Regex(
+            """\{[\s\S]*?\["Logs"\]\s*=\s*\{([\s\S]*?)\},[\s\S]*?\["StartTime"\]\s*=\s*"([^"]+)",[\s\S]*?\["EndTime"\]\s*=\s*"([^"]+)",[\s\S]*?\["Zone"\]\s*=\s*"([^"]+)",[\s\S]*?\["Faction"\]\s*=\s*"([^"]+)",[\s\S]*?\["Mode"\]\s*=\s*"([^"]+)",[\s\S]*?\}""",
+            RegexOptions.Multiline);
         var regexMatches = regex.Matches(content);
 
         foreach (Match match in regexMatches)
@@ -279,13 +280,6 @@ public static partial class LuaTableParser
         public LuaMatchData? CurrentMatch { get; set; }
         public bool InLogsArray { get; set; }
         public int BraceDepth { get; set; }
-
-        public void Reset()
-        {
-            CurrentMatch = null;
-            InLogsArray = false;
-            BraceDepth = 0;
-        }
     }
 
     [GeneratedRegex("""

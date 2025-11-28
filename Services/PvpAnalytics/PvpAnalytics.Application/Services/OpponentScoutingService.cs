@@ -103,16 +103,12 @@ public class OpponentScoutingService(
 
         if (!string.IsNullOrWhiteSpace(name))
         {
-            var nameLower = name.ToLower();
-            // ReSharper disable once EntityFramework.UnsupportedServerSideFunctionCall
-            query = query.Where(p => p.Name.Contains(nameLower, StringComparison.CurrentCultureIgnoreCase));
+            query = query.Where(p => EF.Functions.Like(p.Name, $"%{name}%"));
         }
 
         if (!string.IsNullOrWhiteSpace(realm))
         {
-            var realmLower = realm.ToLower();
-            // ReSharper disable once EntityFramework.UnsupportedServerSideFunctionCall
-            query = query.Where(p => p.Realm.Contains(realmLower, StringComparison.CurrentCultureIgnoreCase));
+            query = query.Where(p => EF.Functions.Like(p.Realm, $"%{realm}%"));
         }
 
         var players = await query.Take(20).ToListAsync(ct);
@@ -207,11 +203,11 @@ public class OpponentScoutingService(
             .GroupBy(mr => new { mr.Player.Class, mr.Spec })
             .Select(g => new ClassMatchup
             {
-                OpponentClass = g.Key.Class,
+                OpponentClass = g.Key.Class ?? "Unknown",
                 OpponentSpec = g.Key.Spec,
                 Matches = g.Count(),
                 Wins = g.Count(mr => !mr.IsWinner), // Opponent lost = player won
-                WinRate = g.Any() ? Math.Round(g.Count(mr => !mr.IsWinner) * 100.0 / g.Count(), 2) : 0
+                WinRate = Math.Round(g.Count(mr => !mr.IsWinner) * 100.0 / g.Count(), 2)
             })
             .OrderByDescending(m => m.Matches)
             .Take(20)

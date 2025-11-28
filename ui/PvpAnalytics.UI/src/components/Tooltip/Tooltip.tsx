@@ -20,6 +20,12 @@ const Tooltip = ({ content, children, position = 'top' }: TooltipProps) => {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
       setIsVisible(false)
+      return
+    }
+
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      setIsVisible((prev) => !prev)
     }
   }
 
@@ -40,9 +46,9 @@ const Tooltip = ({ content, children, position = 'top' }: TooltipProps) => {
 
   return (
     <div className="relative inline-block">
-      <button
-        type="button"
+      <div
         className="inline-block border-0 bg-transparent p-0 text-inherit cursor-inherit"
+        tabIndex={0}
         aria-describedby={isVisible ? tooltipId.current : undefined}
         onMouseEnter={() => setIsVisible(true)}
         onMouseLeave={() => setIsVisible(false)}
@@ -53,7 +59,7 @@ const Tooltip = ({ content, children, position = 'top' }: TooltipProps) => {
         onKeyDown={handleKeyDown}
       >
         {children}
-      </button>
+      </div>
       {isVisible && (
         <div
           id={tooltipId.current}
