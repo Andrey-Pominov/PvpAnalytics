@@ -13,64 +13,65 @@ public static partial class LuaTableParser
     /// </summary>
     public static List<LuaMatchData> Parse(Stream stream)
     {
-        using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, leaveOpen: true);
+        using var reader =
+            new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, leaveOpen: true);
         var content = reader.ReadToEnd();
-        
+
         return ParseContent(content);
     }
 
     /// <summary>
     /// Parses Lua table content string and extracts match data.
     /// </summary>
-    public static List<LuaMatchData> ParseContent(string content)
+    private static List<LuaMatchData> ParseContent(string content)
     {
         var matches = new List<LuaMatchData>();
-        
+
         // Pattern to match a match block: { ["Logs"] = { ... }, ["StartTime"] = "...", etc. }
         // We'll use a simpler approach: find all match blocks
-        var matchPattern = """\{[\s\S]*?\["Logs"\]\s*=\s*\{([\s\S]*?)\},[\s\S]*?\["StartTime"\]\s*=\s*"([^"]+)",[\s\S]*?\["EndTime"\]\s*=\s*"([^"]+)",[\s\S]*?\["Zone"\]\s*=\s*"([^"]+)",[\s\S]*?\["Faction"\]\s*=\s*"([^"]+)",[\s\S]*?\["Mode"\]\s*=\s*"([^"]+)",[\s\S]*?\}""";
-        
+        const string matchPattern = """\{[\s\S]*?\["Logs"\]\s*=\s*\{([\s\S]*?)\},[\s\S]*?\["StartTime"\]\s*=\s*"([^"]+)",[\s\S]*?\["EndTime"\]\s*=\s*"([^"]+)",[\s\S]*?\["Zone"\]\s*=\s*"([^"]+)",[\s\S]*?\["Faction"\]\s*=\s*"([^"]+)",[\s\S]*?\["Mode"\]\s*=\s*"([^"]+)",[\s\S]*?\}""";
+
         var regex = new Regex(matchPattern, RegexOptions.Multiline);
         var regexMatches = regex.Matches(content);
-        
+
         foreach (Match match in regexMatches)
         {
             var matchData = new LuaMatchData();
-            
+
             // Extract logs
             var logsContent = match.Groups[1].Value;
             matchData.Logs = ParseLogsArray(logsContent);
-            
+
             // Extract metadata
             matchData.StartTime = match.Groups[2].Value.Trim();
             matchData.EndTime = match.Groups[3].Value.Trim();
             matchData.Zone = match.Groups[4].Value.Trim();
             matchData.Faction = match.Groups[5].Value.Trim();
             matchData.Mode = match.Groups[6].Value.Trim();
-            
+
             matches.Add(matchData);
         }
-        
+
         // If regex didn't work, try a more manual approach
         if (matches.Count == 0)
         {
             matches = ParseManually(content);
         }
-        
+
         return matches;
     }
 
     private static List<string> ParseLogsArray(string logsContent)
     {
         var logs = new List<string>();
-        
+
         // Pattern to match log entries: "HH:mm:ss - EVENT: details"
         var logPattern = """
                          "([^"]+)"
                          """;
         var regex = new Regex(logPattern);
         var matches = regex.Matches(logsContent);
-        
+
         foreach (Match match in matches)
         {
             var logLine = match.Groups[1].Value;
@@ -79,7 +80,7 @@ public static partial class LuaTableParser
                 logs.Add(logLine);
             }
         }
-        
+
         return logs;
     }
 
@@ -88,23 +89,23 @@ public static partial class LuaTableParser
         var matches = new List<LuaMatchData>();
         var lines = content.Split('\n');
         var parserState = new ManualParserState();
-        
+
         for (int i = 0; i < lines.Length; i++)
         {
             var line = lines[i];
             var trimmedLine = line.Trim();
-            
+
             if (TryStartNewMatch(lines, i, trimmedLine, parserState))
                 continue;
-            
+
             if (parserState.CurrentMatch == null)
                 continue;
-            
+
             UpdateBraceDepth(line, parserState);
             ProcessLogsArray(line, trimmedLine, parserState);
             ExtractMetadataFields(line, parserState);
         }
-        
+
         FinalizePendingMatch(parserState, matches);
         return matches;
     }
@@ -127,17 +128,12 @@ public static partial class LuaTableParser
     {
         var stringState = new StringState();
 
-        for (int i = 0; i < line.Length; i++)
+        for (var i = 0; i < line.Length; i++)
         {
             var c = line[i];
 
-            if (IsQuote(c))
-            {
-                if (ProcessQuote(line, i, c, ref stringState))
-                {
-                    continue;
-                }
-            }
+            if (IsQuote(c) && ProcessQuote(line, i, c, ref stringState)) continue;
+
 
             ProcessBrace(c, stringState.InsideString, state);
         }
@@ -155,6 +151,7 @@ public static partial class LuaTableParser
         {
             count++;
         }
+
         return count;
     }
 
@@ -224,7 +221,7 @@ public static partial class LuaTableParser
             return;
 
         ExtractLogEntry(line, state);
-        
+
         if (trimmedLine is "}," or "],")
         {
             state.InLogsArray = false;
@@ -269,16 +266,6 @@ public static partial class LuaTableParser
         }
     }
 
-    private static bool TryFinalizeMatch(ManualParserState state, List<LuaMatchData> matches)
-    {
-        if (state.BraceDepth > 1 || state.CurrentMatch!.Logs.Count <= 0 || string.IsNullOrEmpty(state.CurrentMatch.StartTime))
-            return false;
-
-        matches.Add(state.CurrentMatch);
-        state.Reset();
-        return true;
-    }
-
     private static void FinalizePendingMatch(ManualParserState state, List<LuaMatchData> matches)
     {
         if (state.CurrentMatch is { Logs.Count: > 0 })
@@ -305,25 +292,29 @@ public static partial class LuaTableParser
                     "([^"\\]*(\\.[^"\\]*)*)"
                     """)]
     private static partial Regex MyRegex();
+
     [GeneratedRegex("""
                     \["StartTime"\]\s*=\s*"([^"]+)"
                     """)]
     private static partial Regex MyRegex1();
+
     [GeneratedRegex("""
                     \["EndTime"\]\s*=\s*"([^"]+)"
                     """)]
     private static partial Regex MyRegex2();
+
     [GeneratedRegex("""
                     \["Zone"\]\s*=\s*"([^"]+)"
                     """)]
     private static partial Regex MyRegex3();
+
     [GeneratedRegex("""
                     \["Faction"\]\s*=\s*"([^"]+)"
                     """)]
     private static partial Regex MyRegex4();
+
     [GeneratedRegex("""
                     \["Mode"\]\s*=\s*"([^"]+)"
                     """)]
     private static partial Regex MyRegex5();
 }
-

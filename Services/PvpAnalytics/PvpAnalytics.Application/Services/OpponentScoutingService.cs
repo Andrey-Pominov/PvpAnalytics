@@ -103,18 +103,16 @@ public class OpponentScoutingService(
 
         if (!string.IsNullOrWhiteSpace(name))
         {
-            // Note: Using ToLower() instead of StringComparison.OrdinalIgnoreCase because
-            // EF Core cannot translate StringComparison to SQL. ToLower() is translated to SQL's LOWER() function.
             var nameLower = name.ToLower();
-            query = query.Where(p => p.Name.ToLower().Contains(nameLower));
+            // ReSharper disable once EntityFramework.UnsupportedServerSideFunctionCall
+            query = query.Where(p => p.Name.Contains(nameLower, StringComparison.CurrentCultureIgnoreCase));
         }
 
         if (!string.IsNullOrWhiteSpace(realm))
         {
-            // Note: Using ToLower() instead of StringComparison.OrdinalIgnoreCase because
-            // EF Core cannot translate StringComparison to SQL. ToLower() is translated to SQL's LOWER() function.
             var realmLower = realm.ToLower();
-            query = query.Where(p => p.Realm.ToLower().Contains(realmLower));
+            // ReSharper disable once EntityFramework.UnsupportedServerSideFunctionCall
+            query = query.Where(p => p.Realm.Contains(realmLower, StringComparison.CurrentCultureIgnoreCase));
         }
 
         var players = await query.Take(20).ToListAsync(ct);

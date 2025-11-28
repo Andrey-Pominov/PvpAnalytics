@@ -116,18 +116,12 @@ const UploadPage = () => {
         <div className="flex flex-col gap-6">
           {/* Drag and Drop Area */}
           <section
-            aria-label="File upload drop zone. Drag and drop your combat log file here, or press Enter or Space to browse for a file."
+            aria-label="File upload drop zone. Drag and drop your combat log file here, or use the browse button to select a file."
             onDragEnter={handleDragEnter}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault()
-                fileInputRef.current?.click()
-              }
-            }}
-            className={`relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-12 transition-colors focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-background ${
+            className={`relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-12 transition-colors ${
               isDragging
                 ? 'border-accent bg-accent/10'
                 : 'border-accent-muted/50 bg-surface/30 hover:border-accent-muted/70 hover:bg-surface/40'

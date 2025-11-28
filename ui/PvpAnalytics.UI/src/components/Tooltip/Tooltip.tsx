@@ -40,8 +40,9 @@ const Tooltip = ({ content, children, position = 'top' }: TooltipProps) => {
 
   return (
     <div className="relative inline-block">
-      <span
-        className="inline-block"
+      <button
+        type="button"
+        className="inline-block border-0 bg-transparent p-0 text-inherit cursor-inherit"
         aria-describedby={isVisible ? tooltipId.current : undefined}
         onMouseEnter={() => setIsVisible(true)}
         onMouseLeave={() => setIsVisible(false)}
@@ -50,10 +51,9 @@ const Tooltip = ({ content, children, position = 'top' }: TooltipProps) => {
         onTouchStart={() => setIsVisible(true)}
         onTouchEnd={() => setIsVisible(false)}
         onKeyDown={handleKeyDown}
-        tabIndex={0}
       >
         {children}
-      </span>
+      </button>
       {isVisible && (
         <div
           id={tooltipId.current}
