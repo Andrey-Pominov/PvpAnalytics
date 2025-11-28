@@ -103,9 +103,6 @@ public static partial class LuaTableParser
             UpdateBraceDepth(line, parserState);
             ProcessLogsArray(line, trimmedLine, parserState);
             ExtractMetadataFields(line, parserState);
-            
-            if (TryFinalizeMatch(parserState, matches))
-                continue;
         }
         
         FinalizePendingMatch(parserState, matches);
@@ -118,7 +115,7 @@ public static partial class LuaTableParser
             return false;
 
         var prevLine = lines[index - 1].Trim();
-        if (prevLine != "PvPAnalyticsDB = {" && prevLine != "{" && !prevLine.EndsWith("{"))
+        if (prevLine != "PvPAnalyticsDB = {" && prevLine != "{" && !prevLine.EndsWith('{'))
             return false;
 
         state.CurrentMatch = new LuaMatchData();
@@ -128,51 +125,91 @@ public static partial class LuaTableParser
 
     private static void UpdateBraceDepth(string line, ManualParserState state)
     {
-        var insideString = false;
-        var stringChar = '\0'; // Tracks which quote type we're inside (' or ")
+        var stringState = new StringState();
 
         for (int i = 0; i < line.Length; i++)
         {
             var c = line[i];
 
-            // Check if we're encountering a quote
-            if (c == '"' || c == '\'')
+            if (IsQuote(c))
             {
-                // Check if this quote is escaped by counting preceding backslashes
-                var backslashCount = 0;
-                for (int j = i - 1; j >= 0 && line[j] == '\\'; j--)
+                if (ProcessQuote(line, i, c, ref stringState))
                 {
-                    backslashCount++;
-                }
-
-                // If odd number of backslashes, the quote is escaped (ignore it)
-                if (backslashCount % 2 == 1)
                     continue;
-
-                // Toggle string state
-                if (!insideString)
-                {
-                    // Entering a string
-                    insideString = true;
-                    stringChar = c;
                 }
-                else if (c == stringChar)
-                {
-                    // Exiting the string (matching quote type)
-                    insideString = false;
-                    stringChar = '\0';
-                }
-                // If inside a string but quote type doesn't match, it's part of the string content
-                continue;
             }
 
-            // Only count braces when outside of strings
-            if (!insideString)
-            {
-                if (c == '{') state.BraceDepth++;
-                if (c == '}') state.BraceDepth--;
-            }
+            ProcessBrace(c, stringState.InsideString, state);
         }
+    }
+
+    private static bool IsQuote(char c)
+    {
+        return c == '"' || c == '\'';
+    }
+
+    private static int CountPrecedingBackslashes(string line, int position)
+    {
+        var count = 0;
+        for (int j = position - 1; j >= 0 && line[j] == '\\'; j--)
+        {
+            count++;
+        }
+        return count;
+    }
+
+    private static bool IsQuoteEscaped(string line, int position)
+    {
+        var backslashCount = CountPrecedingBackslashes(line, position);
+        return backslashCount % 2 == 1;
+    }
+
+    private static bool ProcessQuote(string line, int position, char quoteChar, ref StringState stringState)
+    {
+        if (IsQuoteEscaped(line, position))
+        {
+            return true; // Quote is escaped, ignore it
+        }
+
+        if (!stringState.InsideString)
+        {
+            // Entering a string
+            stringState.InsideString = true;
+            stringState.StringChar = quoteChar;
+            return true;
+        }
+
+        if (quoteChar == stringState.StringChar)
+        {
+            // Exiting the string (matching quote type)
+            stringState.InsideString = false;
+            stringState.StringChar = '\0';
+            return true;
+        }
+
+        // Inside a string but quote type doesn't match, it's part of the string content
+        return true;
+    }
+
+    private static void ProcessBrace(char c, bool insideString, ManualParserState state)
+    {
+        if (insideString)
+            return;
+
+        if (c == '{')
+        {
+            state.BraceDepth++;
+        }
+        else if (c == '}')
+        {
+            state.BraceDepth--;
+        }
+    }
+
+    private struct StringState
+    {
+        public bool InsideString { get; set; }
+        public char StringChar { get; set; }
     }
 
     private static void ProcessLogsArray(string line, string trimmedLine, ManualParserState state)
@@ -213,11 +250,14 @@ public static partial class LuaTableParser
 
     private static void ExtractMetadataFields(string line, ManualParserState state)
     {
-        ExtractField(line, MyRegex1(), value => state.CurrentMatch!.StartTime = value.Trim());
-        ExtractField(line, MyRegex2(), value => state.CurrentMatch!.EndTime = value.Trim());
-        ExtractField(line, MyRegex3(), value => state.CurrentMatch!.Zone = value.Trim());
-        ExtractField(line, MyRegex4(), value => state.CurrentMatch!.Faction = value.Trim());
-        ExtractField(line, MyRegex5(), value => state.CurrentMatch!.Mode = value.Trim());
+        if (state.CurrentMatch == null)
+            return;
+
+        ExtractField(line, MyRegex1(), value => state.CurrentMatch.StartTime = value.Trim());
+        ExtractField(line, MyRegex2(), value => state.CurrentMatch.EndTime = value.Trim());
+        ExtractField(line, MyRegex3(), value => state.CurrentMatch.Zone = value.Trim());
+        ExtractField(line, MyRegex4(), value => state.CurrentMatch.Faction = value.Trim());
+        ExtractField(line, MyRegex5(), value => state.CurrentMatch.Mode = value.Trim());
     }
 
     private static void ExtractField(string line, Regex regex, Action<string> setter)
@@ -247,7 +287,7 @@ public static partial class LuaTableParser
         }
     }
 
-    private class ManualParserState
+    private sealed class ManualParserState
     {
         public LuaMatchData? CurrentMatch { get; set; }
         public bool InLogsArray { get; set; }

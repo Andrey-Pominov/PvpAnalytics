@@ -127,18 +127,24 @@ public class TeamSynergyService(PvpAnalyticsDbContext dbContext) : ITeamSynergyS
     {
         var togetherMatches = FindMatchesTogether(player1Id, player2Id, matchData.AllMatchResults);
 
-        if (!togetherMatches.Any())
+        PlayerInfo? player1Info;
+        PlayerInfo? player2Info;
+        if (togetherMatches.Count == 0)
         {
-            return CreateEmptyPartnerSynergy(player1Id, player1.Name, player2Id, player2.Name);
+            player1Info = new PlayerInfo(player1Id, player1.Name);
+            player2Info = new PlayerInfo(player2Id, player2.Name);
+            return CreateEmptyPartnerSynergy(player1Info, player2Info);
         }
 
         var stats = CalculateMatchStatsTogether(
             player1Id, player2Id, togetherMatches, matchData);
         var synergyScore = CalculateSynergyScore(stats.Wins, togetherMatches.Count);
 
-        return CreatePartnerSynergyDto(
-            player1Id, player1.Name, player2Id, player2.Name,
-            togetherMatches.Count, stats.Wins, stats.WinRate, stats.AverageRating, synergyScore);
+        player1Info = new PlayerInfo(player1Id, player1.Name);
+        player2Info = new PlayerInfo(player2Id, player2.Name);
+        var synergyStats = new SynergyStats(togetherMatches.Count, stats.Wins, stats.WinRate, stats.AverageRating, synergyScore);
+        
+        return CreatePartnerSynergyDto(player1Info, player2Info, synergyStats);
     }
 
     private static List<long> FindMatchesTogether(
@@ -177,22 +183,15 @@ public class TeamSynergyService(PvpAnalyticsDbContext dbContext) : ITeamSynergyS
         var totalRating = 0.0;
         var ratingCount = 0;
 
-        foreach (var matchId in togetherMatches)
+        foreach (var matchStats in togetherMatches.Select(matchId => GetMatchStatsForPlayers(
+                     matchId, player1Id, player2Id, matchData)).Where(matchStats => matchStats.HasData))
         {
-            var matchStats = GetMatchStatsForPlayers(
-                matchId, player1Id, player2Id, matchData);
-            
-            if (matchStats.HasData)
-            {
-                if (matchStats.IsWin)
-                    wins++;
+            if (matchStats.IsWin)
+                wins++;
 
-                if (matchStats.HasRating)
-                {
-                    totalRating += matchStats.AverageRating;
-                    ratingCount++;
-                }
-            }
+            if (!matchStats.HasRating) continue;
+            totalRating += matchStats.AverageRating;
+            ratingCount++;
         }
 
         var avgRating = ratingCount > 0 ? totalRating / ratingCount : 0.0;
@@ -231,7 +230,7 @@ public class TeamSynergyService(PvpAnalyticsDbContext dbContext) : ITeamSynergyS
             .Select(mr => (double)mr.RatingBefore)
             .ToList();
 
-        var hasRating = matchRatings.Any();
+        var hasRating = matchRatings.Count != 0;
         var avgRating = hasRating ? matchRatings.Average() : 0.0;
 
         return new MatchStatsForPlayers
@@ -244,14 +243,14 @@ public class TeamSynergyService(PvpAnalyticsDbContext dbContext) : ITeamSynergyS
     }
 
     private static PartnerSynergyDto CreateEmptyPartnerSynergy(
-        long player1Id, string player1Name, long player2Id, string player2Name)
+        PlayerInfo player1, PlayerInfo player2)
     {
         return new PartnerSynergyDto
         {
-            Player1Id = player1Id,
-            Player1Name = player1Name,
-            Player2Id = player2Id,
-            Player2Name = player2Name,
+            Player1Id = player1.Id,
+            Player1Name = player1.Name,
+            Player2Id = player2.Id,
+            Player2Name = player2.Name,
             MatchesTogether = 0,
             WinsTogether = 0,
             WinRateTogether = 0.0,
@@ -261,23 +260,30 @@ public class TeamSynergyService(PvpAnalyticsDbContext dbContext) : ITeamSynergyS
     }
 
     private static PartnerSynergyDto CreatePartnerSynergyDto(
-        long player1Id, string player1Name,
-        long player2Id, string player2Name,
-        int matchesTogether, int wins, double winRate, double avgRating, double synergyScore)
+        PlayerInfo player1, PlayerInfo player2, SynergyStats stats)
     {
         return new PartnerSynergyDto
         {
-            Player1Id = player1Id,
-            Player1Name = player1Name,
-            Player2Id = player2Id,
-            Player2Name = player2Name,
-            MatchesTogether = matchesTogether,
-            WinsTogether = wins,
-            WinRateTogether = winRate,
-            AverageRatingTogether = Math.Round(avgRating, 0),
-            SynergyScore = synergyScore
+            Player1Id = player1.Id,
+            Player1Name = player1.Name,
+            Player2Id = player2.Id,
+            Player2Name = player2.Name,
+            MatchesTogether = stats.MatchesTogether,
+            WinsTogether = stats.Wins,
+            WinRateTogether = stats.WinRate,
+            AverageRatingTogether = Math.Round(stats.AverageRating, 0),
+            SynergyScore = stats.SynergyScore
         };
     }
+
+    private sealed record PlayerInfo(long Id, string Name);
+
+    private sealed record SynergyStats(
+        int MatchesTogether,
+        int Wins,
+        double WinRate,
+        double AverageRating,
+        double SynergyScore);
 
     private static Dictionary<string, double> CalculateMapWinRates(List<TeamMatch> teamMatches)
     {
@@ -285,7 +291,14 @@ public class TeamSynergyService(PvpAnalyticsDbContext dbContext) : ITeamSynergyS
             .GroupBy(tm => tm.Match.MapName)
             .ToDictionary<IGrouping<string, TeamMatch>, string, double>(
                 g => g.Key,
-                g => g.Key.Length > 0 ? Math.Round(g.Count(tm => tm.IsWin) * 100.0 / g.Key.Length, 2) : 0.0
+                g =>
+                {
+                    var total = g.Count();
+                    if (total == 0)
+                        return 0.0;
+                    var wins = g.Count(tm => tm.IsWin);
+                    return Math.Round(wins * 100.0 / total, 2);
+                }
             );
     }
 
@@ -294,7 +307,7 @@ public class TeamSynergyService(PvpAnalyticsDbContext dbContext) : ITeamSynergyS
     {
         var compositionWinRates = new Dictionary<string, double>();
         
-        if (!team.Members.Any())
+        if (team.Members.Count == 0)
             return compositionWinRates;
 
         var classes = team.Members.Select(m => m.Player.Class).OrderBy(c => c).ToList();
@@ -308,7 +321,7 @@ public class TeamSynergyService(PvpAnalyticsDbContext dbContext) : ITeamSynergyS
 
     private static double CalculateOverallScore(List<PartnerSynergyDto> partnerSynergies)
     {
-        return partnerSynergies.Any()
+        return partnerSynergies.Count != 0
             ? Math.Round(partnerSynergies.Average(p => p.SynergyScore), 2)
             : 0.0;
     }

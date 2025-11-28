@@ -112,22 +112,15 @@ const TeamsPage = () => {
               <p className="text-xs sm:text-sm font-semibold mb-1">Members:</p>
               <div className="flex flex-wrap gap-2">
                 {team.members.map((member) => (
-                  <span
+                  <button
                     key={member.id}
-                    role="button"
-                    tabIndex={0}
+                    type="button"
                     onClick={() => navigate(`/players/${member.playerId}`)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault()
-                        navigate(`/players/${member.playerId}`)
-                      }
-                    }}
                     aria-label={`View profile for ${member.playerName}`}
                     className="text-xs sm:text-sm px-2 py-1 bg-surface/50 rounded cursor-pointer hover:bg-surface/70 transition-colors focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-background"
                   >
                     {member.playerName} ({member.class})
-                  </span>
+                  </button>
                 ))}
               </div>
             </div>

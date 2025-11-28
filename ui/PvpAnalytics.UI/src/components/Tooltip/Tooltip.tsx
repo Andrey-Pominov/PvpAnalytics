@@ -8,7 +8,7 @@ interface TooltipProps {
 
 const Tooltip = ({ content, children, position = 'top' }: TooltipProps) => {
   const [isVisible, setIsVisible] = useState(false)
-  const tooltipId = useRef(`tooltip-${Math.random().toString(36).substr(2, 9)}`)
+  const tooltipId = useRef(`tooltip-${Math.random().toString(36).slice(2, 11)}`)
 
   const positionClasses = {
     top: 'bottom-full left-1/2 -translate-x-1/2 mb-2',
@@ -39,20 +39,21 @@ const Tooltip = ({ content, children, position = 'top' }: TooltipProps) => {
   }, [isVisible])
 
   return (
-    <div
-      className="relative inline-block"
-      role="group"
-      aria-describedby={isVisible ? tooltipId.current : undefined}
-      onMouseEnter={() => setIsVisible(true)}
-      onMouseLeave={() => setIsVisible(false)}
-      onFocus={() => setIsVisible(true)}
-      onBlur={() => setIsVisible(false)}
-      onTouchStart={() => setIsVisible(true)}
-      onTouchEnd={() => setIsVisible(false)}
-      onKeyDown={handleKeyDown}
-      tabIndex={0}
-    >
-      {children}
+    <div className="relative inline-block">
+      <span
+        className="inline-block"
+        aria-describedby={isVisible ? tooltipId.current : undefined}
+        onMouseEnter={() => setIsVisible(true)}
+        onMouseLeave={() => setIsVisible(false)}
+        onFocus={() => setIsVisible(true)}
+        onBlur={() => setIsVisible(false)}
+        onTouchStart={() => setIsVisible(true)}
+        onTouchEnd={() => setIsVisible(false)}
+        onKeyDown={handleKeyDown}
+        tabIndex={0}
+      >
+        {children}
+      </span>
       {isVisible && (
         <div
           id={tooltipId.current}

@@ -101,7 +101,7 @@ public class PerformanceComparisonService(PvpAnalyticsDbContext dbContext) : IPe
             WinRate = CalculateWinRate(playerWins, playerTotalMatches),
             AverageDamage = CalculateAverageDamage(playerCombatLogs),
             AverageHealing = CalculateAverageHealing(playerCombatLogs),
-            AverageCC = CalculateAverageCC(playerCombatLogs, playerMatchIds.Count),
+            AverageCC = CalculateAverageCc(playerCombatLogs, playerMatchIds.Count),
             CurrentRating = GetCurrentRating(playerResults),
             PeakRating = GetPeakRating(playerResults),
             AverageMatchDuration = CalculateAverageMatchDuration(playerResults)
@@ -123,7 +123,7 @@ public class PerformanceComparisonService(PvpAnalyticsDbContext dbContext) : IPe
         return logs.Count != 0 ? Math.Round(logs.Average(c => (double)c.HealingDone), 2) : 0;
     }
 
-    private static double CalculateAverageCC(List<Core.Entities.CombatLogEntry> logs, int matchCount)
+    private static double CalculateAverageCc(List<Core.Entities.CombatLogEntry> logs, int matchCount)
     {
         if (logs.Count == 0 || matchCount == 0)
             return 0;
@@ -134,7 +134,7 @@ public class PerformanceComparisonService(PvpAnalyticsDbContext dbContext) : IPe
 
     private static int GetCurrentRating(List<Core.Entities.MatchResult> results)
     {
-        if (results == null || !results.Any())
+        if (results == null || results.Count == 0)
         {
             throw new ArgumentException("results must contain at least one MatchResult", nameof(results));
         }
@@ -192,7 +192,7 @@ public class PerformanceComparisonService(PvpAnalyticsDbContext dbContext) : IPe
             AverageWinRate = CalculateWinRate(topPlayerWins, topPlayerTotalMatches),
             AverageDamage = CalculateAverageDamage(allSpecCombatLogs),
             AverageHealing = CalculateAverageHealing(allSpecCombatLogs),
-            AverageCC = CalculateAverageCC(allSpecCombatLogs, allSpecMatchIds.Count),
+            AverageCC = CalculateAverageCc(allSpecCombatLogs, allSpecMatchIds.Count),
             AverageRating = CalculateAverageRating(allSpecResults),
             AverageMatchDuration = CalculateAverageMatchDuration(allSpecResults)
         };
@@ -267,14 +267,14 @@ public class PerformanceComparisonService(PvpAnalyticsDbContext dbContext) : IPe
         var winRate = playerResults.Count(mr => mr.IsWinner) / (double)playerResults.Count;
         var damage = playerCombatLogs.Count != 0 ? playerCombatLogs.Average(c => (double)c.DamageDone) : 0;
         var healing = playerCombatLogs.Count != 0 ? playerCombatLogs.Average(c => (double)c.HealingDone) : 0;
-        var cc = CalculateCCForPercentiles(playerCombatLogs, matchCount);
-        var latestResult = playerResults.OrderByDescending(mr => mr.Match.CreatedOn).FirstOrDefault();
-        var rating = latestResult?.RatingAfter ?? 0;
+        var cc = CalculateCcForPercentiles(playerCombatLogs, matchCount);
+        var latestResult = playerResults.OrderByDescending(mr => mr.Match.CreatedOn).First();
+        var rating = latestResult.RatingAfter;
 
         return (winRate, damage, healing, cc, rating);
     }
 
-    private static double CalculateCCForPercentiles(List<Core.Entities.CombatLogEntry> logs, int matchCount)
+    private static double CalculateCcForPercentiles(List<Core.Entities.CombatLogEntry> logs, int matchCount)
     {
         if (logs.Count == 0 || matchCount == 0)
             return 0;
@@ -312,7 +312,7 @@ public class PerformanceComparisonService(PvpAnalyticsDbContext dbContext) : IPe
         var winRate = specPlayerResults.Count(mr => mr.IsWinner) / (double)specPlayerResults.Count;
         var damage = specPlayerCombatLogs.Count != 0 ? specPlayerCombatLogs.Average(c => (double)c.DamageDone) : 0;
         var healing = specPlayerCombatLogs.Count != 0 ? specPlayerCombatLogs.Average(c => (double)c.HealingDone) : 0;
-        var cc = CalculateCCForPercentiles(specPlayerCombatLogs, specPlayerMatchIds.Count);
+        var cc = CalculateCcForPercentiles(specPlayerCombatLogs, specPlayerMatchIds.Count);
         var rating = specPlayerResults.OrderByDescending(mr => mr.Match.CreatedOn).First().RatingAfter;
 
         return (winRate, damage, healing, cc, rating);

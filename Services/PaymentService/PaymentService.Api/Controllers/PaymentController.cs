@@ -139,7 +139,7 @@ public class PaymentController(ICrudService<Payment> service, IRepository<Paymen
 
     private static IQueryable<Payment> ApplySorting(IQueryable<Payment> query, string sortBy, string sortOrder)
     {
-        var isAscending = sortOrder.ToLower() == "asc";
+        var isAscending = string.Equals(sortOrder, "asc", StringComparison.OrdinalIgnoreCase);
         var sortField = sortBy.ToLower();
 
         return sortField switch

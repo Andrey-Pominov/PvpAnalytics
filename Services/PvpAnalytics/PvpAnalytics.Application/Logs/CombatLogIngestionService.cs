@@ -166,7 +166,7 @@ public class CombatLogIngestionService(
         return Task.CompletedTask;
     }
 
-    private void TrackSpellIfPresent(ParsedCombatLogEvent parsed, MatchProcessingState state)
+    private static void TrackSpellIfPresent(ParsedCombatLogEvent parsed, MatchProcessingState state)
     {
         if (string.IsNullOrEmpty(parsed.SourceName) || string.IsNullOrEmpty(parsed.SpellName))
             return;
@@ -214,7 +214,7 @@ public class CombatLogIngestionService(
         state.Participants.Add(playerName);
     }
 
-    private void CreateCombatLogEntryIfValid(ParsedCombatLogEvent parsed, MatchProcessingState state)
+    private static void CreateCombatLogEntryIfValid(ParsedCombatLogEvent parsed, MatchProcessingState state)
     {
         var (sourceName, _) = !string.IsNullOrEmpty(parsed.SourceName)
             ? PlayerInfoExtractor.ParsePlayerName(parsed.SourceName)
@@ -300,7 +300,7 @@ public class CombatLogIngestionService(
         await _playerCache.BatchPersistAsync(ct);
     }
 
-    private class MatchProcessingState
+    private sealed class MatchProcessingState
     {
         public Dictionary<string, Player> PlayersByKey { get; } = new(StringComparer.OrdinalIgnoreCase);
         public HashSet<string> Participants { get; } = new(StringComparer.OrdinalIgnoreCase);

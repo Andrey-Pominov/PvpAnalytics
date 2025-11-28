@@ -103,12 +103,16 @@ public class OpponentScoutingService(
 
         if (!string.IsNullOrWhiteSpace(name))
         {
+            // Note: Using ToLower() instead of StringComparison.OrdinalIgnoreCase because
+            // EF Core cannot translate StringComparison to SQL. ToLower() is translated to SQL's LOWER() function.
             var nameLower = name.ToLower();
             query = query.Where(p => p.Name.ToLower().Contains(nameLower));
         }
 
         if (!string.IsNullOrWhiteSpace(realm))
         {
+            // Note: Using ToLower() instead of StringComparison.OrdinalIgnoreCase because
+            // EF Core cannot translate StringComparison to SQL. ToLower() is translated to SQL's LOWER() function.
             var realmLower = realm.ToLower();
             query = query.Where(p => p.Realm.ToLower().Contains(realmLower));
         }

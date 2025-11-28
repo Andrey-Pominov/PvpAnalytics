@@ -115,9 +115,7 @@ const UploadPage = () => {
       <Card title="Upload Combat Log">
         <div className="flex flex-col gap-6">
           {/* Drag and Drop Area */}
-          <div
-            role="region"
-            tabIndex={0}
+          <section
             aria-label="File upload drop zone. Drag and drop your combat log file here, or press Enter or Space to browse for a file."
             onDragEnter={handleDragEnter}
             onDragOver={handleDragOver}
@@ -177,7 +175,7 @@ const UploadPage = () => {
                 <p className="mt-2 text-xs text-text-muted">Supports .lua and .txt files</p>
               </div>
             </div>
-          </div>
+          </section>
 
           {/* File Info */}
           {file && (

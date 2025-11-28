@@ -65,6 +65,10 @@ public class KeyMomentService(PvpAnalyticsDbContext dbContext) : IKeyMomentServi
                 continue;
 
             var targetId = log.TargetPlayerId!.Value;
+            // Note: Deaths may be missed for players who never act as a source (e.g., killed very early,
+            // AFK/disconnected players). This check requires the target player to have previously acted
+            // as a source (tracked in playerLastActivity). In typical PvP scenarios this is acceptable
+            // as such players aren't really participating, but it's worth noting this limitation.
             if (IsPlayerInactiveAfterDamage(combatLogs, log, targetId) && playerLastActivity.ContainsKey(targetId))
             {
                 moments.Add(CreateDeathMoment(log, matchStart));

@@ -23,41 +23,51 @@ public class MatchupAnalyticsService(PvpAnalyticsDbContext dbContext) : IMatchup
         DateTime? startDate = null, DateTime? endDate = null,
         CancellationToken ct = default)
     {
-        var dto = CreateMatchupDto(class1, spec1, class2, spec2, gameMode, ratingMin, ratingMax, startDate, endDate);
+        var matchup1 = new ClassSpec(class1, spec1);
+        var matchup2 = new ClassSpec(class2, spec2);
+        var filters = new MatchupFilters(gameMode, ratingMin, ratingMax, startDate, endDate);
+        var dto = CreateMatchupDto(matchup1, matchup2, filters);
         
         var allResults = await LoadMatchResultsAsync(startDate, endDate, gameMode, ct);
-        var matchupMatches = FindMatchupMatches(allResults, class1, spec1, class2, spec2);
+        var matchupMatches = FindMatchupMatches(allResults, matchup1, matchup2);
         
         if (!matchupMatches.Any())
             return dto;
 
-        var matchupResults = FilterMatchupResults(allResults, matchupMatches, ratingMin, ratingMax);
-        CalculateWinRates(dto, matchupResults, class1, spec1, class2, spec2);
+        var matchupResults = FilterMatchupResults(allResults, matchupMatches, filters.RatingMin, filters.RatingMax);
+        CalculateWinRates(dto, matchupResults, matchup1, matchup2);
         
         dto.AverageMatchDuration = await CalculateAverageMatchDurationAsync(matchupMatches, ct);
-        dto.Stats = await CalculateMatchupStatsAsync(matchupMatches, matchupResults, class1, spec1, class2, spec2, ct);
+        dto.Stats = await CalculateMatchupStatsAsync(matchupMatches, matchupResults, matchup1, matchup2, ct);
 
         return dto;
     }
 
     private static MatchupAnalyticsDto CreateMatchupDto(
-        string class1, string? spec1, string class2, string? spec2,
-        GameMode? gameMode, int? ratingMin, int? ratingMax,
-        DateTime? startDate, DateTime? endDate)
+        ClassSpec matchup1, ClassSpec matchup2, MatchupFilters filters)
     {
         return new MatchupAnalyticsDto
         {
-            Class1 = class1,
-            Spec1 = spec1,
-            Class2 = class2,
-            Spec2 = spec2,
-            GameMode = gameMode,
-            RatingMin = ratingMin,
-            RatingMax = ratingMax,
-            StartDate = startDate,
-            EndDate = endDate
+            Class1 = matchup1.Class,
+            Spec1 = matchup1.Spec,
+            Class2 = matchup2.Class,
+            Spec2 = matchup2.Spec,
+            GameMode = filters.GameMode,
+            RatingMin = filters.RatingMin,
+            RatingMax = filters.RatingMax,
+            StartDate = filters.StartDate,
+            EndDate = filters.EndDate
         };
     }
+
+    private sealed record ClassSpec(string Class, string? Spec);
+
+    private sealed record MatchupFilters(
+        GameMode? GameMode,
+        int? RatingMin,
+        int? RatingMax,
+        DateTime? StartDate,
+        DateTime? EndDate);
 
     private async Task<List<Core.Entities.MatchResult>> LoadMatchResultsAsync(
         DateTime? startDate, DateTime? endDate, GameMode? gameMode, CancellationToken ct)
@@ -105,43 +115,33 @@ public class MatchupAnalyticsService(PvpAnalyticsDbContext dbContext) : IMatchup
 
     private static List<long> FindMatchupMatches(
         List<Core.Entities.MatchResult> allResults,
-        string class1, string? spec1,
-        string class2, string? spec2)
+        ClassSpec matchup1, ClassSpec matchup2)
     {
         return allResults
             .GroupBy(mr => mr.MatchId)
-            .Where(g => HasMatchupInMatch(g, class1, spec1, class2, spec2))
+            .Where(g => HasMatchupInMatch(g, matchup1, matchup2))
             .Select(g => g.Key)
             .ToList();
     }
 
     private static bool HasMatchupInMatch(
         IGrouping<long, Core.Entities.MatchResult> matchGroup,
-        string class1, string? spec1,
-        string class2, string? spec2)
+        ClassSpec matchup1, ClassSpec matchup2)
     {
         var teams = matchGroup.GroupBy(mr => mr.Team).ToList();
         if (teams.Count < 2)
             return false;
 
-        return TeamsHaveMatchup(teams, class1, spec1, class2, spec2);
+        return TeamsHaveMatchup(teams, matchup1, matchup2);
     }
 
     private static bool TeamsHaveMatchup(
         List<IGrouping<string, Core.Entities.MatchResult>> teams,
-        string class1, string? spec1,
-        string class2, string? spec2)
+        ClassSpec matchup1, ClassSpec matchup2)
     {
-        foreach (var team1 in teams)
-        {
-            foreach (var team2 in teams.Where(t => t.Key != team1.Key))
-            {
-                if (TeamHasClass(team1, class1, spec1) && TeamHasClass(team2, class2, spec2))
-                    return true;
-            }
-        }
-
-        return false;
+        return teams.Any(team1 =>
+            teams.Where(t => t.Key != team1.Key)
+                .Any(team2 => TeamHasClass(team1, matchup1.Class, matchup1.Spec) && TeamHasClass(team2, matchup2.Class, matchup2.Spec)));
     }
 
     private static bool TeamHasClass(
@@ -178,13 +178,12 @@ public class MatchupAnalyticsService(PvpAnalyticsDbContext dbContext) : IMatchup
     private static void CalculateWinRates(
         MatchupAnalyticsDto dto,
         List<Core.Entities.MatchResult> matchupResults,
-        string class1, string? spec1,
-        string class2, string? spec2)
+        ClassSpec matchup1, ClassSpec matchup2)
     {
         var matchGroups = matchupResults.GroupBy(mr => mr.MatchId).ToList();
         dto.TotalMatches = matchGroups.Count;
 
-        var (class1Wins, class2Wins) = CountWins(matchGroups, class1, spec1, class2, spec2);
+        var (class1Wins, class2Wins) = CountWins(matchGroups, matchup1, matchup2);
 
         dto.WinsForClass1 = class1Wins;
         dto.WinsForClass2 = class2Wins;
@@ -194,8 +193,7 @@ public class MatchupAnalyticsService(PvpAnalyticsDbContext dbContext) : IMatchup
 
     private static (int class1Wins, int class2Wins) CountWins(
         List<IGrouping<long, Core.Entities.MatchResult>> matchGroups,
-        string class1, string? spec1,
-        string class2, string? spec2)
+        ClassSpec matchup1, ClassSpec matchup2)
     {
         var class1Wins = 0;
         var class2Wins = 0;
@@ -203,8 +201,8 @@ public class MatchupAnalyticsService(PvpAnalyticsDbContext dbContext) : IMatchup
         foreach (var matchGroup in matchGroups)
         {
             var teams = matchGroup.GroupBy(mr => mr.Team).ToList();
-            var class1Team = FindTeamWithClass(teams, class1, spec1);
-            var class2Team = FindTeamWithClass(teams, class2, spec2);
+            var class1Team = FindTeamWithClass(teams, matchup1.Class, matchup1.Spec);
+            var class2Team = FindTeamWithClass(teams, matchup2.Class, matchup2.Spec);
 
             if (class1Team == null || class2Team == null)
                 continue;
@@ -243,12 +241,11 @@ public class MatchupAnalyticsService(PvpAnalyticsDbContext dbContext) : IMatchup
     private async Task<MatchupDamageHealingStats> CalculateMatchupStatsAsync(
         List<long> matchIds,
         List<Core.Entities.MatchResult> matchupResults,
-        string class1, string? spec1,
-        string class2, string? spec2,
+        ClassSpec matchup1, ClassSpec matchup2,
         CancellationToken ct)
     {
-        var class1PlayerIds = GetPlayerIdsForClass(matchupResults, class1, spec1);
-        var class2PlayerIds = GetPlayerIdsForClass(matchupResults, class2, spec2);
+        var class1PlayerIds = GetPlayerIdsForClass(matchupResults, matchup1.Class, matchup1.Spec);
+        var class2PlayerIds = GetPlayerIdsForClass(matchupResults, matchup2.Class, matchup2.Spec);
 
         var combatLogs = await dbContext.CombatLogEntries
             .Where(c => matchIds.Contains(c.MatchId))
