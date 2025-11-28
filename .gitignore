@@ -10,3 +10,4 @@ dist/
 .env
 *.DotSettings.user
 *.lua
+sonar-project.properties

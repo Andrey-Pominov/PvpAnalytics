@@ -12,7 +12,6 @@ interface Profile {
 }
 
 const ProfileSettingsPage = () => {
-  const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [formData, setFormData] = useState<Partial<Profile>>({})
@@ -30,7 +29,6 @@ const ProfileSettingsPage = () => {
       const response = await axios.get(`${baseUrl}/profile`, {
         headers: { Authorization: `Bearer ${token}` }
       })
-      setProfile(response.data)
       setFormData(response.data)
     } catch (error) {
       console.error('Error loading profile:', error)
@@ -45,10 +43,9 @@ const ProfileSettingsPage = () => {
     
     try {
       const token = localStorage.getItem('accessToken')
-      const response = await axios.put(`${baseUrl}/profile`, formData, {
+      await axios.put(`${baseUrl}/profile`, formData, {
         headers: { Authorization: `Bearer ${token}` }
       })
-      setProfile(response.data)
       alert('Profile updated successfully!')
     } catch (error) {
       console.error('Error updating profile:', error)
