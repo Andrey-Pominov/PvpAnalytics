@@ -74,7 +74,7 @@ public class TeamCompositionService(
                     PlayerId = p.PlayerId,
                     PlayerName = p.Name,
                     Realm = p.Realm,
-                    Class = p.Class,
+                    Class = p.Class ?? string.Empty,
                     Spec = p.Spec
                 }).ToList();
 

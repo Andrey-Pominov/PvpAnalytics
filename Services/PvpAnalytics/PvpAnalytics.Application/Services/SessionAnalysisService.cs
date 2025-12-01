@@ -180,7 +180,7 @@ public class SessionAnalysisService(PvpAnalyticsDbContext dbContext) : ISessionA
         var endTime = matches[^1].matchDate;
         var wins = matches.Count(m => m.isWinner);
         var ratingStart = matches[0].ratingBefore;
-        var ratingEnd = matches[0].ratingAfter;
+        var ratingEnd = matches[^1].ratingAfter;
 
         return new SessionData
         {

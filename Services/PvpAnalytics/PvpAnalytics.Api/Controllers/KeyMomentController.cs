@@ -18,16 +18,15 @@ public class KeyMomentController(IKeyMomentService service) : ControllerBase
             var result = await service.GetKeyMomentsForMatchAsync(matchId, ct);
             return Ok(result);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // In case of unexpected data issues (e.g., partial combat log data),
-            // return an empty but well-formed payload instead of a 500.
-            return Ok(new KeyMomentDto
-            {
-                MatchId = matchId,
-                MatchDate = DateTime.MinValue,
-                Moments = []
-            });
+            // Log the exception for observability
+            // TODO: Inject ILogger and log here
+            // _logger.LogError(ex, "Failed to retrieve key moments for match {MatchId}", matchId);
+
+            // Return appropriate status codes based on exception type.
+            // For now, let the global exception handler manage it.
+            throw;
         }
     }
 

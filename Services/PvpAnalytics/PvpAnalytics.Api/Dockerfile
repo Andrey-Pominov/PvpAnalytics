@@ -26,6 +26,6 @@ ARG BUILD_CONFIGURATION=Release
 RUN dotnet publish "PvpAnalytics.Api.csproj" -c "$BUILD_CONFIGURATION" -o /app/publish /p:UseAppHost=false
 
 FROM base AS final
-WORKDIR /appF
+WORKDIR /app
 COPY --from=publish /app/publish .
 ENTRYPOINT ["dotnet", "PvpAnalytics.Api.dll"]

@@ -30,18 +30,24 @@ public static partial class LuaTableParser
         // Pattern to match a match block: { ["Logs"] = { ... }, ["StartTime"] = "...", etc. }
         // We'll use a simpler approach: find all match blocks using a compiled, source-generated regex.
         var regexMatches = MatchBlockRegex().Matches(content);
-        var parsedMatches = regexMatches
-            .Select(m => new LuaMatchData
-            {
-                Logs     = ParseLogsArray(m.Groups[1].Value),
-                StartTime = m.Groups[2].Value.Trim(),
-                EndTime   = m.Groups[3].Value.Trim(),
-                Zone      = m.Groups[4].Value.Trim(),
-                Faction   = m.Groups[5].Value.Trim(),
-                Mode      = m.Groups[6].Value.Trim()
-            });
 
-        matches.AddRange(parsedMatches);
+        foreach (Match match in regexMatches)
+        {
+            var matchData = new LuaMatchData();
+
+            // Extract logs
+            var logsContent = match.Groups[1].Value;
+            matchData.Logs = ParseLogsArray(logsContent);
+
+            // Extract metadata
+            matchData.StartTime = match.Groups[2].Value.Trim();
+            matchData.EndTime = match.Groups[3].Value.Trim();
+            matchData.Zone = match.Groups[4].Value.Trim();
+            matchData.Faction = match.Groups[5].Value.Trim();
+            matchData.Mode = match.Groups[6].Value.Trim();
+
+            matches.Add(matchData);
+        }
 
         // If regex didn't work, try a more manual approach
         if (matches.Count == 0)
@@ -61,8 +67,7 @@ public static partial class LuaTableParser
 
         foreach (Match match in matches)
         {
-            var rawLogLine = match.Groups[1].Value;
-            var logLine = UnescapeLuaString(rawLogLine);
+            var logLine = match.Groups[1].Value;
             if (!string.IsNullOrWhiteSpace(logLine) && logLine.Contains(" - "))
             {
                 logs.Add(logLine);
@@ -95,7 +100,7 @@ public static partial class LuaTableParser
 
             // If we've closed the current match block (brace depth back to 0),
             // finalize this match and allow a new one to start later.
-            if (parserState is { BraceDepth: <= 0, CurrentMatch.Logs.Count: > 0 })
+            if (parserState.BraceDepth <= 0 && parserState.CurrentMatch is { Logs.Count: > 0 })
             {
                 matches.Add(parserState.CurrentMatch);
                 parserState.CurrentMatch = null;
@@ -113,12 +118,7 @@ public static partial class LuaTableParser
         if (trimmedLine != "{" || state.CurrentMatch != null || index == 0)
             return false;
 
-        var prevLineRaw = lines[index - 1];
-        var commentIndex = prevLineRaw.IndexOf("--", StringComparison.Ordinal);
-        var prevLine = commentIndex >= 0
-            ? prevLineRaw[..commentIndex].Trim()
-            : prevLineRaw.Trim();
-
+        var prevLine = lines[index - 1].Trim();
         if (prevLine != "PvPAnalyticsDB = {" &&
             prevLine != "{" &&
             prevLine != "}," &&
@@ -244,59 +244,11 @@ public static partial class LuaTableParser
         if (!logMatch.Success)
             return;
 
-        var rawLogLine = logMatch.Groups[1].Value;
-        var logLine = UnescapeLuaString(rawLogLine);
+        var logLine = logMatch.Groups[1].Value.Replace("\\\"", "\"").Replace(@"\\", "\\");
         if (logLine.Contains(" - "))
         {
             state.CurrentMatch.Logs.Add(logLine);
         }
-    }
-
-    /// <summary>
-    /// Unescapes a Lua-style string literal for our exported logs.
-    /// Handles at least escaped quotes (\") and escaped backslashes (\\),
-    /// while preserving all other characters as-is.
-    /// </summary>
-    private static string UnescapeLuaString(string value)
-    {
-        if (string.IsNullOrEmpty(value))
-            return value;
-
-        var sb = new StringBuilder(value.Length);
-        var i = 0;
-
-        while (i < value.Length)
-        {
-            var c = value[i];
-
-            if (c == '\\' && i + 1 < value.Length)
-            {
-                var next = value[i + 1];
-                if (next == '\\')
-                {
-                    sb.Append('\\');
-                    i += 2;
-                    continue;
-                }
-
-                if (next == '\"')
-                {
-                    sb.Append('\"');
-                    i += 2;
-                    continue;
-                }
-
-                // For any other escape sequence, keep the backslash literal
-                sb.Append('\\');
-                i++;
-                continue;
-            }
-
-            sb.Append(c);
-            i++;
-        }
-
-        return sb.ToString();
     }
 
     private static void ExtractMetadataFields(string line, ManualParserState state)

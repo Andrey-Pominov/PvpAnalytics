@@ -345,7 +345,7 @@ public class CombatLogIngestionService(
         var trimmed = fullName.Trim('"', ' ');
         var regionSuffixes = new[] { "-EU", "-US", "-KR", "-TW", "-CN" };
         var suffix = regionSuffixes.FirstOrDefault(s => trimmed.EndsWith(s, StringComparison.OrdinalIgnoreCase));
-        return suffix ?? "eu"; // Default to EU
+        return suffix?[1..].ToLowerInvariant() ?? "eu"; // Default to EU
     }
 
     private Task UpdatePlayersFromSpellsAsync(

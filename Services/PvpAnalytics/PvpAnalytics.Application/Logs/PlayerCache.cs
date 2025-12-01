@@ -136,9 +136,6 @@ public class PlayerCache(IRepository<Player> playerRepo)
             Class = string.Empty,
             Faction = string.Empty,
             Spec = string.Empty,
-            MatchResults = null,
-            SourceCombatLogs = null,
-            TargetCombatLogs = null
         }).ToList();
 
         if (playersToCreate.Count > 0)

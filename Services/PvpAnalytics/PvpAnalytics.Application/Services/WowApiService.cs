@@ -60,8 +60,8 @@ public class WowApiService(
     private string GetBaseUrlForRegion(string region)
     {
         return region.Equals("eu", StringComparison.InvariantCultureIgnoreCase)
-            ? _options.EuTokenEndpoint
-            : _options.UsTokenEndpoint;
+            ? _options.EuApiBaseUrl
+            : _options.UsApiBaseUrl;
     }
 
     private async Task<JsonElement> FetchProfileDataAsync(

@@ -227,7 +227,7 @@ public class KeyMomentService(PvpAnalyticsDbContext dbContext) : IKeyMomentServi
             Timestamp = matchDurationSeconds,
             EventType = "rating_change",
             Description =
-                $"{result.Player.Name} {(ratingChange > 0 ? "gained" : "lost")} {Math.Abs(ratingChange)} rating",
+                 $"{result.Player?.Name ?? "Unknown"} {(ratingChange > 0 ? "gained" : "lost")} {Math.Abs(ratingChange)} rating",
             TargetPlayerId = result.PlayerId,
             ImpactScore = Math.Min(Math.Abs(ratingChange) / 50.0, 1.0),
             IsCritical = Math.Abs(ratingChange) >= 20
