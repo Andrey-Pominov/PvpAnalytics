@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text.RegularExpressions;
 using PvpAnalytics.Core.Logs;
 
@@ -12,16 +11,19 @@ public static class SimplifiedLogParser
     // Pattern matches: "HH:mm:ss - EVENT_TYPE: details" or "HH:mm:ss - |cffff8800INTERRUPT:|r details"
     private static readonly Regex LogPattern = new(
         @"(\d{2}:\d{2}:\d{2})\s*-\s*(?:HEAL|DAMAGE):\s*(.+?)(?:\s+for\s+(\d+))?(?:\s+on\s+(.+?))?$",
-        RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        RegexOptions.Compiled | RegexOptions.IgnoreCase,
+        TimeSpan.FromMilliseconds(150));
     
     private static readonly Regex InterruptPattern = new(
         @"(\d{2}:\d{2}:\d{2})\s*-\s*\|\cffff8800INTERRUPT:\|\r\s*(.+)$",
-        RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        RegexOptions.Compiled | RegexOptions.IgnoreCase,
+        TimeSpan.FromMilliseconds(150));
     
     // Alternative pattern for interrupts without exact color code matching
     private static readonly Regex InterruptPatternAlt = new(
         @"(\d{2}:\d{2}:\d{2})\s*-\s*.*?INTERRUPT.*?:\s*(.+)$",
-        RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        RegexOptions.Compiled | RegexOptions.IgnoreCase,
+        TimeSpan.FromMilliseconds(150));
 
     /// <summary>
     /// Parses a simplified log line into a ParsedCombatLogEvent.
@@ -34,13 +36,8 @@ public static class SimplifiedLogParser
         if (string.IsNullOrWhiteSpace(logLine))
             return null;
 
-        // Check for interrupt first (has special format with color codes)
-        var interruptMatch = InterruptPattern.Match(logLine);
-        if (!interruptMatch.Success)
-        {
-            interruptMatch = InterruptPatternAlt.Match(logLine);
-        }
-        if (interruptMatch.Success)
+        var interruptMatch = TryMatchInterrupt(logLine);
+        if (interruptMatch != null)
         {
             return ParseInterruptEvent(interruptMatch, baseDate);
         }
@@ -54,40 +51,19 @@ public static class SimplifiedLogParser
         var amountStr = match.Groups[3].Success ? match.Groups[3].Value : null;
         var targetStr = match.Groups[4].Success ? match.Groups[4].Value : null;
 
-        // Determine event type from details
-        string eventType;
-        if (details.Contains("healed", StringComparison.OrdinalIgnoreCase))
-            eventType = "HEAL";
-        else if (details.Contains("used", StringComparison.OrdinalIgnoreCase))
-            eventType = "DAMAGE";
-        else
+        var eventType = DetermineEventType(details);
+        if (eventType == null)
             return null;
 
-        // Parse timestamp
-        if (!TimeSpan.TryParse(timeStr, out var timeOfDay))
+        if (!TryParseTimestamp(timeStr, baseDate, out var timestamp))
             return null;
 
-        var timestamp = baseDate.Date.Add(timeOfDay);
-
-        // Parse event type
-        var parsedEventType = ParseEventType(eventType, details);
+        var parsedEventType = ParseEventType(eventType);
         if (parsedEventType == null)
             return null;
 
-        // Extract source player and spell/ability
-        var (sourceName, spellName, _) = ParseEventDetails(eventType, details, amountStr);
-
-        // Parse amount
-        int? damage = null;
-        int? healing = null;
-
-        if (!string.IsNullOrEmpty(amountStr) && int.TryParse(amountStr, out var parsedAmount))
-        {
-            if (eventType == "HEAL")
-                healing = parsedAmount;
-            else if (eventType == "DAMAGE")
-                damage = parsedAmount;
-        }
+        var (sourceName, spellName) = ParseEventDetails(eventType, details);
+        var (damage, healing) = ParseAmount(eventType, amountStr);
 
         return new ParsedCombatLogEvent
         {
@@ -99,6 +75,47 @@ public static class SimplifiedLogParser
             Damage = damage,
             Healing = healing
         };
+    }
+
+    private static Match? TryMatchInterrupt(string logLine)
+    {
+        var match = InterruptPattern.Match(logLine);
+        if (match.Success)
+            return match;
+
+        var altMatch = InterruptPatternAlt.Match(logLine);
+        return altMatch.Success ? altMatch : null;
+    }
+
+    private static string? DetermineEventType(string details)
+    {
+        if (details.Contains("healed", StringComparison.OrdinalIgnoreCase))
+            return "HEAL";
+        
+        if (details.Contains("used", StringComparison.OrdinalIgnoreCase))
+            return "DAMAGE";
+        
+        return null;
+    }
+
+    private static bool TryParseTimestamp(string timeStr, DateTime baseDate, out DateTime timestamp)
+    {
+        timestamp = DateTime.MinValue;
+        if (!TimeSpan.TryParse(timeStr, out var timeOfDay))
+            return false;
+
+        timestamp = baseDate.Date.Add(timeOfDay);
+        return true;
+    }
+
+    private static (int? damage, int? healing) ParseAmount(string eventType, string? amountStr)
+    {
+        if (string.IsNullOrEmpty(amountStr) || !int.TryParse(amountStr, out var parsedAmount))
+            return (null, null);
+
+        return eventType == "HEAL"
+            ? (null, parsedAmount)
+            : (parsedAmount, null);
     }
 
     private static ParsedCombatLogEvent? ParseInterruptEvent(Match match, DateTime baseDate)
@@ -113,7 +130,7 @@ public static class SimplifiedLogParser
         var timestamp = baseDate.Date.Add(timeOfDay);
 
         // Format: "PlayerName interrupted TargetName's SpellName"
-        var interruptMatch = Regex.Match(details, @"^(.+?)\s+interrupted\s+(.+?)'s\s+(.+?)$", RegexOptions.IgnoreCase);
+        var interruptMatch = Regex.Match(details, @"^(.+?)\s+interrupted\s+(.+?)'s\s+(.+?)$", RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(150));
         if (!interruptMatch.Success)
             return null;
 
@@ -131,7 +148,7 @@ public static class SimplifiedLogParser
         };
     }
 
-    private static string? ParseEventType(string eventType, string details)
+    private static string? ParseEventType(string eventType)
     {
         return eventType switch
         {
@@ -141,8 +158,8 @@ public static class SimplifiedLogParser
         };
     }
 
-    private static (string? sourceName, string? spellName, string? amount) ParseEventDetails(
-        string eventType, string details, string? amountStr)
+    private static (string? sourceName, string? spellName) ParseEventDetails(
+        string eventType, string details)
     {
         string? sourceName = null;
         string? spellName = null;
@@ -150,7 +167,7 @@ public static class SimplifiedLogParser
         if (eventType == "HEAL")
         {
             // Format: "PlayerName healed with SpellName for Amount"
-            var healMatch = Regex.Match(details, @"^(.+?)\s+healed\s+with\s+(.+?)(?:\s+for\s+\d+)?$", RegexOptions.IgnoreCase);
+            var healMatch = Regex.Match(details, @"^(.+?)\s+healed\s+with\s+(.+?)(?:\s+for\s+\d+)?$", RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(150));
             if (healMatch.Success)
             {
                 sourceName = healMatch.Groups[1].Value.Trim();
@@ -160,7 +177,7 @@ public static class SimplifiedLogParser
         else if (eventType == "DAMAGE")
         {
             // Format: "PlayerName used SpellName for Amount on TargetName"
-            var damageMatch = Regex.Match(details, @"^(.+?)\s+used\s+(.+?)(?:\s+for\s+\d+)?(?:\s+on\s+.+)?$", RegexOptions.IgnoreCase);
+            var damageMatch = Regex.Match(details, @"^(.+?)\s+used\s+(.+?)(?:\s+for\s+\d+)?(?:\s+on\s+.+)?$", RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(150));
             if (damageMatch.Success)
             {
                 sourceName = damageMatch.Groups[1].Value.Trim();
@@ -170,7 +187,7 @@ public static class SimplifiedLogParser
         else if (eventType == "INTERRUPT")
         {
             // Format: "PlayerName interrupted TargetName's SpellName"
-            var interruptMatch = Regex.Match(details, @"^(.+?)\s+interrupted\s+(.+?)'s\s+(.+?)$", RegexOptions.IgnoreCase);
+            var interruptMatch = Regex.Match(details, @"^(.+?)\s+interrupted\s+(.+?)'s\s+(.+?)$", RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(150));
             if (interruptMatch.Success)
             {
                 sourceName = interruptMatch.Groups[1].Value.Trim();
@@ -178,7 +195,7 @@ public static class SimplifiedLogParser
             }
         }
 
-        return (sourceName, spellName, amountStr);
+        return (sourceName, spellName);
     }
 }
 

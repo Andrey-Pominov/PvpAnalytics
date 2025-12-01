@@ -6,78 +6,75 @@ namespace PvpAnalytics.Application.Logs;
 /// <summary>
 /// Parses Lua table format combat log files.
 /// </summary>
-public static class LuaTableParser
+public static partial class LuaTableParser
 {
     /// <summary>
     /// Parses a Lua table format combat log stream and extracts match data.
     /// </summary>
     public static List<LuaMatchData> Parse(Stream stream)
     {
-        using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, leaveOpen: true);
+        using var reader =
+            new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, leaveOpen: true);
         var content = reader.ReadToEnd();
-        
+
         return ParseContent(content);
     }
 
     /// <summary>
     /// Parses Lua table content string and extracts match data.
     /// </summary>
-    public static List<LuaMatchData> ParseContent(string content)
+    private static List<LuaMatchData> ParseContent(string content)
     {
         var matches = new List<LuaMatchData>();
-        
+
         // Pattern to match a match block: { ["Logs"] = { ... }, ["StartTime"] = "...", etc. }
-        // We'll use a simpler approach: find all match blocks
-        var matchPattern = @"\{[\s\S]*?\[""Logs""\]\s*=\s*\{([\s\S]*?)\},[\s\S]*?\[""StartTime""\]\s*=\s*""([^""]+)"",[\s\S]*?\[""EndTime""\]\s*=\s*""([^""]+)"",[\s\S]*?\[""Zone""\]\s*=\s*""([^""]+)"",[\s\S]*?\[""Faction""\]\s*=\s*""([^""]+)"",[\s\S]*?\[""Mode""\]\s*=\s*""([^""]+)"",[\s\S]*?\}";
-        
-        var regex = new Regex(matchPattern, RegexOptions.Multiline);
-        var regexMatches = regex.Matches(content);
-        
+        // We'll use a simpler approach: find all match blocks using a compiled, source-generated regex.
+        var regexMatches = MatchBlockRegex().Matches(content);
+
         foreach (Match match in regexMatches)
         {
             var matchData = new LuaMatchData();
-            
+
             // Extract logs
             var logsContent = match.Groups[1].Value;
             matchData.Logs = ParseLogsArray(logsContent);
-            
+
             // Extract metadata
             matchData.StartTime = match.Groups[2].Value.Trim();
             matchData.EndTime = match.Groups[3].Value.Trim();
             matchData.Zone = match.Groups[4].Value.Trim();
             matchData.Faction = match.Groups[5].Value.Trim();
             matchData.Mode = match.Groups[6].Value.Trim();
-            
+
             matches.Add(matchData);
         }
-        
+
         // If regex didn't work, try a more manual approach
         if (matches.Count == 0)
         {
             matches = ParseManually(content);
         }
-        
+
         return matches;
     }
 
     private static List<string> ParseLogsArray(string logsContent)
     {
         var logs = new List<string>();
-        
+
         // Pattern to match log entries: "HH:mm:ss - EVENT: details"
-        var logPattern = @"""([^""]+)""";
-        var regex = new Regex(logPattern);
-        var matches = regex.Matches(logsContent);
-        
+        var matches = LogEntryRegex().Matches(logsContent);
+
         foreach (Match match in matches)
         {
-            var logLine = match.Groups[1].Value;
+            var rawLogLine = match.Groups[1].Value;
+            var logLine = UnescapeLuaString(rawLogLine);
             if (!string.IsNullOrWhiteSpace(logLine) && logLine.Contains(" - "))
             {
                 logs.Add(logLine);
             }
         }
-        
+
         return logs;
     }
 
@@ -85,117 +82,302 @@ public static class LuaTableParser
     {
         var matches = new List<LuaMatchData>();
         var lines = content.Split('\n');
-        
-        LuaMatchData? currentMatch = null;
-        var inLogsArray = false;
-        var braceDepth = 0;
-        
+        var parserState = new ManualParserState();
+
         for (int i = 0; i < lines.Length; i++)
         {
             var line = lines[i];
             var trimmedLine = line.Trim();
-            
-            // Detect start of a new match block (after PvPAnalyticsDB = {)
-            if (trimmedLine == "{" && currentMatch == null && i > 0)
-            {
-                // Check if previous line suggests this is a match entry
-                var prevLine = i > 0 ? lines[i - 1].Trim() : "";
-                if (prevLine == "PvPAnalyticsDB = {" || prevLine == "{" || prevLine.EndsWith("{"))
-                {
-                    currentMatch = new LuaMatchData();
-                    braceDepth = 1;
-                    continue;
-                }
-            }
-            
-            if (currentMatch == null) continue;
-            
-            // Track brace depth (simple counting)
-            foreach (var c in line)
-            {
-                if (c == '{') braceDepth++;
-                if (c == '}') braceDepth--;
-            }
-            
-            // Check for Logs array start
-            if (trimmedLine.Contains("[\"Logs\"]") || trimmedLine.Contains("['Logs']"))
-            {
-                inLogsArray = true;
+
+            if (TryStartNewMatch(lines, i, trimmedLine, parserState))
                 continue;
-            }
-            
-            // Collect log entries
-            if (inLogsArray)
+
+            if (parserState.CurrentMatch == null)
+                continue;
+
+            UpdateBraceDepth(line, parserState);
+            ProcessLogsArray(line, trimmedLine, parserState);
+            ExtractMetadataFields(line, parserState);
+
+            // If we've closed the current match block (brace depth back to 0),
+            // finalize this match and allow a new one to start later.
+            if (parserState is { BraceDepth: <= 0, CurrentMatch.Logs.Count: > 0 })
             {
-                var logMatch = Regex.Match(line, @"""([^""\\]*(\\.[^""\\]*)*)""");
-                if (logMatch.Success)
-                {
-                    var logLine = logMatch.Groups[1].Value.Replace("\\\"", "\"").Replace("\\\\", "\\");
-                    if (logLine.Contains(" - "))
-                    {
-                        currentMatch.Logs.Add(logLine);
-                    }
-                }
-                
-                // Check if we're done with logs array
-                if (trimmedLine == "}," || trimmedLine == "],")
-                {
-                    inLogsArray = false;
-                }
-            }
-            
-            // Extract StartTime
-            var startTimeMatch = Regex.Match(line, @"\[""StartTime""\]\s*=\s*""([^""]+)""");
-            if (startTimeMatch.Success)
-            {
-                currentMatch.StartTime = startTimeMatch.Groups[1].Value.Trim();
-            }
-            
-            // Extract EndTime
-            var endTimeMatch = Regex.Match(line, @"\[""EndTime""\]\s*=\s*""([^""]+)""");
-            if (endTimeMatch.Success)
-            {
-                currentMatch.EndTime = endTimeMatch.Groups[1].Value.Trim();
-            }
-            
-            // Extract Zone
-            var zoneMatch = Regex.Match(line, @"\[""Zone""\]\s*=\s*""([^""]+)""");
-            if (zoneMatch.Success)
-            {
-                currentMatch.Zone = zoneMatch.Groups[1].Value.Trim();
-            }
-            
-            // Extract Faction
-            var factionMatch = Regex.Match(line, @"\[""Faction""\]\s*=\s*""([^""]+)""");
-            if (factionMatch.Success)
-            {
-                currentMatch.Faction = factionMatch.Groups[1].Value.Trim();
-            }
-            
-            // Extract Mode
-            var modeMatch = Regex.Match(line, @"\[""Mode""\]\s*=\s*""([^""]+)""");
-            if (modeMatch.Success)
-            {
-                currentMatch.Mode = modeMatch.Groups[1].Value.Trim();
-            }
-            
-            // Check if match block is complete (closing brace with depth back to 0 or 1)
-            if (braceDepth <= 1 && currentMatch.Logs.Count > 0 && !string.IsNullOrEmpty(currentMatch.StartTime))
-            {
-                matches.Add(currentMatch);
-                currentMatch = null;
-                inLogsArray = false;
-                braceDepth = 0;
+                matches.Add(parserState.CurrentMatch);
+                parserState.CurrentMatch = null;
+                parserState.InLogsArray = false;
+                parserState.BraceDepth = 0;
             }
         }
-        
-        // Add last match if exists
-        if (currentMatch != null && currentMatch.Logs.Count > 0)
-        {
-            matches.Add(currentMatch);
-        }
-        
+
+        FinalizePendingMatch(parserState, matches);
         return matches;
     }
-}
 
+    private static bool TryStartNewMatch(string[] lines, int index, string trimmedLine, ManualParserState state)
+    {
+        if (trimmedLine != "{" || state.CurrentMatch != null || index == 0)
+            return false;
+
+        var prevLineRaw = lines[index - 1];
+        var commentIndex = prevLineRaw.IndexOf("--", StringComparison.Ordinal);
+        var prevLine = commentIndex >= 0
+            ? prevLineRaw[..commentIndex].Trim()
+            : prevLineRaw.Trim();
+
+        if (prevLine != "PvPAnalyticsDB = {" &&
+            prevLine != "{" &&
+            prevLine != "}," &&
+            !prevLine.EndsWith('{'))
+            return false;
+
+        state.CurrentMatch = new LuaMatchData();
+        state.BraceDepth = 1;
+        return true;
+    }
+
+    private static void UpdateBraceDepth(string line, ManualParserState state)
+    {
+        var stringState = new StringState();
+
+        for (var i = 0; i < line.Length; i++)
+        {
+            var c = line[i];
+
+            if (IsQuote(c) && ProcessQuote(line, i, c, ref stringState)) continue;
+
+
+            ProcessBrace(c, stringState.InsideString, state);
+        }
+    }
+
+    private static bool IsQuote(char c)
+    {
+        return c == '"' || c == '\'';
+    }
+
+    private static int CountPrecedingBackslashes(string line, int position)
+    {
+        var count = 0;
+        for (int j = position - 1; j >= 0 && line[j] == '\\'; j--)
+        {
+            count++;
+        }
+
+        return count;
+    }
+
+    private static bool IsQuoteEscaped(string line, int position)
+    {
+        var backslashCount = CountPrecedingBackslashes(line, position);
+        return backslashCount % 2 == 1;
+    }
+
+    private static bool ProcessQuote(string line, int position, char quoteChar, ref StringState stringState)
+    {
+        if (IsQuoteEscaped(line, position))
+        {
+            return true; // Quote is escaped, ignore it
+        }
+
+        if (!stringState.InsideString)
+        {
+            // Entering a string
+            stringState.InsideString = true;
+            stringState.StringChar = quoteChar;
+            return true;
+        }
+
+        if (quoteChar == stringState.StringChar)
+        {
+            // Exiting the string (matching quote type)
+            stringState.InsideString = false;
+            stringState.StringChar = '\0';
+            return true;
+        }
+
+        // Inside a string but quote type doesn't match, it's part of the string content
+        return true;
+    }
+
+    private static void ProcessBrace(char c, bool insideString, ManualParserState state)
+    {
+        if (insideString)
+            return;
+
+        if (c == '{')
+        {
+            state.BraceDepth++;
+        }
+        else if (c == '}')
+        {
+            state.BraceDepth--;
+        }
+    }
+
+    private struct StringState
+    {
+        public bool InsideString { get; set; }
+        public char StringChar { get; set; }
+    }
+
+    private static void ProcessLogsArray(string line, string trimmedLine, ManualParserState state)
+    {
+        if (trimmedLine.Contains("[\"Logs\"]") || trimmedLine.Contains("['Logs']"))
+        {
+            state.InLogsArray = true;
+            return;
+        }
+
+        if (!state.InLogsArray)
+            return;
+
+        ExtractLogEntry(line, state);
+
+        if (trimmedLine is "}," or "],")
+        {
+            state.InLogsArray = false;
+        }
+    }
+
+    private static void ExtractLogEntry(string line, ManualParserState state)
+    {
+        // Guard against accessing CurrentMatch when null (can occur if InLogsArray becomes true before a match starts)
+        if (state.CurrentMatch == null)
+            return;
+
+        var logMatch = MyRegex().Match(line);
+        if (!logMatch.Success)
+            return;
+
+        var rawLogLine = logMatch.Groups[1].Value;
+        var logLine = UnescapeLuaString(rawLogLine);
+        if (logLine.Contains(" - "))
+        {
+            state.CurrentMatch.Logs.Add(logLine);
+        }
+    }
+
+    /// <summary>
+    /// Unescapes a Lua-style string literal for our exported logs.
+    /// Handles at least escaped quotes (\") and escaped backslashes (\\),
+    /// while preserving all other characters as-is.
+    /// </summary>
+    private static string UnescapeLuaString(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return value;
+
+        var sb = new StringBuilder(value.Length);
+        var i = 0;
+
+        while (i < value.Length)
+        {
+            var c = value[i];
+
+            if (c == '\\' && i + 1 < value.Length)
+            {
+                var next = value[i + 1];
+                if (next == '\\')
+                {
+                    sb.Append('\\');
+                    i += 2;
+                    continue;
+                }
+
+                if (next == '\"')
+                {
+                    sb.Append('\"');
+                    i += 2;
+                    continue;
+                }
+
+                // For any other escape sequence, keep the backslash literal
+                sb.Append('\\');
+                i++;
+                continue;
+            }
+
+            sb.Append(c);
+            i++;
+        }
+
+        return sb.ToString();
+    }
+
+    private static void ExtractMetadataFields(string line, ManualParserState state)
+    {
+        if (state.CurrentMatch == null)
+            return;
+
+        ExtractField(line, MyRegex1(), value => state.CurrentMatch.StartTime = value.Trim());
+        ExtractField(line, MyRegex2(), value => state.CurrentMatch.EndTime = value.Trim());
+        ExtractField(line, MyRegex3(), value => state.CurrentMatch.Zone = value.Trim());
+        ExtractField(line, MyRegex4(), value => state.CurrentMatch.Faction = value.Trim());
+        ExtractField(line, MyRegex5(), value => state.CurrentMatch.Mode = value.Trim());
+    }
+
+    private static void ExtractField(string line, Regex regex, Action<string> setter)
+    {
+        var match = regex.Match(line);
+        if (match.Success)
+        {
+            setter(match.Groups[1].Value);
+        }
+    }
+
+    private static void FinalizePendingMatch(ManualParserState state, List<LuaMatchData> matches)
+    {
+        if (state.CurrentMatch is { Logs.Count: > 0 })
+        {
+            matches.Add(state.CurrentMatch);
+        }
+    }
+
+    private sealed class ManualParserState
+    {
+        public LuaMatchData? CurrentMatch { get; set; }
+        public bool InLogsArray { get; set; }
+        public int BraceDepth { get; set; }
+    }
+
+    [GeneratedRegex("""
+                    \{[\s\S]*?\["Logs"\]\s*=\s*\{([\s\S]*?)\},[\s\S]*?\["StartTime"\]\s*=\s*"([^"]+)",[\s\S]*?\["EndTime"\]\s*=\s*"([^"]+)",[\s\S]*?\["Zone"\]\s*=\s*"([^"]+)",[\s\S]*?\["Faction"\]\s*=\s*"([^"]+)",[\s\S]*?\["Mode"\]\s*=\s*"([^"]+)",[\s\S]*?\}
+                    """, RegexOptions.Multiline)]
+    private static partial Regex MatchBlockRegex();
+
+    [GeneratedRegex("""
+                    "([^"\\]*(\\.[^"\\]*)*)"
+                    """)]
+    private static partial Regex MyRegex();
+
+    [GeneratedRegex("""
+                    "([^"]+)"
+                    """)]
+    private static partial Regex LogEntryRegex();
+
+    [GeneratedRegex("""
+                    \["StartTime"\]\s*=\s*"([^"]+)"
+                    """)]
+    private static partial Regex MyRegex1();
+
+    [GeneratedRegex("""
+                    \["EndTime"\]\s*=\s*"([^"]+)"
+                    """)]
+    private static partial Regex MyRegex2();
+
+    [GeneratedRegex("""
+                    \["Zone"\]\s*=\s*"([^"]+)"
+                    """)]
+    private static partial Regex MyRegex3();
+
+    [GeneratedRegex("""
+                    \["Faction"\]\s*=\s*"([^"]+)"
+                    """)]
+    private static partial Regex MyRegex4();
+
+    [GeneratedRegex("""
+                    \["Mode"\]\s*=\s*"([^"]+)"
+                    """)]
+    private static partial Regex MyRegex5();
+}

@@ -67,34 +67,40 @@ const ProfileSettingsPage = () => {
         <h2 className="text-xl font-semibold mb-4">Public Profile</h2>
         <div className="flex flex-col gap-4">
           <div>
-            <label className="block text-sm font-semibold mb-2">Display Name</label>
-            <input
-              type="text"
-              value={formData.displayName || ''}
-              onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
-              className="w-full px-4 py-2 border border-accent-muted/30 rounded-lg bg-background text-text"
-              placeholder="Your display name"
-            />
+            <label className="block text-sm font-semibold">
+              <span className="block mb-2">Display Name</span>
+              <input
+                type="text"
+                value={formData.displayName || ''}
+                onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
+                className="w-full px-4 py-2 border border-accent-muted/30 rounded-lg bg-background text-text"
+                placeholder="Your display name"
+              />
+            </label>
           </div>
           <div>
-            <label className="block text-sm font-semibold mb-2">Bio</label>
-            <textarea
-              value={formData.bio || ''}
-              onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-              className="w-full px-4 py-2 border border-accent-muted/30 rounded-lg bg-background text-text"
-              placeholder="Tell us about yourself..."
-              rows={4}
-            />
+            <label className="block text-sm font-semibold">
+              <span className="block mb-2">Bio</span>
+              <textarea
+                value={formData.bio || ''}
+                onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+                className="w-full px-4 py-2 border border-accent-muted/30 rounded-lg bg-background text-text"
+                placeholder="Tell us about yourself..."
+                rows={4}
+              />
+            </label>
           </div>
           <div>
-            <label className="block text-sm font-semibold mb-2">Avatar URL</label>
-            <input
-              type="url"
-              value={formData.avatarUrl || ''}
-              onChange={(e) => setFormData({ ...formData, avatarUrl: e.target.value })}
-              className="w-full px-4 py-2 border border-accent-muted/30 rounded-lg bg-background text-text"
-              placeholder="https://example.com/avatar.jpg"
-            />
+            <label className="block text-sm font-semibold">
+              <span className="block mb-2">Avatar URL</span>
+              <input
+                type="url"
+                value={formData.avatarUrl || ''}
+                onChange={(e) => setFormData({ ...formData, avatarUrl: e.target.value })}
+                className="w-full px-4 py-2 border border-accent-muted/30 rounded-lg bg-background text-text"
+                placeholder="https://example.com/avatar.jpg"
+              />
+            </label>
           </div>
         </div>
       </Card>

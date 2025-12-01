@@ -15,13 +15,7 @@ public class KeyMomentService(PvpAnalyticsDbContext dbContext) : IKeyMomentServi
 {
     public async Task<KeyMomentDto> GetKeyMomentsForMatchAsync(long matchId, CancellationToken ct = default)
     {
-        var match = await dbContext.Matches
-            .Include(m => m.CombatLogs)
-            .ThenInclude(c => c.SourcePlayer)
-            .Include(m => m.CombatLogs)
-            .ThenInclude(c => c.TargetPlayer)
-            .FirstOrDefaultAsync(m => m.Id == matchId, ct);
-
+        var match = await LoadMatchWithCombatLogsAsync(matchId, ct);
         if (match == null)
             return new KeyMomentDto { MatchId = matchId };
 
@@ -31,70 +25,124 @@ public class KeyMomentService(PvpAnalyticsDbContext dbContext) : IKeyMomentServi
             MatchDate = match.CreatedOn
         };
 
+        var combatLogs = match.CombatLogs.OrderBy(c => c.Timestamp).ToList();
         var moments = new List<KeyMoment>();
         var matchStart = match.CreatedOn;
 
-        // Get combat logs ordered by timestamp
-        var combatLogs = match.CombatLogs.OrderBy(c => c.Timestamp).ToList();
+        moments.AddRange(DetectDeaths(combatLogs, matchStart));
+        moments.AddRange(DetectCooldowns(combatLogs, matchStart));
+        moments.AddRange(DetectCcChains(combatLogs, matchStart));
+        moments.AddRange(DetectDamageSpikes(combatLogs, matchStart));
+        
+        var ratingMoments = await DetectRatingChangesAsync(matchId, match.Duration, ct);
+        moments.AddRange(ratingMoments);
 
-        // Detect deaths (large damage spike followed by no activity from that player)
+        dto.Moments = moments.OrderBy(m => m.Timestamp).ToList();
+        return dto;
+    }
+
+    private async Task<Core.Entities.Match?> LoadMatchWithCombatLogsAsync(long matchId, CancellationToken ct)
+    {
+        return await dbContext.Matches
+            .Include(m => m.CombatLogs)
+            .ThenInclude(c => c.SourcePlayer)
+            .Include(m => m.CombatLogs)
+            .ThenInclude(c => c.TargetPlayer)
+            .FirstOrDefaultAsync(m => m.Id == matchId, ct);
+    }
+
+    private static List<KeyMoment> DetectDeaths(List<Core.Entities.CombatLogEntry> combatLogs, DateTime matchStart)
+    {
+        var moments = new List<KeyMoment>();
         var playerLastActivity = new Dictionary<long, DateTime>();
+
         foreach (var log in combatLogs)
         {
             if (log.SourcePlayerId > 0)
                 playerLastActivity[log.SourcePlayerId] = log.Timestamp;
 
-            if (log.TargetPlayerId.HasValue && log.DamageDone > 50000) // Large damage spike
-            {
-                var targetId = log.TargetPlayerId.Value;
-                var timeAfter = combatLogs
-                    .Where(c => c.Timestamp > log.Timestamp && c.Timestamp <= log.Timestamp.AddSeconds(5))
-                    .Any(c => c.SourcePlayerId == targetId);
+            if (!IsPotentialDeath(log))
+                continue;
 
-                if (!timeAfter && playerLastActivity.ContainsKey(targetId))
-                {
-                    var relativeTime = (long)(log.Timestamp - matchStart).TotalSeconds;
-                    moments.Add(new KeyMoment
-                    {
-                        Timestamp = relativeTime,
-                        EventType = "death",
-                        Description = $"{log.TargetPlayer?.Name ?? "Unknown"} died",
-                        SourcePlayerId = log.SourcePlayerId,
-                        SourcePlayerName = log.SourcePlayer?.Name,
-                        TargetPlayerId = targetId,
-                        TargetPlayerName = log.TargetPlayer?.Name,
-                        Ability = log.Ability,
-                        DamageDone = log.DamageDone,
-                        ImpactScore = 0.9,
-                        IsCritical = true
-                    });
-                }
+            var targetId = log.TargetPlayerId!.Value;
+            // Note: Deaths may be missed for players who never act as a source (e.g., killed very early,
+            // AFK/disconnected players). This check requires the target player to have previously acted
+            // as a source (tracked in playerLastActivity). In typical PvP scenarios this is acceptable
+            // as such players aren't really participating, but it's worth noting this limitation.
+            if (IsPlayerInactiveAfterDamage(combatLogs, log, targetId) && playerLastActivity.ContainsKey(targetId))
+            {
+                moments.Add(CreateDeathMoment(log, matchStart));
             }
         }
 
-        // Detect major cooldowns
+        return moments;
+    }
+
+    private static bool IsPotentialDeath(Core.Entities.CombatLogEntry log)
+    {
+        return log.TargetPlayerId.HasValue && log.DamageDone > 50000;
+    }
+
+    private static bool IsPlayerInactiveAfterDamage(
+        List<Core.Entities.CombatLogEntry> combatLogs,
+        Core.Entities.CombatLogEntry log,
+        long targetId)
+    {
+        return !combatLogs
+            .Where(c => c.Timestamp > log.Timestamp && c.Timestamp <= log.Timestamp.AddSeconds(5))
+            .Any(c => c.SourcePlayerId == targetId);
+    }
+
+    private static KeyMoment CreateDeathMoment(Core.Entities.CombatLogEntry log, DateTime matchStart)
+    {
+        var relativeTime = (long)(log.Timestamp - matchStart).TotalSeconds;
+        return new KeyMoment
+        {
+            Timestamp = relativeTime,
+            EventType = "death",
+            Description = $"{log.TargetPlayer?.Name ?? "Unknown"} died",
+            SourcePlayerId = log.SourcePlayerId,
+            SourcePlayerName = log.SourcePlayer?.Name,
+            TargetPlayerId = log.TargetPlayerId!.Value,
+            TargetPlayerName = log.TargetPlayer?.Name,
+            Ability = log.Ability,
+            DamageDone = log.DamageDone,
+            ImpactScore = 0.9,
+            IsCritical = true
+        };
+    }
+
+    private static List<KeyMoment> DetectCooldowns(List<Core.Entities.CombatLogEntry> combatLogs, DateTime matchStart)
+    {
+        var moments = new List<KeyMoment>();
+
         foreach (var log in combatLogs)
         {
-            if (ImportantAbilities.IsCooldownOrDefensive(log.Ability))
+            if (!ImportantAbilities.IsCooldownOrDefensive(log.Ability))
+                continue;
+
+            var relativeTime = (long)(log.Timestamp - matchStart).TotalSeconds;
+            moments.Add(new KeyMoment
             {
-                var relativeTime = (long)(log.Timestamp - matchStart).TotalSeconds;
-                moments.Add(new KeyMoment
-                {
-                    Timestamp = relativeTime,
-                    EventType = "cooldown",
-                    Description = $"{log.SourcePlayer?.Name ?? "Unknown"} used {log.Ability}",
-                    SourcePlayerId = log.SourcePlayerId,
-                    SourcePlayerName = log.SourcePlayer?.Name,
-                    TargetPlayerId = log.TargetPlayerId,
-                    TargetPlayerName = log.TargetPlayer?.Name,
-                    Ability = log.Ability,
-                    ImpactScore = 0.7,
-                    IsCritical = false
-                });
-            }
+                Timestamp = relativeTime,
+                EventType = "cooldown",
+                Description = $"{log.SourcePlayer?.Name ?? "Unknown"} used {log.Ability}",
+                SourcePlayerId = log.SourcePlayerId,
+                SourcePlayerName = log.SourcePlayer?.Name,
+                TargetPlayerId = log.TargetPlayerId,
+                TargetPlayerName = log.TargetPlayer?.Name,
+                Ability = log.Ability,
+                ImpactScore = 0.7,
+                IsCritical = false
+            });
         }
 
-        // Detect CC chains (multiple CCs in quick succession)
+        return moments;
+    }
+
+    private static List<KeyMoment> DetectCcChains(List<Core.Entities.CombatLogEntry> combatLogs, DateTime matchStart)
+    {
+        var moments = new List<KeyMoment>();
         var ccLogs = combatLogs
             .Where(c => !string.IsNullOrWhiteSpace(c.CrowdControl))
             .OrderBy(c => c.Timestamp)
@@ -106,29 +154,42 @@ public class KeyMomentService(PvpAnalyticsDbContext dbContext) : IKeyMomentServi
             var next = ccLogs[i + 1];
             var timeDiff = (next.Timestamp - current.Timestamp).TotalSeconds;
 
-            if (timeDiff <= 3 && current.TargetPlayerId == next.TargetPlayerId) // CC chain
+            if (IsCcChain(current, next, timeDiff))
             {
-                var relativeTime = (long)(current.Timestamp - matchStart).TotalSeconds;
-                moments.Add(new KeyMoment
-                {
-                    Timestamp = relativeTime,
-                    EventType = "cc_chain",
-                    Description = $"CC chain on {current.TargetPlayer?.Name ?? "Unknown"}",
-                    SourcePlayerId = current.SourcePlayerId,
-                    SourcePlayerName = current.SourcePlayer?.Name,
-                    TargetPlayerId = current.TargetPlayerId,
-                    TargetPlayerName = current.TargetPlayer?.Name,
-                    CrowdControl = current.CrowdControl,
-                    ImpactScore = 0.8,
-                    IsCritical = true
-                });
+                moments.Add(CreateCcChainMoment(current, matchStart));
             }
         }
 
-        // Detect damage spikes
-        var damageSpikes = combatLogs
-            .Where(c => c.DamageDone > 100000) // Very large damage
-            .ToList();
+        return moments;
+    }
+
+    private static bool IsCcChain(Core.Entities.CombatLogEntry current, Core.Entities.CombatLogEntry next, double timeDiff)
+    {
+        return timeDiff <= 3 && current.TargetPlayerId == next.TargetPlayerId;
+    }
+
+    private static KeyMoment CreateCcChainMoment(Core.Entities.CombatLogEntry current, DateTime matchStart)
+    {
+        var relativeTime = (long)(current.Timestamp - matchStart).TotalSeconds;
+        return new KeyMoment
+        {
+            Timestamp = relativeTime,
+            EventType = "cc_chain",
+            Description = $"CC chain on {current.TargetPlayer?.Name ?? "Unknown"}",
+            SourcePlayerId = current.SourcePlayerId,
+            SourcePlayerName = current.SourcePlayer?.Name,
+            TargetPlayerId = current.TargetPlayerId,
+            TargetPlayerName = current.TargetPlayer?.Name,
+            CrowdControl = current.CrowdControl,
+            ImpactScore = 0.8,
+            IsCritical = true
+        };
+    }
+
+    private static List<KeyMoment> DetectDamageSpikes(List<Core.Entities.CombatLogEntry> combatLogs, DateTime matchStart)
+    {
+        var moments = new List<KeyMoment>();
+        var damageSpikes = combatLogs.Where(c => c.DamageDone > 100000).ToList();
 
         foreach (var spike in damageSpikes)
         {
@@ -149,34 +210,46 @@ public class KeyMomentService(PvpAnalyticsDbContext dbContext) : IKeyMomentServi
             });
         }
 
-        // Get rating changes from match results
+        return moments;
+    }
+
+    private async Task<List<KeyMoment>> DetectRatingChangesAsync(
+        long matchId,
+        long matchDurationSeconds,
+        CancellationToken ct)
+    {
+        var moments = new List<KeyMoment>();
         var matchResults = await dbContext.MatchResults
             .Where(mr => mr.MatchId == matchId)
+            .Include(mr => mr.Player)
             .ToListAsync(ct);
 
         foreach (var result in matchResults)
         {
             var ratingChange = result.RatingAfter - result.RatingBefore;
-            if (Math.Abs(ratingChange) >= 10) // Significant rating change
+            if (Math.Abs(ratingChange) >= 10)
             {
-                var relativeTime = (long)(match.CreatedOn - matchStart).TotalSeconds;
-                moments.Add(new KeyMoment
-                {
-                    Timestamp = relativeTime,
-                    EventType = "rating_change",
-                    Description = $"{result.Player?.Name ?? "Unknown"} {(ratingChange > 0 ? "gained" : "lost")} {Math.Abs(ratingChange)} rating",
-                    TargetPlayerId = result.PlayerId,
-                    ImpactScore = Math.Min(Math.Abs(ratingChange) / 50.0, 1.0),
-                    IsCritical = Math.Abs(ratingChange) >= 20
-                });
+                moments.Add(CreateRatingChangeMoment(result, ratingChange, matchDurationSeconds));
             }
         }
 
-        dto.Moments = moments
-            .OrderBy(m => m.Timestamp)
-            .ToList();
+        return moments;
+    }
 
-        return dto;
+    private static KeyMoment CreateRatingChangeMoment(
+        Core.Entities.MatchResult result,
+        int ratingChange,
+        long matchDurationSeconds)
+    {
+        return new KeyMoment
+        {
+            Timestamp = matchDurationSeconds,
+            EventType = "rating_change",
+            Description = $"{result.Player?.Name ?? "Unknown"} {(ratingChange > 0 ? "gained" : "lost")} {Math.Abs(ratingChange)} rating",
+            TargetPlayerId = result.PlayerId,
+            ImpactScore = Math.Min(Math.Abs(ratingChange) / 50.0, 1.0),
+            IsCritical = Math.Abs(ratingChange) >= 20
+        };
     }
 
     public async Task<PlayerKeyMomentsDto> GetRecentKeyMomentsAsync(long playerId, int limit = 10, CancellationToken ct = default)

@@ -1,13 +1,15 @@
+import { getSecureRandomFloat, getSecureRandomInt } from '../utils/secureRandom'
+
 const generateSessions = () => {
   const sessions = []
   const startDate = new Date('2025-11-18T14:00:00Z')
   
   for (let i = 0; i < 8; i++) {
     const sessionStart = new Date(startDate.getTime() + i * 2 * 60 * 60 * 1000)
-    const matchCount = Math.floor(Math.random() * 5) + 3 // 3-7 matches
-    const wins = Math.floor(matchCount * (0.5 + Math.random() * 0.3)) // 50-80% win rate
-    const ratingStart = 2200 + Math.floor(Math.random() * 200)
-    const ratingChange = Math.floor(Math.random() * 60) - 30 // -30 to +30
+    const matchCount = getSecureRandomInt(3, 8) // 3-7 matches
+    const wins = Math.floor(matchCount * (0.5 + getSecureRandomFloat() * 0.3)) // 50-80% win rate
+    const ratingStart = 2200 + getSecureRandomInt(0, 200)
+    const ratingChange = getSecureRandomInt(-30, 31) // -30 to +30
     const ratingEnd = ratingStart + ratingChange
     
     const sessionEnd = new Date(sessionStart.getTime() + matchCount * 5 * 60 * 1000)
@@ -29,7 +31,7 @@ const generateSessions = () => {
       ratingStart: ratingStart,
       ratingEnd: ratingEnd,
       ratingChange: ratingChange,
-      averageMatchDuration: 280 + Math.floor(Math.random() * 40),
+      averageMatchDuration: 280 + getSecureRandomInt(0, 40),
       dayOfWeek: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][sessionStart.getDay()],
       hourOfDay: sessionStart.getHours()
     })

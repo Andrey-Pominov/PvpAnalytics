@@ -1,10 +1,12 @@
+import { getSecureRandomInt } from '../utils/secureRandom'
+
 const generateRatingDataPoints = () => {
   const points = []
   let currentRating = 1800
   const startDate = new Date('2025-10-01')
   
   for (let i = 0; i < 50; i++) {
-    const ratingChange = Math.floor(Math.random() * 40) - 20 // -20 to +20
+    const ratingChange = getSecureRandomInt(-20, 21) // -20 to +20
     const newRating = Math.max(1500, Math.min(2800, currentRating + ratingChange))
     const isWinner = ratingChange > 0
     

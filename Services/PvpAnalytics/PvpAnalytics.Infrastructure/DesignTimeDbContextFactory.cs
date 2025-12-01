@@ -22,11 +22,15 @@ public class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<PvpAnalyti
             .Build();
 
         var connectionString = configuration.GetConnectionString("DefaultConnection");
-        
-        // Use a dummy connection string if not found, as it's only for design-time context creation
+
+        // Fallback for design-time only: use an environment-driven connection string,
+        // or a local trust-based connection string without an embedded password.
         if (string.IsNullOrEmpty(connectionString))
         {
-            connectionString = "Host=localhost;Port=5432;Database=PvpAnalytics_DesignTime;Username=postgres;Password=postgres";
+            var designTimeFromEnv = Environment.GetEnvironmentVariable("PVPANALYTICS_DESIGNTIME_CONNECTION");
+            connectionString = !string.IsNullOrWhiteSpace(designTimeFromEnv)
+                ? designTimeFromEnv
+                : "Host=localhost;Port=5432;Database=PvpAnalytics_DesignTime;Username=postgres";
         }
 
         var optionsBuilder = new DbContextOptionsBuilder<PvpAnalyticsDbContext>();

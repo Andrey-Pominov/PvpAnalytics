@@ -106,7 +106,7 @@ if (!skipMigrations)
         try
         {
             logger.LogInformation("Attempting to apply database migrations (attempt {Attempt}/{MaxRetries})...", i + 1, maxRetries);
-            db.Database.Migrate();
+            await db.Database.MigrateAsync();
             logger.LogInformation("Database migrations applied successfully.");
             break;
         }
@@ -131,7 +131,7 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-app.Run();
+await app.RunAsync();
 
 static string GetServiceEndpoint(IConfiguration configuration)
 {

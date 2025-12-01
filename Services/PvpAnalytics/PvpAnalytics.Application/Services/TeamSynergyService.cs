@@ -15,161 +15,324 @@ public class TeamSynergyService(PvpAnalyticsDbContext dbContext) : ITeamSynergyS
 {
     public async Task<TeamSynergyDto?> GetTeamSynergyAsync(long teamId, CancellationToken ct = default)
     {
-        var team = await dbContext.Teams
-            .Include(t => t.Members)
-                .ThenInclude(m => m.Player)
-            .FirstOrDefaultAsync(t => t.Id == teamId, ct);
-
+        var team = await LoadTeamAsync(teamId, ct);
         if (team == null || team.Members.Count < 2)
             return null;
 
         var memberIds = team.Members.Select(m => m.PlayerId).ToList();
         var playerDict = team.Members.ToDictionary(m => m.PlayerId, m => m.Player);
 
-        var teamMatches = await dbContext.TeamMatches
+        var teamMatches = await LoadTeamMatchesAsync(teamId, ct);
+        var matchData = await LoadMatchDataAsync(memberIds, ct);
+
+        var partnerSynergies = CalculatePartnerSynergies(memberIds, playerDict, matchData);
+        var mapWinRates = CalculateMapWinRates(teamMatches);
+        var compositionWinRates = CalculateCompositionWinRates(team, teamMatches);
+        var overallScore = CalculateOverallScore(partnerSynergies);
+
+        return CreateTeamSynergyDto(team, partnerSynergies, mapWinRates, compositionWinRates, overallScore);
+    }
+
+    private async Task<Team?> LoadTeamAsync(long teamId, CancellationToken ct)
+    {
+        return await dbContext.Teams
+            .Include(t => t.Members)
+                .ThenInclude(m => m.Player)
+            .FirstOrDefaultAsync(t => t.Id == teamId, ct);
+    }
+
+    private async Task<List<TeamMatch>> LoadTeamMatchesAsync(long teamId, CancellationToken ct)
+    {
+        return await dbContext.TeamMatches
             .Include(tm => tm.Match)
             .Where(tm => tm.TeamId == teamId)
             .ToListAsync(ct);
+    }
 
+    private async Task<TeamSynergyMatchData> LoadMatchDataAsync(List<long> memberIds, CancellationToken ct)
+    {
         var allMatchResults = await dbContext.MatchResults
             .Where(mr => memberIds.Contains(mr.PlayerId))
-            .Select(mr => new
+            .Select(mr => new TeamSynergyMatchResultData
             {
-                mr.MatchId,
-                mr.PlayerId,
-                mr.Team,
-                mr.IsWinner,
-                mr.RatingBefore
+                MatchId = mr.MatchId,
+                PlayerId = mr.PlayerId,
+                Team = mr.Team,
+                IsWinner = mr.IsWinner,
+                RatingBefore = mr.RatingBefore
             })
             .ToListAsync(ct);
 
         var matchResultsByMatchAndTeam = allMatchResults
-            .GroupBy(mr => new { mr.MatchId, mr.Team })
+            .GroupBy(mr => new MatchTeamKey { MatchId = mr.MatchId, Team = mr.Team })
             .ToDictionary(g => g.Key, g => g.ToList());
 
-        var partnerSynergies = new List<PartnerSynergyDto>();
-        for (int i = 0; i < memberIds.Count; i++)
+        return new TeamSynergyMatchData
         {
-            for (int j = i + 1; j < memberIds.Count; j++)
+            AllMatchResults = allMatchResults,
+            MatchResultsByMatchAndTeam = matchResultsByMatchAndTeam
+        };
+    }
+
+    private static List<PartnerSynergyDto> CalculatePartnerSynergies(
+        List<long> memberIds,
+        Dictionary<long, Player> playerDict,
+        TeamSynergyMatchData matchData)
+    {
+        var partnerSynergies = new List<PartnerSynergyDto>();
+
+        for (var i = 0; i < memberIds.Count; i++)
+        {
+            for (var j = i + 1; j < memberIds.Count; j++)
             {
                 var player1Id = memberIds[i];
                 var player2Id = memberIds[j];
-                
-                if (!playerDict.TryGetValue(player1Id, out var player1) || 
-                    !playerDict.TryGetValue(player2Id, out var player2))
+
+                if (!TryGetPlayers(playerDict, player1Id, player2Id, out var player1, out var player2))
                     continue;
 
-                var player1Matches = allMatchResults
-                    .Where(mr => mr.PlayerId == player1Id)
-                    .Select(mr => new { mr.MatchId, mr.Team })
-                    .Distinct()
-                    .ToList();
-
-                var player2Matches = allMatchResults
-                    .Where(mr => mr.PlayerId == player2Id)
-                    .Select(mr => new { mr.MatchId, mr.Team })
-                    .Distinct()
-                    .ToList();
-
-                var togetherMatches = player1Matches
-                    .Join(player2Matches,
-                        p1 => new { p1.MatchId, p1.Team },
-                        p2 => new { p2.MatchId, p2.Team },
-                        (p1, p2) => p1.MatchId)
-                    .Distinct()
-                    .ToList();
-
-                if (!togetherMatches.Any())
-                {
-                    partnerSynergies.Add(new PartnerSynergyDto
-                    {
-                        Player1Id = player1Id,
-                        Player1Name = player1.Name,
-                        Player2Id = player2Id,
-                        Player2Name = player2.Name,
-                        MatchesTogether = 0,
-                        WinsTogether = 0,
-                        WinRateTogether = 0.0,
-                        AverageRatingTogether = 0.0,
-                        SynergyScore = 0.0
-                    });
-                    continue;
-                }
-
-                var wins = 0;
-                var totalRating = 0.0;
-                var ratingCount = 0;
-
-                foreach (var matchId in togetherMatches)
-                {
-                    var player1Result = allMatchResults.FirstOrDefault(mr => 
-                        mr.MatchId == matchId && mr.PlayerId == player1Id);
-                    if (player1Result == null) continue;
-
-                    var teamName = player1Result.Team;
-                    var matchKey = new { MatchId = matchId, Team = teamName };
-                    
-                    if (matchResultsByMatchAndTeam.TryGetValue(matchKey, out var matchResults))
-                    {
-                        if (matchResults.Any(mr => mr.IsWinner))
-                            wins++;
-
-                        var matchRatings = matchResults
-                            .Where(mr => mr.PlayerId == player1Id || mr.PlayerId == player2Id)
-                            .Select(mr => (double)mr.RatingBefore)
-                            .ToList();
-                        
-                        if (matchRatings.Any())
-                        {
-                            totalRating += matchRatings.Average();
-                            ratingCount++;
-                        }
-                    }
-                }
-
-                var avgRating = ratingCount > 0 ? totalRating / ratingCount : 0.0;
-                var winRate = togetherMatches.Count > 0
-                    ? Math.Round(wins * 100.0 / togetherMatches.Count, 2)
-                    : 0.0;
-                var synergyScore = CalculateSynergyScore(wins, togetherMatches.Count);
-
-                partnerSynergies.Add(new PartnerSynergyDto
-                {
-                    Player1Id = player1Id,
-                    Player1Name = player1.Name,
-                    Player2Id = player2Id,
-                    Player2Name = player2.Name,
-                    MatchesTogether = togetherMatches.Count,
-                    WinsTogether = wins,
-                    WinRateTogether = winRate,
-                    AverageRatingTogether = Math.Round(avgRating, 0),
-                    SynergyScore = synergyScore
-                });
+                var synergy = CalculatePartnerSynergy(
+                    player1Id, player1, player2Id, player2, matchData);
+                partnerSynergies.Add(synergy);
             }
         }
 
-        var mapWinRates = teamMatches
-            .GroupBy(tm => tm.Match.MapName)
-            .ToDictionary(
-                g => g.Key,
-                g => g.Count() > 0 ? Math.Round(g.Count(tm => tm.IsWin) * 100.0 / g.Count(), 2)                 : 0.0
-            );
+        return partnerSynergies;
+    }
 
-        var compositionWinRates = new Dictionary<string, double>();
-        if (team.Members.Any())
+    private static bool TryGetPlayers(
+        Dictionary<long, Player> playerDict,
+        long player1Id,
+        long player2Id,
+        out Player player1,
+        out Player player2)
+    {
+        if (playerDict.TryGetValue(player1Id, out player1!) &&
+            playerDict.TryGetValue(player2Id, out player2!))
         {
-            var classes = team.Members.Select(m => m.Player.Class).OrderBy(c => c).ToList();
-            var composition = string.Join("-", classes);
-            var compMatches = teamMatches;
-            compositionWinRates[composition] = compMatches.Count > 0
-                ? Math.Round(compMatches.Count(tm => tm.IsWin) * 100.0 / compMatches.Count, 2)
-                : 0.0;
+            return true;
         }
 
-        var overallScore = partnerSynergies.Any()
-            ? Math.Round(partnerSynergies.Average(p => p.SynergyScore), 2)
+        player1 = null!;
+        player2 = null!;
+        return false;
+    }
+
+    private static PartnerSynergyDto CalculatePartnerSynergy(
+        long player1Id,
+        Player player1,
+        long player2Id,
+        Player player2,
+        TeamSynergyMatchData matchData)
+    {
+        var togetherMatches = FindMatchesTogether(player1Id, player2Id, matchData.AllMatchResults);
+
+        PlayerInfo? player1Info;
+        PlayerInfo? player2Info;
+        if (togetherMatches.Count == 0)
+        {
+            player1Info = new PlayerInfo(player1Id, player1.Name);
+            player2Info = new PlayerInfo(player2Id, player2.Name);
+            return CreateEmptyPartnerSynergy(player1Info, player2Info);
+        }
+
+        var stats = CalculateMatchStatsTogether(
+            player1Id, player2Id, togetherMatches, matchData);
+        var synergyScore = CalculateSynergyScore(stats.Wins, togetherMatches.Count);
+
+        player1Info = new PlayerInfo(player1Id, player1.Name);
+        player2Info = new PlayerInfo(player2Id, player2.Name);
+        var synergyStats = new SynergyStats(togetherMatches.Count, stats.Wins, stats.WinRate, stats.AverageRating, synergyScore);
+        
+        return CreatePartnerSynergyDto(player1Info, player2Info, synergyStats);
+    }
+
+    private static List<long> FindMatchesTogether(
+        long player1Id,
+        long player2Id,
+        List<TeamSynergyMatchResultData> allMatchResults)
+    {
+        var player1Matches = allMatchResults
+            .Where(mr => mr.PlayerId == player1Id)
+            .Select(mr => new { mr.MatchId, mr.Team })
+            .Distinct()
+            .ToList();
+
+        var player2Matches = allMatchResults
+            .Where(mr => mr.PlayerId == player2Id)
+            .Select(mr => new { mr.MatchId, mr.Team })
+            .Distinct()
+            .ToList();
+
+        return player1Matches
+            .Join(player2Matches,
+                p1 => new { p1.MatchId, p1.Team },
+                p2 => new { p2.MatchId, p2.Team },
+                (p1, _) => p1.MatchId)
+            .Distinct()
+            .ToList();
+    }
+
+    private static MatchStatsTogether CalculateMatchStatsTogether(
+        long player1Id,
+        long player2Id,
+        List<long> togetherMatches,
+        TeamSynergyMatchData matchData)
+    {
+        var wins = 0;
+        var totalRating = 0.0;
+        var ratingCount = 0;
+
+        foreach (var matchStats in togetherMatches.Select(matchId => GetMatchStatsForPlayers(
+                     matchId, player1Id, player2Id, matchData)).Where(matchStats => matchStats.HasData))
+        {
+            if (matchStats.IsWin)
+                wins++;
+
+            if (!matchStats.HasRating) continue;
+            totalRating += matchStats.AverageRating;
+            ratingCount++;
+        }
+
+        var avgRating = ratingCount > 0 ? totalRating / ratingCount : 0.0;
+        var winRate = togetherMatches.Count > 0
+            ? Math.Round(wins * 100.0 / togetherMatches.Count, 2)
             : 0.0;
 
+        return new MatchStatsTogether
+        {
+            Wins = wins,
+            WinRate = winRate,
+            AverageRating = avgRating
+        };
+    }
+
+    private static MatchStatsForPlayers GetMatchStatsForPlayers(
+        long matchId,
+        long player1Id,
+        long player2Id,
+        TeamSynergyMatchData matchData)
+    {
+        var player1Result = matchData.AllMatchResults.FirstOrDefault(mr =>
+            mr.MatchId == matchId && mr.PlayerId == player1Id);
+        
+        if (player1Result == null)
+            return new MatchStatsForPlayers { HasData = false };
+
+        var matchKey = new MatchTeamKey { MatchId = matchId, Team = player1Result.Team };
+        
+        if (!matchData.MatchResultsByMatchAndTeam.TryGetValue(matchKey, out var matchResults))
+            return new MatchStatsForPlayers { HasData = false };
+
+        var isWin = matchResults.Any(mr => mr.IsWinner);
+        var matchRatings = matchResults
+            .Where(mr => mr.PlayerId == player1Id || mr.PlayerId == player2Id)
+            .Select(mr => (double)mr.RatingBefore)
+            .ToList();
+
+        var hasRating = matchRatings.Count != 0;
+        var avgRating = hasRating ? matchRatings.Average() : 0.0;
+
+        return new MatchStatsForPlayers
+        {
+            HasData = true,
+            IsWin = isWin,
+            HasRating = hasRating,
+            AverageRating = avgRating
+        };
+    }
+
+    private static PartnerSynergyDto CreateEmptyPartnerSynergy(
+        PlayerInfo player1, PlayerInfo player2)
+    {
+        return new PartnerSynergyDto
+        {
+            Player1Id = player1.Id,
+            Player1Name = player1.Name,
+            Player2Id = player2.Id,
+            Player2Name = player2.Name,
+            MatchesTogether = 0,
+            WinsTogether = 0,
+            WinRateTogether = 0.0,
+            AverageRatingTogether = 0.0,
+            SynergyScore = 0.0
+        };
+    }
+
+    private static PartnerSynergyDto CreatePartnerSynergyDto(
+        PlayerInfo player1, PlayerInfo player2, SynergyStats stats)
+    {
+        return new PartnerSynergyDto
+        {
+            Player1Id = player1.Id,
+            Player1Name = player1.Name,
+            Player2Id = player2.Id,
+            Player2Name = player2.Name,
+            MatchesTogether = stats.MatchesTogether,
+            WinsTogether = stats.Wins,
+            WinRateTogether = stats.WinRate,
+            AverageRatingTogether = Math.Round(stats.AverageRating, 0),
+            SynergyScore = stats.SynergyScore
+        };
+    }
+
+    private sealed record PlayerInfo(long Id, string Name);
+
+    private sealed record SynergyStats(
+        int MatchesTogether,
+        int Wins,
+        double WinRate,
+        double AverageRating,
+        double SynergyScore);
+
+    private static Dictionary<string, double> CalculateMapWinRates(List<TeamMatch> teamMatches)
+    {
+        return teamMatches
+            .GroupBy(tm => tm.Match.MapName)
+            .ToDictionary<IGrouping<string, TeamMatch>, string, double>(
+                g => g.Key,
+                g =>
+                {
+                    var total = g.Count();
+                    if (total == 0)
+                        return 0.0;
+                    var wins = g.Count(tm => tm.IsWin);
+                    return Math.Round(wins * 100.0 / total, 2);
+                }
+            );
+    }
+
+    private static Dictionary<string, double> CalculateCompositionWinRates(
+        Team team, List<TeamMatch> teamMatches)
+    {
+        var compositionWinRates = new Dictionary<string, double>();
+        
+        if (team.Members.Count == 0)
+            return compositionWinRates;
+
+        var classes = team.Members.Select(m => m.Player.Class).OrderBy(c => c).ToList();
+        var composition = string.Join("-", classes);
+        compositionWinRates[composition] = teamMatches.Count > 0
+            ? Math.Round(teamMatches.Count(tm => tm.IsWin) * 100.0 / teamMatches.Count, 2)
+            : 0.0;
+
+        return compositionWinRates;
+    }
+
+    private static double CalculateOverallScore(List<PartnerSynergyDto> partnerSynergies)
+    {
+        return partnerSynergies.Count != 0
+            ? Math.Round(partnerSynergies.Average(p => p.SynergyScore), 2)
+            : 0.0;
+    }
+
+    private static TeamSynergyDto CreateTeamSynergyDto(
+        Team team,
+        List<PartnerSynergyDto> partnerSynergies,
+        Dictionary<string, double> mapWinRates,
+        Dictionary<string, double> compositionWinRates,
+        double overallScore)
+    {
         return new TeamSynergyDto
         {
             TeamId = team.Id,
@@ -203,11 +366,11 @@ public class TeamSynergyService(PvpAnalyticsDbContext dbContext) : ITeamSynergyS
             .Join(player2Matches,
                 p1 => new { p1.MatchId, p1.Team },
                 p2 => new { p2.MatchId, p2.Team },
-                (p1, p2) => p1.MatchId)
+                (p1, _) => p1.MatchId)
             .Distinct()
             .ToList();
 
-        if (!togetherMatches.Any())
+        if (togetherMatches.Count == 0)
         {
             return new PartnerSynergyDto
             {
@@ -267,5 +430,53 @@ public class TeamSynergyService(PvpAnalyticsDbContext dbContext) : ITeamSynergyS
         var matchBonus = Math.Min(totalMatches / 10.0, 10); // Cap bonus at 10
         return Math.Round(baseScore + matchBonus, 2);
     }
+}
+
+internal class TeamSynergyMatchData
+{
+    public required List<TeamSynergyMatchResultData> AllMatchResults { get; init; }
+    public required Dictionary<MatchTeamKey, List<TeamSynergyMatchResultData>> MatchResultsByMatchAndTeam { get; init; }
+}
+
+internal class MatchTeamKey
+{
+    public long MatchId { get; init; }
+    public string Team { get; init; } = string.Empty;
+
+    public override bool Equals(object? obj)
+    {
+        return obj is MatchTeamKey other &&
+               MatchId == other.MatchId &&
+               Team == other.Team;
+    }
+
+    public override int GetHashCode()
+    {
+        return HashCode.Combine(MatchId, Team);
+    }
+}
+
+internal class TeamSynergyMatchResultData
+{
+    public long MatchId { get; init; }
+    public long PlayerId { get; init; }
+    public string Team { get; init; } = string.Empty;
+    public bool IsWinner { get; init; }
+    public int RatingBefore { get; init; }
+}
+
+internal class MatchStatsTogether
+{
+    public int Wins { get; init; }
+    public double WinRate { get; init; }
+    public double AverageRating { get; init; }
+}
+
+internal class MatchStatsForPlayers
+{
+    public bool HasData { get; init; }
+    public bool IsWin { get; init; }
+    public bool HasRating { get; init; }
+    public double AverageRating { get; init; }
 }
 

@@ -18,61 +18,124 @@ const MatchDetailPage = () => {
     if (!id) return
 
     const abortController = new AbortController()
-    const matchId = parseInt(id, 10)
+    const matchId = Number.parseInt(id, 10)
 
     const loadMatchDetail = async () => {
       setLoading(true)
       setError(null)
+      
       try {
-        const baseUrl = import.meta.env.VITE_ANALYTICS_API_BASE_URL || 'http://localhost:8080/api'
-
-        if (baseUrl === 'mock') {
-          await new Promise((resolve) => setTimeout(resolve, 500))
-          if (abortController.signal.aborted) return
-
-          const mockDetail = mockMatchDetails[matchId]
-          if (!mockDetail) {
-            setError('Match not found')
-            return
-          }
-
-          setMatchDetail(mockDetail)
+        if (await loadMockDataIfNeeded(abortController, matchId)) {
           return
         }
 
-        const { data } = await axios.get<MatchDetailDto>(`${baseUrl}/matches/${matchId}/detail`, {
-          signal: abortController.signal,
-        })
-        if (abortController.signal.aborted) return
-        setMatchDetail(data)
+        await loadApiData(abortController, matchId)
       } catch (err) {
-        if (abortController.signal.aborted) return
-        if (axios.isCancel(err) || (err as Error).name === 'CanceledError') return
-
-        if (axios.isAxiosError(err) && err.response?.status === 404) {
-          setError('Match not found')
-          // Try mock data as fallback
-          const mockDetail = mockMatchDetails[matchId]
-          if (mockDetail) {
-            setMatchDetail(mockDetail)
-            setError(null)
-          }
-        } else {
-          console.error('Failed to load match detail, using mock data', err)
-          // Use mock data as fallback
-          const mockDetail = mockMatchDetails[matchId]
-          if (mockDetail) {
-            setMatchDetail(mockDetail)
-            setError(null)
-          } else {
-            setError('Failed to load match detail. Please try again later.')
-          }
-        }
+        handleLoadError(err, abortController, matchId)
       } finally {
-        if (!abortController.signal.aborted) {
-          setLoading(false)
-        }
+        finalizeLoading(abortController)
       }
+    }
+
+    const loadMockDataIfNeeded = async (
+      abortController: AbortController,
+      matchId: number
+    ): Promise<boolean> => {
+      const baseUrl = getBaseUrl()
+      if (baseUrl !== 'mock') {
+        return false
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      if (abortController.signal.aborted) return true
+
+      const mockDetail = mockMatchDetails[matchId]
+      if (!mockDetail) {
+        setError('Match not found')
+        return true
+      }
+
+      setMatchDetail(mockDetail)
+      return true
+    }
+
+    const loadApiData = async (
+      abortController: AbortController,
+      matchId: number
+    ): Promise<void> => {
+      const baseUrl = getBaseUrl()
+      const { data } = await axios.get<MatchDetailDto>(`${baseUrl}/matches/${matchId}/detail`, {
+        signal: abortController.signal,
+      })
+      
+      if (abortController.signal.aborted) return
+      setMatchDetail(data)
+    }
+
+    const handleLoadError = (
+      err: unknown,
+      abortController: AbortController,
+      matchId: number
+    ): void => {
+      if (abortController.signal.aborted) return
+      if (isCanceledError(err)) return
+
+      if (isNotFoundError(err)) {
+        handleNotFoundError(matchId)
+      } else {
+        handleGenericError(err, matchId)
+      }
+    }
+
+    const isCanceledError = (err: unknown): boolean => {
+      if (axios.isCancel(err)) {
+        return true
+      }
+      if (err instanceof Error && err.name === 'CanceledError') {
+        return true
+      }
+      if (typeof err === 'object' && err !== null && 'name' in err && (err as any).name === 'CanceledError') {
+        return true
+      }
+      return false
+    }
+
+    const isNotFoundError = (err: unknown): boolean => {
+      return axios.isAxiosError(err) && err.response?.status === 404
+    }
+
+    const handleNotFoundError = (matchId: number): void => {
+      setError('Match not found')
+      tryUseMockData(matchId)
+    }
+
+    const handleGenericError = (err: unknown, matchId: number): void => {
+      if (tryUseMockData(matchId)) {
+        console.error('Failed to load match detail, using mock data', err)
+        return
+      }
+      console.error('Failed to load match detail and no mock data available', err)
+      setError('Failed to load match detail. Please try again later.')
+    }
+
+    const tryUseMockData = (matchId: number): boolean => {
+      const mockDetail = mockMatchDetails[matchId]
+      if (mockDetail) {
+        setMatchDetail(mockDetail)
+        setError(null)
+        return true
+      }
+      return false
+    }
+
+    const finalizeLoading = (abortController: AbortController): void => {
+      if (!abortController.signal.aborted) {
+        setLoading(false)
+      }
+    }
+
+    const getBaseUrl = (): string => {
+      return import.meta.env.VITE_ANALYTICS_API_BASE_URL || 'http://localhost:8080/api'
     }
 
     loadMatchDetail()
