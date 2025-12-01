@@ -289,41 +289,41 @@ public static partial class LuaTableParser
 
     [GeneratedRegex("""
                     \{[\s\S]*?\["Logs"\]\s*=\s*\{([\s\S]*?)\},[\s\S]*?\["StartTime"\]\s*=\s*"([^"]+)",[\s\S]*?\["EndTime"\]\s*=\s*"([^"]+)",[\s\S]*?\["Zone"\]\s*=\s*"([^"]+)",[\s\S]*?\["Faction"\]\s*=\s*"([^"]+)",[\s\S]*?\["Mode"\]\s*=\s*"([^"]+)",[\s\S]*?\}
-                    """, RegexOptions.Multiline, 150)]
+                    """, RegexOptions.Multiline)]
     private static partial Regex MatchBlockRegex();
 
     [GeneratedRegex("""
                     "([^"\\]*(\\.[^"\\]*)*)"
-                    """, RegexOptions.None, 150)]
+                    """)]
     private static partial Regex MyRegex();
 
     [GeneratedRegex("""
                     "([^"]+)"
-                    """, RegexOptions.None, 150)]
+                    """)]
     private static partial Regex LogEntryRegex();
 
     [GeneratedRegex("""
                     \["StartTime"\]\s*=\s*"([^"]+)"
-                    """, RegexOptions.None, 150)]
+                    """)]
     private static partial Regex MyRegex1();
 
     [GeneratedRegex("""
                     \["EndTime"\]\s*=\s*"([^"]+)"
-                    """, RegexOptions.None, 150)]
+                    """)]
     private static partial Regex MyRegex2();
 
     [GeneratedRegex("""
                     \["Zone"\]\s*=\s*"([^"]+)"
-                    """, RegexOptions.None, 150)]
+                    """)]
     private static partial Regex MyRegex3();
 
     [GeneratedRegex("""
                     \["Faction"\]\s*=\s*"([^"]+)"
-                    """, RegexOptions.None, 150)]
+                    """)]
     private static partial Regex MyRegex4();
 
     [GeneratedRegex("""
                     \["Mode"\]\s*=\s*"([^"]+)"
-                    """, RegexOptions.None, 150)]
+                    """)]
     private static partial Regex MyRegex5();
 }

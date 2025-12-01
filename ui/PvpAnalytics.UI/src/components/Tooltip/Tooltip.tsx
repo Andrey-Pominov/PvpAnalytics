@@ -19,7 +19,10 @@ const Tooltip = ({content, children, position = 'top'}: TooltipProps) => {
         right: 'left-full top-1/2 -translate-y-1/2 ml-2',
     }
 
-    const handleKeyDown = (e: React.KeyboardEvent) => {
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+        if(e.currentTarget !== e.target) return;
+
+        
         if (e.key === 'Escape') {
             setIsVisible(false)
             return

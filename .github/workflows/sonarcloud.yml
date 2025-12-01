@@ -74,7 +74,7 @@ jobs:
           ${{ runner.temp }}\scanner\dotnet-sonarscanner begin `
             /k:"Andrey-Pominov_PvpAnalytics" `
             /o:"andrey-pominov" `
-            /d:sonar.token="${{ TOKEN }}" `
+            /d:sonar.token="${{ env.TOKEN }}" `
             /d:sonar.cs.opencover.reportsPaths="coverage/opencover/*.xml" `
             /d:sonar.sources="Services,Shared,ui/PvpAnalytics.UI/src" `
             /d:sonar.exclusions="**/bin/**,**/obj/**,**/node_modules/**,**/dist/**,**/*.min.js,**/Migrations/**" `
@@ -125,4 +125,4 @@ jobs:
         env:
           TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          ${{ runner.temp }}\scanner\dotnet-sonarscanner end /d:sonar.token="${{ TOKEN }}"
+          ${{ runner.temp }}\scanner\dotnet-sonarscanner end /d:sonar.token="${{ env.TOKEN }}"
