@@ -91,7 +91,7 @@ public class DiscussionService(
             IsPinned = false
         };
 
-        await threadRepo.AddAsync(thread, ct);
+        await threadRepo.AddAsync(thread, true, ct);
 
         return new DiscussionThreadDto
         {
@@ -128,7 +128,7 @@ public class DiscussionService(
             IsDeleted = false
         };
 
-        await postRepo.AddAsync(post, ct);
+        await postRepo.AddAsync(post, true, ct);
 
         return new DiscussionPostDto
         {

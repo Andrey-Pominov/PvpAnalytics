@@ -15,7 +15,6 @@ public interface ITeamCompositionService
 
 public class TeamCompositionService(
     IRepository<Player> playerRepo,
-    IRepository<MatchResult> matchResultRepo,
     PvpAnalyticsDbContext dbContext) : ITeamCompositionService
 {
     public async Task<List<TeamCompositionDto>> GetPlayerTeamsAsync(long playerId, CancellationToken ct = default)
@@ -26,8 +25,8 @@ public class TeamCompositionService(
             .Distinct()
             .ToListAsync(ct);
 
-        if (!playerMatchIds.Any())
-            return new List<TeamCompositionDto>();
+        if (playerMatchIds.Count == 0)
+            return [];
 
         var teamData = await dbContext.MatchResults
             .Include(mr => mr.Player)
@@ -36,8 +35,8 @@ public class TeamCompositionService(
             .GroupBy(mr => new { mr.MatchId, mr.Team })
             .Select(g => new
             {
-                MatchId = g.Key.MatchId,
-                Team = g.Key.Team,
+                g.Key.MatchId,
+                g.Key.Team,
                 Players = g.Select(mr => new
                 {
                     mr.PlayerId,
@@ -61,7 +60,7 @@ public class TeamCompositionService(
             {
                 var classes = td.Players
                     .Where(p => !string.IsNullOrWhiteSpace(p.Class))
-                    .Select(p => p.Class!)
+                    .Select(p => p.Class)
                     .OrderBy(c => c)
                     .ToList();
                 return string.Join("-", classes);
@@ -70,12 +69,12 @@ public class TeamCompositionService(
             {
                 var firstMatch = g.OrderBy(td => td.MatchDate).First();
                 var lastMatch = g.OrderByDescending(td => td.MatchDate).First();
-                var members = firstMatch.Players.Select(p => new PvpAnalytics.Core.DTOs.TeamMember
+                var members = firstMatch.Players.Select(p => new Core.DTOs.TeamMember
                 {
                     PlayerId = p.PlayerId,
                     PlayerName = p.Name,
                     Realm = p.Realm,
-                    Class = p.Class ?? "Unknown",
+                    Class = p.Class,
                     Spec = p.Spec
                 }).ToList();
 
@@ -87,7 +86,7 @@ public class TeamCompositionService(
                     TotalMatches = g.Count(),
                     Wins = g.Count(td => td.IsWinner),
                     Losses = g.Count(td => !td.IsWinner),
-                    WinRate = g.Count() > 0 ? Math.Round(g.Count(td => td.IsWinner) * 100.0 / g.Count(), 2) : 0,
+                    WinRate = g.Any() ? Math.Round(g.Count(td => td.IsWinner) * 100.0 / g.Count(), 2) : 0,
                     AverageRating = Math.Round(g.Average(td => td.Rating), 0),
                     PeakRating = (int)Math.Round(g.Max(td => td.Rating), 0),
                     SynergyScore = CalculateSynergyScore(g.Count(td => td.IsWinner), g.Count()),
@@ -101,9 +100,9 @@ public class TeamCompositionService(
         return compositionGroups;
     }
 
-    public async Task<TeamCompositionDto?> GetTeamStatsAsync(string composition, CancellationToken ct = default)
+    public Task<TeamCompositionDto?> GetTeamStatsAsync(string composition, CancellationToken ct = default)
     {
-        return null;
+        return Task.FromResult<TeamCompositionDto?>(null);
     }
 
     public async Task<PlayerSynergyDto?> GetPlayerSynergyAsync(long player1Id, long player2Id, CancellationToken ct = default)
@@ -128,11 +127,11 @@ public class TeamCompositionService(
             .Join(player2Matches,
                 p1 => new { p1.MatchId, p1.Team },
                 p2 => new { p2.MatchId, p2.Team },
-                (p1, p2) => p1.MatchId)
+                (p1, _) => p1.MatchId)
             .Distinct()
             .ToList();
 
-        if (!togetherMatches.Any())
+        if (togetherMatches.Count == 0)
         {
             return new PlayerSynergyDto
             {

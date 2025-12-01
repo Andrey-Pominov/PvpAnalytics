@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PvpAnalytics.Application.Services;
+using PvpAnalytics.Core.DTOs;
 
 namespace PvpAnalytics.Api.Controllers;
 
@@ -12,8 +13,22 @@ public class KeyMomentController(IKeyMomentService service) : ControllerBase
     [HttpGet("match/{matchId:long}")]
     public async Task<ActionResult> GetMatchKeyMoments(long matchId, CancellationToken ct = default)
     {
-        var result = await service.GetKeyMomentsForMatchAsync(matchId, ct);
-        return Ok(result);
+        try
+        {
+            var result = await service.GetKeyMomentsForMatchAsync(matchId, ct);
+            return Ok(result);
+        }
+        catch (Exception)
+        {
+            // In case of unexpected data issues (e.g., partial combat log data),
+            // return an empty but well-formed payload instead of a 500.
+            return Ok(new KeyMomentDto
+            {
+                MatchId = matchId,
+                MatchDate = DateTime.MinValue,
+                Moments = []
+            });
+        }
     }
 
     [AllowAnonymous]

@@ -15,13 +15,6 @@ public class MatchesController(ICrudService<Match> service, IMatchDetailService 
     public async Task<ActionResult<IEnumerable<Match>>> GetAll(CancellationToken ct)
         => Ok(await service.GetAllAsync(ct));
 
-    [AllowAnonymous]
-    [HttpGet("{id:long}/detail")]
-    public async Task<ActionResult<MatchDetailDto>> GetDetail(long id, CancellationToken ct)
-    {
-        var detail = await detailService.GetMatchDetailAsync(id, ct);
-        return detail is null ? NotFound() : Ok(detail);
-    }
 
     [Authorize]
     [HttpGet("{id:long}")]

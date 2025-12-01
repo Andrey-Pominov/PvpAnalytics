@@ -225,7 +225,7 @@ public class RivalService(
             CreatedAt = DateTime.UtcNow
         };
 
-        await rivalRepo.AddAsync(rival, ct);
+        await rivalRepo.AddAsync(rival, true, ct);
 
         return new RivalDto
         {
@@ -260,7 +260,7 @@ public class RivalService(
         if (dto.IntensityScore.HasValue)
             rival.IntensityScore = Math.Clamp(dto.IntensityScore.Value, 1, 10);
 
-        await rivalRepo.UpdateAsync(rival, ct);
+        await rivalRepo.UpdateAsync(rival, true, ct);
 
         return new RivalDto
         {
@@ -288,7 +288,7 @@ public class RivalService(
         if (rival == null)
             return false;
 
-        await rivalRepo.DeleteAsync(rival, ct);
+        await rivalRepo.DeleteAsync(rival, true, ct);
         return true;
     }
 }

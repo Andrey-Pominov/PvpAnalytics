@@ -45,7 +45,7 @@ public class Repository<TEntity>(PaymentDbContext dbContext) : IRepository<TEnti
         return (items, total);
     }
 
-    public async Task<TEntity> AddAsync(TEntity entity, CancellationToken ct = default, bool autoSave = true)
+    public async Task<TEntity> AddAsync(TEntity entity, bool autoSave = true, CancellationToken ct = default)
     {
         await _dbSet.AddAsync(entity, ct);
         if (autoSave)
@@ -55,7 +55,7 @@ public class Repository<TEntity>(PaymentDbContext dbContext) : IRepository<TEnti
         return entity;
     }
 
-    public async Task UpdateAsync(TEntity entity, CancellationToken ct = default, bool autoSave = true)
+    public async Task UpdateAsync(TEntity entity, bool autoSave = true, CancellationToken ct = default)
     {
         var entry = dbContext.Entry(entity);
         if (entry.State == EntityState.Detached)
@@ -70,7 +70,7 @@ public class Repository<TEntity>(PaymentDbContext dbContext) : IRepository<TEnti
         }
     }
 
-    public async Task DeleteAsync(TEntity entity, CancellationToken ct = default, bool autoSave = true)
+    public async Task DeleteAsync(TEntity entity, bool autoSave = true, CancellationToken ct = default)
     {
         _dbSet.Remove(entity);
         if (autoSave)
@@ -79,7 +79,7 @@ public class Repository<TEntity>(PaymentDbContext dbContext) : IRepository<TEnti
         }
     }
 
-    public async Task AddRangeAsync(IEnumerable<TEntity> entities, CancellationToken ct = default, bool autoSave = true)
+    public async Task AddRangeAsync(IEnumerable<TEntity> entities, bool autoSave = true, CancellationToken ct = default)
     {
         await _dbSet.AddRangeAsync(entities, ct);
         if (autoSave)
@@ -88,7 +88,7 @@ public class Repository<TEntity>(PaymentDbContext dbContext) : IRepository<TEnti
         }
     }
 
-    public async Task UpdateRangeAsync(IEnumerable<TEntity> entities, CancellationToken ct = default, bool autoSave = true)
+    public async Task UpdateRangeAsync(IEnumerable<TEntity> entities, bool autoSave = true, CancellationToken ct = default)
     {
         _dbSet.UpdateRange(entities);
         if (autoSave)

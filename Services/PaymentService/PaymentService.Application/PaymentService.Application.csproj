@@ -1,6 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <ProjectReference Include="..\..\PvpAnalytics\PvpAnalytics.Core\PvpAnalytics.Core.csproj" />
     <ProjectReference Include="..\PaymentService.Core\PaymentService.Core.csproj" />
   </ItemGroup>
 

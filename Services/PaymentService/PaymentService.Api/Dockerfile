@@ -19,11 +19,11 @@ RUN dotnet restore "Services/PaymentService/PaymentService.Api/PaymentService.Ap
 # Copy the full source and build
 COPY . .
 WORKDIR /src/Services/PaymentService/PaymentService.Api
-RUN dotnet build "PaymentService.Api.csproj" -c $BUILD_CONFIGURATION -o /app/build
+RUN dotnet build "PaymentService.Api.csproj" -c "$BUILD_CONFIGURATION" -o /app/build
 
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish "PaymentService.Api.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+RUN dotnet publish "PaymentService.Api.csproj" -c "$BUILD_CONFIGURATION" -o /app/publish /p:UseAppHost=false
 
 FROM base AS final
 WORKDIR /app

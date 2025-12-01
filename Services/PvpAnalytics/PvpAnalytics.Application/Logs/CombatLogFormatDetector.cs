@@ -8,7 +8,6 @@ namespace PvpAnalytics.Application.Logs;
 public static class CombatLogFormatDetector
 {
     private const int PeekSize = 100; // Bytes to peek at for detection
-    private static readonly byte[] LuaTablePrefix = Encoding.UTF8.GetBytes("PvPAnalyticsDB");
 
     /// <summary>
     /// Detects the format of a combat log stream without consuming it.

@@ -65,7 +65,7 @@ public class PlayerCache(IRepository<Player> playerRepo)
     /// <summary>
     /// Gets names that need to be looked up from the database.
     /// </summary>
-    private IReadOnlyCollection<string> GetNamesToLookup()
+    private HashSet<string> GetNamesToLookup()
     {
         var namesToLookup = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         
@@ -124,33 +124,26 @@ public class PlayerCache(IRepository<Player> playerRepo)
     public async Task BatchPersistAsync(CancellationToken ct = default)
     {
         // Create new players
-        var playersToCreate = new List<Player>();
-        foreach (var kvp in _pendingCreates)
+        var playersToCreate = (from kvp in _pendingCreates
+        select kvp.Value
+        into pending
+        where !string.IsNullOrWhiteSpace(pending.Realm)
+        where !_cache.ContainsKey(pending.Name)
+        select new Player
         {
-            var pending = kvp.Value;
-            
-            // Skip if realm is missing (validation)
-            if (string.IsNullOrWhiteSpace(pending.Realm))
-                continue;
-
-            // Skip if already in cache (was found during lookup)
-            if (_cache.ContainsKey(pending.Name))
-                continue;
-
-            var player = new Player
-            {
-                Name = pending.Name,
-                Realm = pending.Realm,
-                Class = string.Empty,
-                Faction = string.Empty,
-                Spec = string.Empty
-            };
-            playersToCreate.Add(player);
-        }
+            Name = pending.Name,
+            Realm = pending.Realm,
+            Class = string.Empty,
+            Faction = string.Empty,
+            Spec = string.Empty,
+            MatchResults = null,
+            SourceCombatLogs = null,
+            TargetCombatLogs = null
+        }).ToList();
 
         if (playersToCreate.Count > 0)
         {
-            await playerRepo.AddRangeAsync(playersToCreate, ct);
+            await playerRepo.AddRangeAsync(playersToCreate, true, ct);
             
             // Add created players to cache
             foreach (var player in playersToCreate)
@@ -162,7 +155,7 @@ public class PlayerCache(IRepository<Player> playerRepo)
         // Update existing players
         if (_pendingUpdates.Count > 0)
         {
-            await playerRepo.UpdateRangeAsync(_pendingUpdates, ct);
+            await playerRepo.UpdateRangeAsync(_pendingUpdates,true, ct);
         }
 
         // Clear pending operations

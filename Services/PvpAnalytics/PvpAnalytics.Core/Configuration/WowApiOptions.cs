@@ -9,13 +9,19 @@ public class WowApiOptions
 {
     public const string SectionName = "WowApi";
 
-    [Required(ErrorMessage = "WowApi:ClientId is required. Please configure it in appsettings.json or environment variables.")]
+    [Required(ErrorMessage =
+        "WowApi:ClientId is required. Please configure it in appsettings.json or environment variables.")]
     public string ClientId { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "WowApi:ClientSecret is required. Please configure it in appsettings.json or environment variables.")]
+    [Required(ErrorMessage =
+        "WowApi:ClientSecret is required. Please configure it in appsettings.json or environment variables.")]
     public string ClientSecret { get; set; } = string.Empty;
-    
-    public string BaseUrl { get; set; } = "https://us.api.blizzard.com";
-    public string OAuthUrl { get; set; } = "https://us.battle.net/oauth/token";
-}
 
+    public string BaseUrl { get; set; } = "https://us.api.blizzard.com";
+   
+    public string EuOAuthUrl { get; set; } = "https://eu.battle.net/oauth/token";
+    public string UsOAuthUrl { get; set; } = "https://us.battle.net/oauth/token";
+
+    public string EuTokenEndpoint { get; set; } = "https://eu.api.blizzard.com";
+    public string UsTokenEndpoint { get; set; } = "https://us.api.blizzard.com";
+}

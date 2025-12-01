@@ -23,29 +23,22 @@ public static class PlayerInfoExtractor
         if (string.IsNullOrEmpty(trimmed))
             return (string.Empty, string.Empty);
 
-        // Check for region suffixes (-EU, -US, -KR, -TW, -CN)
         var regionSuffixes = new[] { "-EU", "-US", "-KR", "-TW", "-CN" };
-        foreach (var suffix in regionSuffixes)
+        var suffix = regionSuffixes
+            .FirstOrDefault(s => trimmed.EndsWith(s, StringComparison.OrdinalIgnoreCase));
+
+        if (suffix is not null)
         {
-            if (trimmed.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
-            {
-                trimmed = trimmed[..^suffix.Length];
-                break;
-            }
+            trimmed = trimmed[..^suffix.Length];
         }
 
-        // Find first dash to separate Name and Realm
         var firstDash = trimmed.IndexOf('-');
-        if (firstDash < 0)
+        switch (firstDash)
         {
-            // No dash found, treat entire string as name
-            return (trimmed, string.Empty);
-        }
-
-        if (firstDash == 0)
-        {
-            // Dash at position 0: name is missing, treat substring after dash as realm
-            return (string.Empty, trimmed[1..]);
+            case < 0:
+                return (trimmed, string.Empty);
+            case 0:
+                return (string.Empty, trimmed[1..]);
         }
 
         var name = trimmed[..firstDash];

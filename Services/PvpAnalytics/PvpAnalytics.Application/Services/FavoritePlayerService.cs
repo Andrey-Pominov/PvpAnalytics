@@ -58,7 +58,7 @@ public class FavoritePlayerService(
             CreatedAt = DateTime.UtcNow
         };
 
-        await favoriteRepo.AddAsync(favorite, ct);
+        await favoriteRepo.AddAsync(favorite,true, ct);
 
         return new FavoritePlayerDto
         {
@@ -80,7 +80,7 @@ public class FavoritePlayerService(
         if (favorite == null)
             return false;
 
-        await favoriteRepo.DeleteAsync(favorite, ct);
+        await favoriteRepo.DeleteAsync(favorite, true, ct);
         return true;
     }
 

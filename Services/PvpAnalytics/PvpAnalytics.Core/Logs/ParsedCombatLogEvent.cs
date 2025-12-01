@@ -3,7 +3,7 @@ namespace PvpAnalytics.Core.Logs;
 public class ParsedCombatLogEvent
 {
     public DateTime Timestamp { get; init; }
-    public string EventType { get; init; }
+    public required string EventType { get; init; }
 
     public string? SourceGuid { get; init; }
     public string? SourceName { get; init; }

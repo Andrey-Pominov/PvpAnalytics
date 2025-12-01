@@ -19,16 +19,21 @@ public static class GameModeHelper
         System.Diagnostics.Debug.Assert(participantCount >= 0, "Participant count should be non-negative");
         
         // For 6 participants, check if it's Solo Shuffle based on arena match ID pattern
-        if (participantCount == 6 && !string.IsNullOrEmpty(arenaMatchId))
-        {
-            // Solo Shuffle arena matches typically have "shuffle" in the arena match ID
-            if (arenaMatchId.Contains("shuffle", StringComparison.OrdinalIgnoreCase))
+        if (participantCount != 6 || string.IsNullOrEmpty(arenaMatchId))
+            return participantCount switch
             {
-                return GameMode.Shuffle;
-            }
-            // If no shuffle indicator found, fall through to default ThreeVsThree logic
+                4 => GameMode.TwoVsTwo,
+                6 => GameMode.ThreeVsThree,
+                10 => GameMode.Skirmish,
+                _ => GameMode.TwoVsTwo
+            };
+        // Solo Shuffle arena matches typically have "shuffle" in the arena match ID
+        if (arenaMatchId.Contains("shuffle", StringComparison.OrdinalIgnoreCase))
+        {
+            return GameMode.Shuffle;
         }
-        
+        // If no shuffle indicator found, fall through to default ThreeVsThree logic
+
         return participantCount switch
         {
             4 => GameMode.TwoVsTwo,     

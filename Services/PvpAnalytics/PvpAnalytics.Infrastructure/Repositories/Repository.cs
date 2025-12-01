@@ -26,7 +26,7 @@ public class Repository<TEntity>(PvpAnalyticsDbContext dbContext) : IRepository<
         return await _dbSet.AsNoTracking().Where(predicate).ToListAsync(ct);
     }
 
-    public async Task<TEntity> AddAsync(TEntity entity, CancellationToken ct = default, bool autoSave = true)
+    public async Task<TEntity> AddAsync(TEntity entity, bool autoSave = true, CancellationToken ct = default)
     {
         await _dbSet.AddAsync(entity, ct);
         if (autoSave)
@@ -36,7 +36,7 @@ public class Repository<TEntity>(PvpAnalyticsDbContext dbContext) : IRepository<
         return entity;
     }
 
-    public async Task UpdateAsync(TEntity entity, CancellationToken ct = default, bool autoSave = true)
+    public async Task UpdateAsync(TEntity entity, bool autoSave = true, CancellationToken ct = default)
     {
         _dbSet.Update(entity);
         if (autoSave)
@@ -45,7 +45,7 @@ public class Repository<TEntity>(PvpAnalyticsDbContext dbContext) : IRepository<
         }
     }
 
-    public async Task DeleteAsync(TEntity entity, CancellationToken ct = default, bool autoSave = true)
+    public async Task DeleteAsync(TEntity entity, bool autoSave = true, CancellationToken ct = default)
     {
         _dbSet.Remove(entity);
         if (autoSave)
@@ -54,13 +54,13 @@ public class Repository<TEntity>(PvpAnalyticsDbContext dbContext) : IRepository<
         }
     }
 
-    public async Task AddRangeAsync(IEnumerable<TEntity> entities, CancellationToken ct = default)
+    public async Task AddRangeAsync(IEnumerable<TEntity> entities, bool autoSave = true, CancellationToken ct = default)
     {
         await _dbSet.AddRangeAsync(entities, ct);
         await dbContext.SaveChangesAsync(ct);
     }
 
-    public async Task UpdateRangeAsync(IEnumerable<TEntity> entities, CancellationToken ct = default)
+    public async Task UpdateRangeAsync(IEnumerable<TEntity> entities, bool autoSave = true, CancellationToken ct = default)
     {
         _dbSet.UpdateRange(entities);
         await dbContext.SaveChangesAsync(ct);

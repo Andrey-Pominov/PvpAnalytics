@@ -3,7 +3,6 @@ using AuthService.Infrastructure;
 using AuthService.Infrastructure.Data;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using PvpAnalytics.Shared.Security;
 using PvpAnalytics.Shared.Services;
@@ -83,7 +82,7 @@ try
 {
     await loggingClient.RegisterServiceAsync(serviceName, serviceEndpoint, serviceVersion);
     var heartbeatInterval = TimeSpan.FromSeconds(
-        builder.Configuration.GetValue<int>("LoggingService:HeartbeatIntervalSeconds", 30));
+        builder.Configuration.GetValue("LoggingService:HeartbeatIntervalSeconds", 30));
     loggingClient.StartHeartbeat(serviceName, heartbeatInterval);
     app.Logger.LogInformation("Registered with LoggingService and started heartbeat");
 }
@@ -158,5 +157,5 @@ static string GetServiceEndpoint(IConfiguration configuration)
 
 namespace AuthService.Api
 {
-    public class Program;
+    public abstract class Program;
 }

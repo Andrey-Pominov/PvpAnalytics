@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using PaymentService.Infrastructure;
 using Testcontainers.PostgreSql;
 using Xunit;
@@ -33,8 +32,9 @@ public sealed class PaymentServiceApiFactory : WebApplicationFactory<PaymentServ
             _postgresContainer.StartAsync().GetAwaiter().GetResult();
             _connectionString = _postgresContainer.GetConnectionString();
         }
-        catch
+        catch(Exception ex) when (ex is not OutOfMemoryException and not StackOverflowException)
         {
+            Console.WriteLine($"[PaymentServiceApiFactory] Testcontainers unavailable, using in-memory DB: {ex.Message}");
             _postgresContainer = null;
             _connectionString = null;
         }

@@ -12,7 +12,10 @@ public interface ITeamService
 {
     Task<TeamDto?> GetTeamAsync(long teamId, CancellationToken ct = default);
     Task<List<TeamDto>> GetUserTeamsAsync(Guid userId, CancellationToken ct = default);
-    Task<List<TeamDto>> SearchTeamsAsync(string? bracket = null, string? region = null, bool? isPublic = true, CancellationToken ct = default);
+
+    Task<List<TeamDto>> SearchTeamsAsync(string? bracket = null, string? region = null, bool? isPublic = true,
+        CancellationToken ct = default);
+
     Task<TeamDto> CreateTeamAsync(CreateTeamDto dto, Guid userId, CancellationToken ct = default);
     Task<TeamDto?> UpdateTeamAsync(long teamId, UpdateTeamDto dto, Guid userId, CancellationToken ct = default);
     Task<bool> DeleteTeamAsync(long teamId, Guid userId, CancellationToken ct = default);
@@ -24,14 +27,13 @@ public class TeamService(
     IRepository<Team> teamRepo,
     IRepository<TeamMemberEntity> teamMemberRepo,
     IRepository<Player> playerRepo,
-    IRepository<TeamMatch> teamMatchRepo,
     PvpAnalyticsDbContext dbContext) : ITeamService
 {
     public async Task<TeamDto?> GetTeamAsync(long teamId, CancellationToken ct = default)
     {
         var team = await dbContext.Teams
             .Include(t => t.Members)
-                .ThenInclude(m => m.Player)
+            .ThenInclude(m => m.Player)
             .Include(t => t.TeamMatches)
             .FirstOrDefaultAsync(t => t.Id == teamId, ct);
 
@@ -44,7 +46,7 @@ public class TeamService(
     {
         var teams = await dbContext.Teams
             .Include(t => t.Members)
-                .ThenInclude(m => m.Player)
+            .ThenInclude(m => m.Player)
             .Include(t => t.TeamMatches)
             .Where(t => t.CreatedByUserId == userId)
             .OrderByDescending(t => t.CreatedAt)
@@ -53,11 +55,12 @@ public class TeamService(
         return teams.Select(MapToDto).ToList();
     }
 
-    public async Task<List<TeamDto>> SearchTeamsAsync(string? bracket = null, string? region = null, bool? isPublic = true, CancellationToken ct = default)
+    public async Task<List<TeamDto>> SearchTeamsAsync(string? bracket = null, string? region = null,
+        bool? isPublic = true, CancellationToken ct = default)
     {
         var query = dbContext.Teams
             .Include(t => t.Members)
-                .ThenInclude(m => m.Player)
+            .ThenInclude(m => m.Player)
             .Include(t => t.TeamMatches)
             .AsQueryable();
 
@@ -90,7 +93,7 @@ public class TeamService(
             CreatedAt = DateTime.UtcNow
         };
 
-        await teamRepo.AddAsync(team, ct);
+        await teamRepo.AddAsync(team, true, ct);
 
         foreach (var playerId in dto.PlayerIds)
         {
@@ -104,7 +107,7 @@ public class TeamService(
                     JoinedAt = DateTime.UtcNow,
                     IsPrimary = false
                 };
-                await teamMemberRepo.AddAsync(member, ct);
+                await teamMemberRepo.AddAsync(member, true, ct);
             }
         }
 
@@ -113,16 +116,18 @@ public class TeamService(
         {
             await dbContext.Entry(member).Reference(m => m.Player).LoadAsync(ct);
         }
+
         await dbContext.Entry(team).Collection(t => t.TeamMatches).LoadAsync(ct);
 
         return MapToDto(team);
     }
 
-    public async Task<TeamDto?> UpdateTeamAsync(long teamId, UpdateTeamDto dto, Guid userId, CancellationToken ct = default)
+    public async Task<TeamDto?> UpdateTeamAsync(long teamId, UpdateTeamDto dto, Guid userId,
+        CancellationToken ct = default)
     {
         var team = await dbContext.Teams
             .Include(t => t.Members)
-                .ThenInclude(m => m.Player)
+            .ThenInclude(m => m.Player)
             .Include(t => t.TeamMatches)
             .FirstOrDefaultAsync(t => t.Id == teamId, ct);
 
@@ -145,7 +150,7 @@ public class TeamService(
 
         team.UpdatedAt = DateTime.UtcNow;
 
-        await teamRepo.UpdateAsync(team, ct);
+        await teamRepo.UpdateAsync(team, true, ct);
 
         return MapToDto(team);
     }
@@ -156,7 +161,7 @@ public class TeamService(
         if (team == null || team.CreatedByUserId != userId)
             return false;
 
-        await teamRepo.DeleteAsync(team, ct);
+        await teamRepo.DeleteAsync(team, true, ct);
         return true;
     }
 
@@ -180,7 +185,7 @@ public class TeamService(
             IsPrimary = false
         };
 
-        await teamMemberRepo.AddAsync(member, ct);
+        await teamMemberRepo.AddAsync(member, true, ct);
         return true;
     }
 
@@ -196,13 +201,13 @@ public class TeamService(
         if (member == null)
             return false;
 
-        await teamMemberRepo.DeleteAsync(member, ct);
+        await teamMemberRepo.DeleteAsync(member, true, ct);
         return true;
     }
 
-    private TeamDto MapToDto(Team team)
+    private static TeamDto MapToDto(Team team)
     {
-        var teamMatches = team.TeamMatches ?? new List<TeamMatch>();
+        var teamMatches = team.TeamMatches;
 
         var totalMatches = teamMatches.Count;
         var wins = teamMatches.Count(tm => tm.IsWin);
@@ -240,4 +245,3 @@ public class TeamService(
         };
     }
 }
-

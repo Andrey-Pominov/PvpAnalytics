@@ -33,7 +33,7 @@ public class PerformanceComparisonService(PvpAnalyticsDbContext dbContext) : IPe
         var dto = CreatePerformanceComparisonDto(playerId, player.Name, spec, ratingMin);
         
         var playerResults = await LoadPlayerResultsAsync(playerId, spec, ratingMin, ct);
-        if (!playerResults.Any())
+        if (playerResults.Count == 0)
             return dto;
 
         var playerMatchIds = playerResults.Select(mr => mr.MatchId).Distinct().ToList();
@@ -237,7 +237,7 @@ public class PerformanceComparisonService(PvpAnalyticsDbContext dbContext) : IPe
         CancellationToken ct = default)
     {
         var playerResults = await LoadPlayerResultsAsync(playerId, spec, ratingMin, ct);
-        if (!playerResults.Any())
+        if (playerResults.Count == 0)
             return new PercentileRankings();
 
         var playerMatchIds = playerResults.Select(mr => mr.MatchId).Distinct().ToList();

@@ -259,7 +259,7 @@ public class MockRepository<TEntity> : IRepository<TEntity> where TEntity : clas
         return Task.FromResult<IReadOnlyList<TEntity>>(_allEntities.Where(CompilePredicate(predicate)).ToList());
     }
 
-    public Task<TEntity> AddAsync(TEntity entity, CancellationToken ct = default, bool autoSave = true)
+    public Task<TEntity> AddAsync(TEntity entity, bool autoSave = true, CancellationToken ct = default)
     {
         AddedItems.Add(entity);
         
@@ -293,19 +293,19 @@ public class MockRepository<TEntity> : IRepository<TEntity> where TEntity : clas
         IdProperty?.SetValue(entity, id);
     }
 
-    public Task UpdateAsync(TEntity entity, CancellationToken ct = default, bool autoSave = true)
+    public Task UpdateAsync(TEntity entity, bool autoSave = true, CancellationToken ct = default)
     {
         UpdatedItems.Add(entity);
         return Task.CompletedTask;
     }
 
-    public Task DeleteAsync(TEntity entity, CancellationToken ct = default, bool autoSave = true)
+    public Task DeleteAsync(TEntity entity, bool autoSave = true, CancellationToken ct = default)
     {
         DeletedItems.Add(entity);
         return Task.CompletedTask;
     }
 
-    public Task AddRangeAsync(IEnumerable<TEntity> entities, CancellationToken ct = default, bool autoSave = true)
+    public Task AddRangeAsync(IEnumerable<TEntity> entities, bool autoSave = true, CancellationToken ct = default)
     {
         foreach (var entity in entities)
         {
@@ -314,7 +314,7 @@ public class MockRepository<TEntity> : IRepository<TEntity> where TEntity : clas
         return Task.CompletedTask;
     }
 
-    public Task UpdateRangeAsync(IEnumerable<TEntity> entities, CancellationToken ct = default, bool autoSave = true)
+    public Task UpdateRangeAsync(IEnumerable<TEntity> entities, bool autoSave = true, CancellationToken ct = default)
     {
         UpdatedItems.AddRange(entities);
         return Task.CompletedTask;

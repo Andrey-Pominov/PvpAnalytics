@@ -82,7 +82,7 @@ public class LuaCombatLogIngestionService(
         CollectPlayersForLookup(luaMatch.Logs, startTime);
         await _playerCache.BatchLookupAsync(ct);
         ProcessCombatEvents(luaMatch.Logs, startTime, matchState);
-        await UpdatePlayersFromSpellsAsync(matchState.PlayersByKey, matchState.PlayerSpells, ct);
+        await UpdatePlayersFromSpellsAsync(matchState.PlayersByKey, matchState.PlayerSpells);
 
         var arenaMatchId = GenerateArenaMatchId(luaMatch, startTime, endTime);
         var mapName = ArenaZoneIds.GetDisplayName(arenaZone);
@@ -260,7 +260,10 @@ public class LuaCombatLogIngestionService(
             Ability = parsed.SpellName ?? parsed.EventType,
             DamageDone = parsed.Damage ?? 0,
             HealingDone = parsed.Healing ?? 0,
-            CrowdControl = string.Empty
+            CrowdControl = string.Empty,
+            Match = null, //TODO
+            SourcePlayer = source,
+            TargetPlayer = target
         });
     }
 
@@ -359,8 +362,7 @@ public class LuaCombatLogIngestionService(
 
     private Task UpdatePlayersFromSpellsAsync(
         Dictionary<string, Player> playersByKey,
-        Dictionary<string, HashSet<string>> playerSpells,
-        CancellationToken ct)
+        Dictionary<string, HashSet<string>> playerSpells)
     {
         foreach (var (playerName, spells) in playerSpells)
         {
@@ -485,9 +487,13 @@ public class LuaCombatLogIngestionService(
             ArenaZone = arenaZone,
             ArenaMatchId = arenaMatchId,
             GameMode = gameMode,
-            Duration = start.HasValue && end.HasValue ? (long)(end.Value - start.Value).TotalSeconds : 0,
+            Duration = start.HasValue && end.HasValue
+                ? (long)(end.Value - start.Value).TotalSeconds
+                : 0,
             IsRanked = true,
-            UniqueHash = uniqueHash
+            UniqueHash = uniqueHash,
+            Results = null,
+            CombatLogs = null
         };
     }
 
@@ -499,7 +505,7 @@ public class LuaCombatLogIngestionService(
     {
         try
         {
-            match = await matchRepo.AddAsync(match, ct);
+            match = await matchRepo.AddAsync(match, true, ct);
             logger.LogInformation(
                 "Persisted new match {MatchId} with UniqueHash {UniqueHash} and {ParticipantCount} participants.",
                 match.Id, uniqueHash, participantCount);
@@ -543,7 +549,7 @@ public class LuaCombatLogIngestionService(
         foreach (var e in entries)
         {
             e.MatchId = matchId;
-            await entryRepo.AddAsync(e, ct);
+            await entryRepo.AddAsync(e, true, ct);
         }
     }
 
@@ -568,8 +574,10 @@ public class LuaCombatLogIngestionService(
                 RatingBefore = 0,
                 RatingAfter = 0,
                 IsWinner = false,
-                Spec = matchSpec
-            }, ct);
+                Spec = matchSpec,
+                Match = null,
+                Player = player
+            }, true, ct);
         }
     }
 
