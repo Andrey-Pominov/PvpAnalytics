@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { exportToCSV, exportToJSON } from '../../utils/exportUtils'
+import { getSecureRandomId } from '../../utils/secureRandom'
 
 interface ExportButtonProps<T extends Record<string, unknown>> {
   data: T[]
@@ -19,7 +20,7 @@ const ExportButton = <T extends Record<string, unknown>>({
   const [showMenu, setShowMenu] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
-  const menuId = `export-menu-${Math.random().toString(36).substring(7)}`
+  const menuId = getSecureRandomId('export-menu')
 
   // Close menu when clicking outside
   useEffect(() => {

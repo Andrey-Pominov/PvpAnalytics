@@ -69,12 +69,12 @@ jobs:
       - name: Begin SonarQube analysis
         shell: powershell
         env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
           ${{ runner.temp }}\scanner\dotnet-sonarscanner begin `
             /k:"Andrey-Pominov_PvpAnalytics" `
             /o:"andrey-pominov" `
-            /d:sonar.token="${{ secrets.SONAR_TOKEN }}" `
+            /d:sonar.token="${{ TOKEN }}" `
             /d:sonar.cs.opencover.reportsPaths="coverage/opencover/*.xml" `
             /d:sonar.sources="Services,Shared,ui/PvpAnalytics.UI/src" `
             /d:sonar.exclusions="**/bin/**,**/obj/**,**/node_modules/**,**/dist/**,**/*.min.js,**/Migrations/**" `
@@ -123,6 +123,6 @@ jobs:
       - name: End SonarQube analysis
         shell: powershell
         env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          ${{ runner.temp }}\scanner\dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
+          ${{ runner.temp }}\scanner\dotnet-sonarscanner end /d:sonar.token="${{ TOKEN }}"
