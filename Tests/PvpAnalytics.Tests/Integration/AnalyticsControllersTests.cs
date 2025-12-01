@@ -1,5 +1,4 @@
 using FluentAssertions;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using PvpAnalytics.Core.Entities;
 using PvpAnalytics.Core.Enum;
@@ -10,22 +9,15 @@ using Xunit;
 
 namespace PvpAnalytics.Tests.Integration;
 
-public class AnalyticsControllersTests : IClassFixture<PvpAnalyticsApiFactory>
+public class AnalyticsControllersTests(PvpAnalyticsApiFactory factory) : IClassFixture<PvpAnalyticsApiFactory>
 {
-    private readonly HttpClient _client;
-    private readonly PvpAnalyticsApiFactory _factory;
-
-    public AnalyticsControllersTests(PvpAnalyticsApiFactory factory)
-    {
-        _factory = factory;
-        _client = factory.CreateClient();
-    }
+    private readonly HttpClient _client = factory.CreateClient();
 
     [Fact]
     public async Task OpponentScouting_SearchPlayers_ReturnsResults()
     {
         // Arrange
-        using var scope = _factory.Services.CreateScope();
+        using var scope = factory.Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<PvpAnalyticsDbContext>();
         
         var player = new Player
@@ -52,7 +44,7 @@ public class AnalyticsControllersTests : IClassFixture<PvpAnalyticsApiFactory>
     public async Task OpponentScouting_GetScoutingData_ReturnsData()
     {
         // Arrange
-        using var scope = _factory.Services.CreateScope();
+        using var scope = factory.Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<PvpAnalyticsDbContext>();
         
         var player = new Player
@@ -77,7 +69,7 @@ public class AnalyticsControllersTests : IClassFixture<PvpAnalyticsApiFactory>
     public async Task RatingProgression_GetProgression_ReturnsData()
     {
         // Arrange
-        using var scope = _factory.Services.CreateScope();
+        using var scope = factory.Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<PvpAnalyticsDbContext>();
         
         var player = new Player
@@ -129,7 +121,7 @@ public class AnalyticsControllersTests : IClassFixture<PvpAnalyticsApiFactory>
     public async Task KeyMoment_GetMatchKeyMoments_ReturnsData()
     {
         // Arrange
-        using var scope = _factory.Services.CreateScope();
+        using var scope = factory.Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<PvpAnalyticsDbContext>();
         
         var player = new Player
@@ -191,7 +183,7 @@ public class AnalyticsControllersTests : IClassFixture<PvpAnalyticsApiFactory>
     public async Task SessionAnalysis_GetSessionAnalysis_ReturnsData()
     {
         // Arrange
-        using var scope = _factory.Services.CreateScope();
+        using var scope = factory.Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<PvpAnalyticsDbContext>();
         
         var player = new Player

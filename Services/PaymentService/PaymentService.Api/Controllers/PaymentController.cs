@@ -172,7 +172,8 @@ public class PaymentController(ICrudService<Payment> service, IRepository<Paymen
         // Admins can access any payment, regular users can only access their own
         if (!IsAdmin() && entity.UserId != currentUserId)
         {
-            return Forbid("You do not have permission to access this payment.");
+            // Rely on default authentication/authorization scheme; do not pass a custom scheme string.
+            return Forbid();
         }
 
         return Ok(entity);
@@ -221,7 +222,7 @@ public class PaymentController(ICrudService<Payment> service, IRepository<Paymen
         // Admins can update any payment, regular users can only update their own
         if (!IsAdmin() && existing.UserId != currentUserId)
         {
-            return Forbid("You do not have permission to update this payment.");
+            return Forbid();
         }
 
         // Update only writable fields (selective update to prevent modifying immutable fields)
@@ -252,7 +253,7 @@ public class PaymentController(ICrudService<Payment> service, IRepository<Paymen
         // Admins can delete any payment, regular users can only delete their own
         if (!IsAdmin() && existing.UserId != currentUserId)
         {
-            return Forbid("You do not have permission to delete this payment.");
+            return Forbid();
         }
 
         await service.DeleteAsync(existing, ct);

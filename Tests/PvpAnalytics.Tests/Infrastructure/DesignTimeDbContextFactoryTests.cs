@@ -1,5 +1,4 @@
 using FluentAssertions;
-using Microsoft.EntityFrameworkCore;
 using PvpAnalytics.Infrastructure;
 using Xunit;
 

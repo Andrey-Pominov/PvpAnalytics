@@ -24,7 +24,7 @@ public class PaymentControllerIntegrationTests(PaymentServiceApiFactory factory)
 
     public Task DisposeAsync() => Task.CompletedTask;
 
-    [SkipAll]
+    [Fact]
     public async Task GetAll_ReturnsPaginatedResponse_ForAuthenticatedUser()
     {
         // Arrange - Create some payments
@@ -45,7 +45,7 @@ public class PaymentControllerIntegrationTests(PaymentServiceApiFactory factory)
         result.TotalPages.Should().Be(1);
     }
 
-    [SkipAll]
+    [Fact]
     public async Task GetAll_AppliesUserScopeFilter_ForNonAdminUser()
     {
         // Arrange - Create payments for different users
@@ -66,7 +66,7 @@ public class PaymentControllerIntegrationTests(PaymentServiceApiFactory factory)
         result.Items.First().TransactionId.Should().Be("txn-user1-001");
     }
 
-    [SkipAll]
+    [Fact]
     public async Task GetAll_AllowsAdminToSeeAllPayments()
     {
         // Arrange
@@ -86,7 +86,7 @@ public class PaymentControllerIntegrationTests(PaymentServiceApiFactory factory)
         result!.Items.Should().HaveCount(2);
     }
 
-    [SkipAll]
+    [Fact]
     public async Task GetAll_AppliesStatusFilter()
     {
         // Arrange
@@ -105,7 +105,7 @@ public class PaymentControllerIntegrationTests(PaymentServiceApiFactory factory)
         result.Items[0].Status.Should().Be(PaymentStatus.Completed);
     }
 
-    [SkipAll]
+    [Fact]
     public async Task GetAll_AppliesDateRangeFilter()
     {
         // Arrange
@@ -123,7 +123,7 @@ public class PaymentControllerIntegrationTests(PaymentServiceApiFactory factory)
         result.Should().NotBeNull();
     }
 
-    [SkipAll]
+    [Fact]
     public async Task GetAll_AppliesSorting()
     {
         // Arrange
@@ -143,7 +143,7 @@ public class PaymentControllerIntegrationTests(PaymentServiceApiFactory factory)
         result.Items.Last().Amount.Should().Be(100.00m);
     }
 
-    [SkipAll]
+    [Fact]
     public async Task GetAll_RespectsPageSizeLimit()
     {
         // Arrange - Create more than max page size
@@ -162,7 +162,7 @@ public class PaymentControllerIntegrationTests(PaymentServiceApiFactory factory)
         result!.PageSize.Should().BeLessThanOrEqualTo(100);
     }
 
-    [SkipAll]
+    [Fact]
     public async Task Get_ReturnsPayment_ForOwnPayment()
     {
         // Arrange
@@ -179,21 +179,22 @@ public class PaymentControllerIntegrationTests(PaymentServiceApiFactory factory)
         result.TransactionId.Should().Be("txn-get-001");
     }
 
-    [SkipAll]
+    [Fact]
     public async Task Get_ReturnsForbidden_ForOtherUserPayment()
     {
         // Arrange
         var otherUserClient = factory.CreateAuthenticatedClient("other-user");
         var payment = await CreatePaymentAsync("txn-other-001", 100.00m, otherUserClient);
 
-        // Act - Try to access other user's payment
-        var response = await _client.GetAsync($"/api/payment/{payment.Id}");
+        // Act - Try to access other user's payment as a non-admin
+        var currentUserClient = factory.CreateAuthenticatedClient("test-user-123");
+        var response = await currentUserClient.GetAsync($"/api/payment/{payment.Id}");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
 
-    [SkipAll]
+    [Fact]
     public async Task Get_ReturnsNotFound_ForNonExistentPayment()
     {
         // Act
@@ -203,7 +204,7 @@ public class PaymentControllerIntegrationTests(PaymentServiceApiFactory factory)
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
-    [SkipAll]
+    [Fact]
     public async Task Create_CreatesPayment_WithValidRequest()
     {
         // Arrange
@@ -264,7 +265,7 @@ public class PaymentControllerIntegrationTests(PaymentServiceApiFactory factory)
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    [SkipAll]
+    [Fact]
     public async Task Update_UpdatesPayment_WithValidRequest()
     {
         // Arrange
@@ -292,7 +293,7 @@ public class PaymentControllerIntegrationTests(PaymentServiceApiFactory factory)
         updatedPayment.UpdatedAt.Should().NotBeNull();
     }
 
-    [SkipAll]
+    [Fact]
     public async Task Update_ReturnsForbidden_ForOtherUserPayment()
     {
         // Arrange
@@ -304,14 +305,15 @@ public class PaymentControllerIntegrationTests(PaymentServiceApiFactory factory)
             Status = PaymentStatus.Completed
         };
 
-        // Act
-        var response = await _client.PutAsJsonAsync($"/api/payment/{payment.Id}", updateRequest);
+        // Act - Try to update other user's payment as a non-admin
+        var currentUserClient = factory.CreateAuthenticatedClient("test-user-123");
+        var response = await currentUserClient.PutAsJsonAsync($"/api/payment/{payment.Id}", updateRequest);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
 
-    [SkipAll]
+    [Fact]
     public async Task Update_ReturnsNotFound_ForNonExistentPayment()
     {
         // Arrange
@@ -328,7 +330,7 @@ public class PaymentControllerIntegrationTests(PaymentServiceApiFactory factory)
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
-    [SkipAll]
+    [Fact]
     public async Task Delete_DeletesPayment_ForOwnPayment()
     {
         // Arrange
@@ -345,15 +347,16 @@ public class PaymentControllerIntegrationTests(PaymentServiceApiFactory factory)
         getResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
-    [SkipAll]
+    [Fact]
     public async Task Delete_ReturnsForbidden_ForOtherUserPayment()
     {
         // Arrange
         var otherUserClient = factory.CreateAuthenticatedClient("other-user");
         var payment = await CreatePaymentAsync("txn-other-003", 100.00m, otherUserClient);
 
-        // Act
-        var response = await _client.DeleteAsync($"/api/payment/{payment.Id}");
+        // Act - Try to delete other user's payment as a non-admin
+        var currentUserClient = factory.CreateAuthenticatedClient("test-user-123");
+        var response = await currentUserClient.DeleteAsync($"/api/payment/{payment.Id}");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
