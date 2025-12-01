@@ -1,3 +1,4 @@
+using System.Reflection;
 using FluentAssertions;
 using PvpAnalytics.Application.Logs;
 using Xunit;
@@ -6,21 +7,30 @@ namespace PvpAnalytics.Tests.Logs;
 
 public class LuaTableParserTests
 {
-    [Theory]
-    [InlineData(@"HH:mm:ss - EVENT: simple", "HH:mm:ss - EVENT: simple")]
-    [InlineData(@"HH:mm:ss - EVENT: with \""quote\""", "HH:mm:ss - EVENT: with \"quote\"")]
-    [InlineData(@"HH:mm:ss - EVENT: path C:\\folder\\file", @"HH:mm:ss - EVENT: path C:\folder\file")]
-    [InlineData(@"HH:mm:ss - EVENT: combo C:\\\""path\""", @"HH:mm:ss - EVENT: combo C:\"path\"")]
-    public void UnescapeLuaString_HandlesEscapedQuotesAndBackslashes(string input, string expected)
+    [Fact]
+    public void TryStartNewMatch_AllowsCommentedListEntries()
     {
-        // Arrange / Act
-        var result = typeof(LuaTableParser)
-            .GetMethod("UnescapeLuaString", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!
-            .Invoke(null, new object[] { input }) as string;
+        // Arrange
+        var lines = new[]
+        {
+            "PvPAnalyticsDB = {",
+            "}, -- [1]",
+            "{"
+        };
+
+        var luaType = typeof(LuaTableParser);
+        var stateType = luaType.GetNestedType("ManualParserState", BindingFlags.NonPublic)!;
+        var state = Activator.CreateInstance(stateType)!;
+
+        var method = luaType.GetMethod(
+            "TryStartNewMatch",
+            BindingFlags.NonPublic | BindingFlags.Static)!;
+
+        // Act
+        var result = (bool)method.Invoke(null, [lines, 2, "{", state])!;
 
         // Assert
-        result.Should().Be(expected);
+        result.Should().BeTrue();
     }
 }
-
 
