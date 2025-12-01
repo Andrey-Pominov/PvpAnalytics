@@ -1,3 +1,4 @@
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { getSecureRandomFloat, getSecureRandomInt, getSecureRandomId } from './secureRandom'
 
 describe('secureRandom helpers', () => {

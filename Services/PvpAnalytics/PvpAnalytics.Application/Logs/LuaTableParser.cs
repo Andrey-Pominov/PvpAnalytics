@@ -67,7 +67,8 @@ public static partial class LuaTableParser
 
         foreach (Match match in matches)
         {
-            var logLine = match.Groups[1].Value;
+            var rawLogLine = match.Groups[1].Value;
+            var logLine = UnescapeLuaString(rawLogLine);
             if (!string.IsNullOrWhiteSpace(logLine) && logLine.Contains(" - "))
             {
                 logs.Add(logLine);
@@ -118,7 +119,12 @@ public static partial class LuaTableParser
         if (trimmedLine != "{" || state.CurrentMatch != null || index == 0)
             return false;
 
-        var prevLine = lines[index - 1].Trim();
+        var prevLineRaw = lines[index - 1];
+        var commentIndex = prevLineRaw.IndexOf("--", StringComparison.Ordinal);
+        var prevLine = commentIndex >= 0
+            ? prevLineRaw[..commentIndex].Trim()
+            : prevLineRaw.Trim();
+
         if (prevLine != "PvPAnalyticsDB = {" &&
             prevLine != "{" &&
             prevLine != "}," &&
@@ -244,11 +250,59 @@ public static partial class LuaTableParser
         if (!logMatch.Success)
             return;
 
-        var logLine = logMatch.Groups[1].Value.Replace("\\\"", "\"").Replace(@"\\", "\\");
+        var rawLogLine = logMatch.Groups[1].Value;
+        var logLine = UnescapeLuaString(rawLogLine);
         if (logLine.Contains(" - "))
         {
             state.CurrentMatch.Logs.Add(logLine);
         }
+    }
+
+    /// <summary>
+    /// Unescapes a Lua-style string literal for our exported logs.
+    /// Handles at least escaped quotes (\") and escaped backslashes (\\),
+    /// while preserving all other characters as-is.
+    /// </summary>
+    private static string UnescapeLuaString(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return value;
+
+        var sb = new StringBuilder(value.Length);
+        var i = 0;
+
+        while (i < value.Length)
+        {
+            var c = value[i];
+
+            if (c == '\\' && i + 1 < value.Length)
+            {
+                var next = value[i + 1];
+                if (next == '\\')
+                {
+                    sb.Append('\\');
+                    i += 2;
+                    continue;
+                }
+
+                if (next == '\"')
+                {
+                    sb.Append('\"');
+                    i += 2;
+                    continue;
+                }
+
+                // For any other escape sequence, keep the backslash literal
+                sb.Append('\\');
+                i++;
+                continue;
+            }
+
+            sb.Append(c);
+            i++;
+        }
+
+        return sb.ToString();
     }
 
     private static void ExtractMetadataFields(string line, ManualParserState state)

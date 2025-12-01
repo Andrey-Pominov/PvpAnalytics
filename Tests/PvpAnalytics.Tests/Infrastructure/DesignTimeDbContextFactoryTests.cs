@@ -13,7 +13,7 @@ public class DesignTimeDbContextFactoryTests
         // Arrange
         const string fallback = "Host=localhost;Port=5432;Database=PvpAnalytics_DesignTime;Username=postgres";
         var original = Environment.GetEnvironmentVariable("PVPANALYTICS_DESIGNTIME_CONNECTION");
-        Environment.SetEnvironmentVariable("PVPANALYTICS_DESIGN-TIME_CONNECTION", fallback);
+        Environment.SetEnvironmentVariable("PVPANALYTICS_DESIGNTIME_CONNECTION", fallback);
 
         try
         {

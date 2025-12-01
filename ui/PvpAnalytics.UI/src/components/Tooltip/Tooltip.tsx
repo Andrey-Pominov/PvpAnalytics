@@ -1,4 +1,4 @@
-import {useState, useRef, useEffect, type ReactNode} from 'react'
+import {useState, useEffect, useId, type ReactNode} from 'react'
 
 interface TooltipProps {
     content: string
@@ -8,9 +8,7 @@ interface TooltipProps {
 
 const Tooltip = ({content, children, position = 'top'}: TooltipProps) => {
     const [isVisible, setIsVisible] = useState(false)
-    const crypto = window.crypto;
-    const array = new Uint32Array(1);
-    const tooltipId = useRef(`tooltip-${crypto.getRandomValues(array).toString().slice(2, 11)}`)
+    const tooltipId = useId()
 
     const positionClasses = {
         top: 'bottom-full left-1/2 -translate-x-1/2 mb-2',
@@ -54,7 +52,7 @@ const Tooltip = ({content, children, position = 'top'}: TooltipProps) => {
             <div
                 className="inline-block border-0 bg-transparent p-0 text-inherit cursor-inherit"
                 tabIndex={0}
-                aria-describedby={isVisible ? tooltipId.current : undefined}
+                aria-describedby={isVisible ? tooltipId : undefined}
                 onMouseEnter={() => setIsVisible(true)}
                 onMouseLeave={() => setIsVisible(false)}
                 onFocus={() => setIsVisible(true)}
@@ -67,7 +65,7 @@ const Tooltip = ({content, children, position = 'top'}: TooltipProps) => {
             </div>
             {isVisible && (
                 <div
-                    id={tooltipId.current}
+                    id={tooltipId}
                     className={`absolute z-50 rounded-lg bg-gray-900 px-3 py-2 text-xs text-white shadow-lg ${positionClasses[position]}`}
                     role="tooltip"
                     aria-live="polite"
