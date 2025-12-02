@@ -14,7 +14,14 @@ namespace PvpAnalytics.Core.Logs;
 /// </summary>
 public static class PlayerAttributeMappings
 {
-   
+    private const string Voidform = "Voidform";
+    private const string KillCommand = "Kill Command";
+    private const string BestialWrath = "Bestial Wrath";
+    private const string BearForm = "Bear Form";
+    private const string CatForm = "Cat Form";
+    private const string MoonkinForm = "Moonkin Form";
+    private const string Disintegrate = "Disintegrate";
+    private const string DeepBreath = "Deep Breath";
 
     /// <summary>
     /// Maps spell names to player classes. These are class-defining spells that only one class can use.
@@ -37,7 +44,7 @@ public static class PlayerAttributeMappings
         { "Dispel Magic", AppConstants.WoWClass.Priest },
         { "Psychic Scream",AppConstants.WoWClass.Priest },
         { "Mind Control", AppConstants.WoWClass.Priest },
-        { "Voidform", AppConstants.WoWClass.Priest },
+        { Voidform, AppConstants.WoWClass.Priest },
         { "Shadowfiend", AppConstants.WoWClass.Priest },
         
         // Warlock spells
@@ -72,8 +79,8 @@ public static class PlayerAttributeMappings
         { "Aspect of the Hawk", AppConstants.WoWClass.Hunter },
         { "Trap Launcher", AppConstants.WoWClass.Hunter },
         { "Freezing Trap", AppConstants.WoWClass.Hunter },
-        { "Kill Command", AppConstants.WoWClass.Hunter },
-        { "Bestial Wrath", AppConstants.WoWClass.Hunter },
+        { KillCommand, AppConstants.WoWClass.Hunter },
+        { BestialWrath, AppConstants.WoWClass.Hunter },
         
         // Rogue spells
         { "Stealth", AppConstants.WoWClass.Rogue },
@@ -85,10 +92,10 @@ public static class PlayerAttributeMappings
         { "Adrenaline Rush", AppConstants.WoWClass.Rogue },
         
         // Druid spells
-        { "Bear Form", AppConstants.WoWClass.Druid },
-        { "Cat Form", AppConstants.WoWClass.Druid },
+        { BearForm, AppConstants.WoWClass.Druid },
+        { CatForm, AppConstants.WoWClass.Druid },
         { "Travel Form", AppConstants.WoWClass.Druid },
-        { "Moonkin Form", AppConstants.WoWClass.Druid },
+        { MoonkinForm, AppConstants.WoWClass.Druid },
         { "Rejuvenation", AppConstants.WoWClass.Druid },
         { "Entangling Roots", AppConstants.WoWClass.Druid },
         { "Innervate", AppConstants.WoWClass.Druid },
@@ -126,8 +133,8 @@ public static class PlayerAttributeMappings
         
         // Evoker spells
         { "Living Flame", AppConstants.WoWClass.Evoker },
-        { "Disintegrate", AppConstants.WoWClass.Evoker },
-        { "Deep Breath", AppConstants.WoWClass.Evoker },
+        { Disintegrate, AppConstants.WoWClass.Evoker },
+        { DeepBreath, AppConstants.WoWClass.Evoker },
         { "Emerald Blossom", AppConstants.WoWClass.Evoker },
     };
 
@@ -137,88 +144,88 @@ public static class PlayerAttributeMappings
     private static readonly Dictionary<string, string> SpellToSpec = new(StringComparer.OrdinalIgnoreCase)
     {
         // Mage specs
-        { "Combustion", "Fire" },
-        { "Icy Veins", "Frost" },
-        { "Arcane Power", "Arcane" },
-        { "Pyroblast", "Fire" },
-        { "Ice Lance", "Frost" },
-        { "Arcane Barrage", "Arcane" },
+        { "Combustion", AppConstants.WoWSpec.Mage.Fire },
+        { "Icy Veins", AppConstants.WoWSpec.Mage.Frost },
+        { "Arcane Power", AppConstants.WoWSpec.Mage.Arcane },
+        { "Pyroblast", AppConstants.WoWSpec.Mage.Fire },
+        { "Ice Lance", AppConstants.WoWSpec.Mage.Frost },
+        { "Arcane Barrage", AppConstants.WoWSpec.Mage.Arcane },
         
         // Priest specs
-        { "Voidform", "Shadow" },
-        { "Shadowfiend", "Shadow" },
-        { "Penance", "Discipline" },
-        { "Guardian Spirit", "Holy" },
-        { "Lightwell", "Holy" },
+        { Voidform, AppConstants.WoWSpec.Priest.Shadow },
+        { "Shadowfiend", AppConstants.WoWSpec.Priest.Shadow },
+        { "Penance", AppConstants.WoWSpec.Priest.Discipline },
+        { "Guardian Spirit", AppConstants.WoWSpec.Priest.Holy },
+        { "Lightwell", AppConstants.WoWSpec.Priest.Holy },
         
         // Warlock specs
-        { "Chaos Bolt", "Destruction" },
-        { "Hand of Gul'dan", "Demonology" },
-        { "Haunt", "Affliction" },
-        { "Drain Soul", "Affliction" },
+        { "Chaos Bolt", AppConstants.WoWSpec.Warlock.Destruction },
+        { "Hand of Gul'dan", AppConstants.WoWSpec.Warlock.Demonology },
+        { "Haunt", AppConstants.WoWSpec.Warlock.Affliction },
+        { "Drain Soul", AppConstants.WoWSpec.Warlock.Affliction },
         
         // Warrior specs
-        { "Shield Slam", AppConstants.WoWSpec.Protection },
-        { "Recklessness", AppConstants.WoWSpec.Fury },
-        { "Colossus Smash", AppConstants.WoWSpec.Arms },
-        { "Raging Blow", AppConstants.WoWSpec.Fury },
-        { "Mortal Strike", AppConstants.WoWSpec.Arms },
+        { "Shield Slam", AppConstants.WoWSpec.Warrior.Protection },
+        { "Recklessness", AppConstants.WoWSpec.Warrior.Fury },
+        { "Colossus Smash", AppConstants.WoWSpec.Warrior.Arms },
+        { "Raging Blow", AppConstants.WoWSpec.Warrior.Fury },
+        { "Mortal Strike", AppConstants.WoWSpec.Warrior.Arms },
         
         // Paladin specs
-        { "Word of Glory", AppConstants.WoWSpec.Protection },
-        { "Hammer of Wrath", AppConstants.WoWSpec.Retribution },
-        { "Light of Dawn", AppConstants.WoWSpec.Holy },
-        { "Shield of Vengeance", AppConstants.WoWSpec.Retribution },
-        { "Consecration", AppConstants.WoWSpec.Protection },
+        { "Word of Glory", AppConstants.WoWSpec.Paladin.Protection },
+        { "Hammer of Wrath", AppConstants.WoWSpec.Paladin.Retribution },
+        { "Light of Dawn", AppConstants.WoWSpec.Paladin.Holy },
+        { "Shield of Vengeance", AppConstants.WoWSpec.Paladin.Retribution },
+        { "Consecration", AppConstants.WoWSpec.Paladin.Protection },
         
         // Hunter specs
-        { "Kill Command", AppConstants.WoWSpec.BeastMastery },
-        { "Bestial Wrath", AppConstants.WoWSpec.BeastMastery },
-        { "Explosive Shot", AppConstants.WoWSpec.Marksmanship },
-        { "Black Arrow", AppConstants.WoWSpec.Survival },
-        { "Carve", AppConstants.WoWSpec.Survival },
+        { KillCommand, AppConstants.WoWSpec.Hunter.BeastMastery },
+        { BestialWrath, AppConstants.WoWSpec.Hunter.BeastMastery },
+        { "Explosive Shot", AppConstants.WoWSpec.Hunter.Marksmanship },
+        { "Black Arrow", AppConstants.WoWSpec.Hunter.Survival },
+        { "Carve", AppConstants.WoWSpec.Hunter.Survival },
         
         // Rogue specs
-        { "Shadow Dance", AppConstants.WoWSpec.Subtlety },
-        { "Adrenaline Rush", AppConstants.WoWSpec.Outlaw },
-        { "Blade Flurry", AppConstants.WoWSpec.Outlaw },
-        { "Envenom", AppConstants.WoWSpec.Assassination },
-        { "Mutilate", AppConstants.WoWSpec.Assassination },
+        { "Shadow Dance", AppConstants.WoWSpec.Rogue.Subtlety },
+        { "Adrenaline Rush", AppConstants.WoWSpec.Rogue.Outlaw },
+        { "Blade Flurry", AppConstants.WoWSpec.Rogue.Outlaw },
+        { "Envenom", AppConstants.WoWSpec.Rogue.Assassination },
+        { "Mutilate", AppConstants.WoWSpec.Rogue.Assassination },
         
         // Druid specs
-        { "Bear Form", AppConstants.WoWSpec.Guardian },
-        { "Cat Form", AppConstants.WoWSpec.Feral },
-        { "Moonkin Form", AppConstants.WoWSpec.Balance },
-        { "Tranquility", AppConstants.WoWSpec.Restoration },
-        { "Innervate", AppConstants.WoWSpec.Restoration },
+        { BearForm, AppConstants.WoWSpec.Druid.Guardian },
+        { CatForm, AppConstants.WoWSpec.Druid.Feral },
+        { MoonkinForm, AppConstants.WoWSpec.Druid.Balance },
+        { "Tranquility", AppConstants.WoWSpec.Druid.Restoration },
+        { "Innervate", AppConstants.WoWSpec.Druid.Restoration },
         
         // Shaman specs
-        { "Lava Burst", AppConstants.WoWSpec.Elemental },
-        { "Stormstrike", AppConstants.WoWSpec.Enhancement },
-        { "Riptide", AppConstants.WoWSpec.Restoration },
-        { "Chain Heal", AppConstants.WoWSpec.Restoration },
+        { "Lava Burst", AppConstants.WoWSpec.Shaman.Elemental },
+        { "Stormstrike", AppConstants.WoWSpec.Shaman.Enhancement },
+        { "Riptide", AppConstants.WoWSpec.Shaman.Restoration },
+        { "Chain Heal", AppConstants.WoWSpec.Shaman.Restoration },
         
         // Death Knight specs
-        { "Frost Strike", AppConstants.WoWSpec.Frost },
-        { "Scourge Strike", AppConstants.WoWSpec.Unholy },
-        { "Heart Strike", AppConstants.WoWSpec.Blood },
-        { "Death Strike", AppConstants.WoWSpec.Blood },
+        { "Frost Strike", AppConstants.WoWSpec.DeathKnight.Frost },
+        { "Scourge Strike", AppConstants.WoWSpec.DeathKnight.Unholy },
+        { "Heart Strike", AppConstants.WoWSpec.DeathKnight.Blood },
+        { "Death Strike", AppConstants.WoWSpec.DeathKnight.Blood },
         
         // Demon Hunter specs
-        { "Chaos Strike", AppConstants.WoWSpec.Havoc },
-        { "Soul Cleave", AppConstants.WoWSpec.Vengeance },
-        { "Immolation Aura", AppConstants.WoWSpec.Havoc },
+        { "Chaos Strike", AppConstants.WoWSpec.DemonHunter.Havoc },
+        { "Soul Cleave", AppConstants.WoWSpec.DemonHunter.Vengeance },
+        { "Immolation Aura", AppConstants.WoWSpec.DemonHunter.Havoc },
         
         // Monk specs
-        { "Storm, Earth, and Fire", AppConstants.WoWSpec.Windwalker },
-        { "Touch of Death", AppConstants.WoWSpec.Windwalker },
-        { "Guard", AppConstants.WoWSpec.Brewmaster },
-        { "Soothing Mist", AppConstants.WoWSpec.Mistweaver },
+        { "Storm, Earth, and Fire", AppConstants.WoWSpec.Monk.Windwalker },
+        { "Touch of Death", AppConstants.WoWSpec.Monk.Windwalker },
+        { "Guard", AppConstants.WoWSpec.Monk.Brewmaster },
+        { "Soothing Mist", AppConstants.WoWSpec.Monk.Mistweaver },
         
         // Evoker specs
-        { "Disintegrate", AppConstants.WoWSpec.Devastation },
-        { "Emerald Blossom", AppConstants.WoWSpec.Preservation },
-        { "Deep Breath", AppConstants.WoWSpec.Devastation },
+        { Disintegrate, AppConstants.WoWSpec.Evoker.Devastation },
+        { "Emerald Blossom", AppConstants.WoWSpec.Evoker.Preservation },
+        { DeepBreath, AppConstants.WoWSpec.Evoker.Devastation },
     };
 
     /// <summary>
@@ -322,9 +329,9 @@ public static class PlayerAttributeMappings
         "Metamorphosis",
         
         // Druid - form abilities are very unique
-        "Bear Form",
-        "Cat Form",
-        "Moonkin Form",
+        BearForm,
+        CatForm,
+        MoonkinForm,
         
         // Rogue - stealth is very Rogue-defining
         "Stealth",
@@ -338,12 +345,12 @@ public static class PlayerAttributeMappings
         "Demonic Gateway",
         
         // Hunter - unique pet abilities
-        "Bestial Wrath",
-        "Kill Command",
+        BestialWrath,
+        KillCommand,
         
         // Priest - unique abilities
         "Mind Control",
-        "Voidform",
+        Voidform,
         
         // Warrior - unique charge ability
         "Charge",
@@ -356,8 +363,8 @@ public static class PlayerAttributeMappings
         "Flying Serpent Kick",
         
         // Evoker - unique class abilities
-        "Deep Breath",
-        "Disintegrate",
+        DeepBreath,
+        Disintegrate,
     };
 
     /// <summary>
@@ -406,7 +413,7 @@ public static class PlayerAttributeMappings
         { "Arcane Barrage", 80 },     // Arcane - strong indicator
         
         // Priest specs
-        { "Voidform", 100 },          // Shadow - very definitive
+        { Voidform, 100 },          // Shadow - very definitive
         { "Shadowfiend", 90 },        // Shadow - strong indicator
         { "Penance", 100 },           // Discipline - very definitive
         { "Guardian Spirit", 100 },   // Holy - very definitive
@@ -433,8 +440,8 @@ public static class PlayerAttributeMappings
         { "Consecration", 80 },       // Protection - moderate indicator
         
         // Hunter specs
-        { "Kill Command", 100 },      // Beast Mastery - very definitive
-        { "Bestial Wrath", 100 },     // Beast Mastery - very definitive
+        { KillCommand, 100 },      // Beast Mastery - very definitive
+        { BestialWrath, 100 },     // Beast Mastery - very definitive
         { "Explosive Shot", 100 },    // Marksmanship - very definitive
         { "Black Arrow", 100 },       // Survival - very definitive
         { "Carve", 90 },              // Survival - strong indicator
@@ -447,9 +454,9 @@ public static class PlayerAttributeMappings
         { "Mutilate", 90 },           // Assassination - strong indicator
         
         // Druid specs
-        { "Bear Form", 100 },         // Guardian - very definitive
-        { "Cat Form", 100 },          // Feral - very definitive
-        { "Moonkin Form", 100 },     // Balance - very definitive
+        { BearForm, 100 },         // Guardian - very definitive
+        { CatForm, 100 },          // Feral - very definitive
+        { MoonkinForm, 100 },     // Balance - very definitive
         { "Tranquility", 100 },      // Restoration - very definitive
         { "Innervate", 90 },          // Restoration - strong indicator
         
@@ -477,9 +484,9 @@ public static class PlayerAttributeMappings
         { "Soothing Mist", 100 },     // Mistweaver - very definitive
         
         // Evoker specs
-        { "Disintegrate", 100 },      // Devastation - very definitive
+        { Disintegrate, 100 },      // Devastation - very definitive
         { "Emerald Blossom", 100 },   // Preservation - very definitive
-        { "Deep Breath", 90 },         // Devastation - strong indicator
+        { DeepBreath, 90 },         // Devastation - strong indicator
     };
 
     /// <summary>

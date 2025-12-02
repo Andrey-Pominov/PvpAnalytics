@@ -75,52 +75,96 @@ public static class AppConstants
 
     public static class WoWSpec
     {
-        // Warrior
-        public const string Protection = "Protection";
-        public const string Fury = "Fury";
-        public const string Arms = "Arms";
+        public static class Priest
+        {
+            public const string Discipline = "Discipline";
+            public const string Holy = "Holy";
+            public const string Shadow = "Shadow";
+        }
 
-        // Paladin
-        public const string Holy = "Holy";
-        public const string Retribution = "Retribution";
+        public static class Warlock
+        {
+            public const string Affliction = "Affliction";
+            public const string Demonology = "Demonology";
+            public const string Destruction = "Destruction";
+        }
 
-        // Hunter
-        public const string BeastMastery = "Beast Mastery";
-        public const string Marksmanship = "Marksmanship";
-        public const string Survival = "Survival";
+        public static class Mage
+        {
+            public const string Arcane = "Arcane";
+            public const string Fire = "Fire";
+            public const string Frost = "Frost";
+        }
 
-        // Rogue
-        public const string Assassination = "Assassination";
-        public const string Outlaw = "Outlaw";
-        public const string Subtlety = "Subtlety";
+        public static class Warrior
+        {
+            public const string Protection = "Protection";
+            public const string Fury = "Fury";
+            public const string Arms = "Arms";
+        }
 
-        // Druid
-        public const string Guardian = "Guardian";
-        public const string Feral = "Feral";
-        public const string Balance = "Balance";
-        public const string Restoration = "Restoration";
+        public static class Paladin
+        {
+            public const string Protection = "Protection";
+            public const string Holy = "Holy";
+            public const string Retribution = "Retribution";
+        }
 
-        // Shaman
-        public const string Elemental = "Elemental";
-        public const string Enhancement = "Enhancement";
+        public static class Hunter
+        {
+            public const string BeastMastery = "Beast Mastery";
+            public const string Marksmanship = "Marksmanship";
+            public const string Survival = "Survival";
+        }
 
-        // Death Knight
-        public const string Frost = "Frost";
-        public const string Unholy = "Unholy";
-        public const string Blood = "Blood";
+        public static class Rogue
+        {
+            public const string Assassination = "Assassination";
+            public const string Outlaw = "Outlaw";
+            public const string Subtlety = "Subtlety";
+        }
 
-        // Demon Hunter
-        public const string Havoc = "Havoc";
-        public const string Vengeance = "Vengeance";
+        public static class Druid
+        {
+            public const string Guardian = "Guardian";
+            public const string Feral = "Feral";
+            public const string Balance = "Balance";
+            public const string Restoration = "Restoration";
+        }
 
-        // Monk
-        public const string Windwalker = "Windwalker";
-        public const string Brewmaster = "Brewmaster";
-        public const string Mistweaver = "Mistweaver";
+        public static class Shaman
+        {
+            public const string Elemental = "Elemental";
+            public const string Enhancement = "Enhancement";
+            public const string Restoration = "Restoration";
+        }
 
-        // Evoker
-        public const string Devastation = "Devastation";
-        public const string Preservation = "Preservation";
+        public static class DeathKnight
+        {
+            public const string Frost = "Frost";
+            public const string Unholy = "Unholy";
+            public const string Blood = "Blood";
+        }
+
+        public static class DemonHunter
+        {
+            public const string Havoc = "Havoc";
+            public const string Vengeance = "Vengeance";
+        }
+
+        public static class Monk
+        {
+            public const string Windwalker = "Windwalker";
+            public const string Brewmaster = "Brewmaster";
+            public const string Mistweaver = "Mistweaver";
+        }
+
+        public static class Evoker
+        {
+            public const string Devastation = "Devastation";
+            public const string Preservation = "Preservation";
+            public const string Augmentation = "Augmentation";
+        }
     }
 }
 

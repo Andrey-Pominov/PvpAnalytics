@@ -81,7 +81,7 @@ const Sparkline = ({
           const y = 100 - ((value - min) / range) * 100
           return (
             <circle
-              key={values[index]}
+              key={`${index}-${value}`}
               cx={x}
               cy={y}
               r={hoveredIndex === index ? 4 : 0}

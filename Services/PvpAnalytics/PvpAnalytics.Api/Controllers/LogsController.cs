@@ -56,8 +56,8 @@ public class LogsController(ICombatLogIngestionService ingestion, ILogger<LogsCo
         catch (OperationCanceledException ex)
         {
             logger.LogWarning(
-                "Combat log ingestion cancelled for file {FileName}. See inner exception for details. {ex} ",
-                file.FileName, ex.Message);
+                "Combat log ingestion cancelled for file {FileName}. See inner exception for details. {Ex}",
+                file.FileName, ex);
             throw;
         }
         catch (Exception ex)
