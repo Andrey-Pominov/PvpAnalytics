@@ -64,11 +64,11 @@ export const mockSessionAnalysis = {
       { timeSlot: '20-21', sessions: 2, winRate: 55.8, averageRatingChange: -4.2 }
     ],
     byDayOfWeek: [
-      { timeSlot: 'Monday', sessions: 2, winRate: 65.0, averageRatingChange: 5.0 },
-      { timeSlot: 'Tuesday', sessions: 1, winRate: 70.0, averageRatingChange: 12.0 },
-      { timeSlot: 'Wednesday', sessions: 2, winRate: 60.0, averageRatingChange: 2.0 },
-      { timeSlot: 'Thursday', sessions: 1, winRate: 55.0, averageRatingChange: -5.0 },
-      { timeSlot: 'Friday', sessions: 2, winRate: 62.5, averageRatingChange: 4.5 }
+      { timeSlot: 'Monday', sessions: 2, winRate: 65, averageRatingChange: 5 },
+      { timeSlot: 'Tuesday', sessions: 1, winRate: 70, averageRatingChange: 12 },
+      { timeSlot: 'Wednesday', sessions: 2, winRate: 60, averageRatingChange: 2 },
+      { timeSlot: 'Thursday', sessions: 1, winRate: 55, averageRatingChange: -5 },
+      { timeSlot: 'Friday', sessions: 2, winRate: 62.5, averageRatingChange: 4 }
     ],
     bestHour: '14-15',
     bestDay: 'Tuesday'
@@ -84,7 +84,4 @@ export const mockSessionAnalysis = {
     optimalSessionLength: 45
   }
 }
-
-export const mockOptimalPlayTimes = mockSessionAnalysis.optimalTimes
-export const mockFatigueAnalysis = mockSessionAnalysis.fatigue
 

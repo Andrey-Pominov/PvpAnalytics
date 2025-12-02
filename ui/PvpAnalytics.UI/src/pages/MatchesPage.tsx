@@ -109,11 +109,30 @@ const MatchesPage = () => {
     }))
   }, [transformedMatches])
 
+  const matchCountLabel = useMemo(() => {
+    const count = filteredMatches.length
+    const suffix = count === 1 ? '' : 'es'
+    return `${count} match${suffix}`
+  }, [filteredMatches])
+
+  let matchesContent: JSX.Element
+  if (loading) {
+    matchesContent = (
+      <div className="text-center py-12 text-text-muted">Loading matches...</div>
+    )
+  } else if (filteredMatches.length === 0) {
+    matchesContent = (
+      <div className="text-center py-12 text-text-muted">No matches found.</div>
+    )
+  } else {
+    matchesContent = <MatchesTable matches={transformedMatches} />
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div className="text-sm text-text-muted">
-          {loading ? 'Loading...' : `${filteredMatches.length} match${filteredMatches.length !== 1 ? 'es' : ''}`}
+          {loading ? 'Loading...' : matchCountLabel}
         </div>
         <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
           <ExportButton data={exportData} filename="matches" disabled={loading || filteredMatches.length === 0} />
@@ -170,13 +189,7 @@ const MatchesPage = () => {
           ) : undefined
         }
       >
-        {loading ? (
-          <div className="text-center py-12 text-text-muted">Loading matches...</div>
-        ) : filteredMatches.length === 0 ? (
-          <div className="text-center py-12 text-text-muted">No matches found.</div>
-        ) : (
-          <MatchesTable matches={transformedMatches} />
-        )}
+        {matchesContent}
       </Card>
     </div>
   )

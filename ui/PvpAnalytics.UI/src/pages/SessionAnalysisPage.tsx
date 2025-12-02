@@ -43,7 +43,7 @@ const SessionAnalysisPage = () => {
         <h2 className="text-xl font-semibold mb-4">Recent Sessions</h2>
         <div className="space-y-2">
           {data.sessions?.slice(0, 10).map((session: any, idx: number) => (
-            <Card key={idx}>
+            <Card key={`${idx}-${session.startTime}`}>
               <div className="flex flex-col sm:flex-row sm:justify-between gap-2 sm:gap-4">
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-sm sm:text-base">{new Date(session.startTime).toLocaleString()}</p>

@@ -80,7 +80,7 @@ const TeamSynergyPage = () => {
         <h2 className="text-xl font-semibold mb-4">Partner Synergies</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {synergy.partnerSynergies.map((partner, idx) => (
-            <Card key={idx}>
+            <Card key={`${idx}-${partner.averageRatingTogether}`}>
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
                 <div>
                   <p className="font-semibold text-sm sm:text-base">

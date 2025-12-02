@@ -28,7 +28,7 @@ const MetaAnalysisPage = () => {
       <h1 className="text-2xl sm:text-3xl font-bold">Meta Analysis</h1>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {data.compositions?.slice(0, 10).map((comp: any, idx: number) => (
-          <Card key={idx}>
+          <Card key={`${idx}-${comp.id}`}>
             <h3 className="text-base sm:text-lg font-semibold mb-2 truncate">#{comp.rank} {comp.composition}</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
               <p>Matches: <span className="font-semibold">{comp.totalMatches}</span></p>

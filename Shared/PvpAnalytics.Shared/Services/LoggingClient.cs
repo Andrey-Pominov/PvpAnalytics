@@ -6,7 +6,7 @@ using PvpAnalytics.Shared.Protos;
 
 namespace PvpAnalytics.Shared.Services;
 
-public class LoggingClient : ILoggingClient
+public sealed class LoggingClient : ILoggingClient, IDisposable
 {
     private readonly GrpcChannel _channel;
     private readonly LoggingService.LoggingServiceClient _client;
@@ -172,10 +172,21 @@ public class LoggingClient : ILoggingClient
 
     public void Dispose()
     {
-        // Use Interlocked to atomically check and set disposed flag
+        Dispose(disposing: true);
+    }
+
+    private void Dispose(bool disposing)
+    {
+        // Ensure we only dispose once, even if called from multiple threads
         if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
             return;
-        
+
+        if (!disposing)
+        {
+            return;
+        }
+
+        // Dispose managed resources
         StopHeartbeat();
         _channel.Dispose();
     }

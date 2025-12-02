@@ -306,17 +306,20 @@ const MatchDetailPage = () => {
                             <div className="text-xs text-text-muted">Rating</div>
                             <div className="flex items-center gap-1 text-sm">
                               <span className="text-text-muted">{participant.ratingBefore}</span>
-                              <span
-                                className={
-                                  participant.ratingAfter > participant.ratingBefore
-                                    ? 'text-emerald-300'
-                                    : participant.ratingAfter < participant.ratingBefore
-                                      ? 'text-rose-300'
-                                      : 'text-text-muted'
+                              {(() => {
+                                let ratingColor = 'text-text-muted'
+                                if (participant.ratingAfter > participant.ratingBefore) {
+                                  ratingColor = 'text-emerald-300'
+                                } else if (participant.ratingAfter < participant.ratingBefore) {
+                                  ratingColor = 'text-rose-300'
                                 }
-                              >
-                                →
-                              </span>
+
+                                return (
+                                  <span className={ratingColor}>
+                                    →
+                                  </span>
+                                )
+                              })()}
                               <span className="font-semibold text-text">{participant.ratingAfter}</span>
                             </div>
                           </div>

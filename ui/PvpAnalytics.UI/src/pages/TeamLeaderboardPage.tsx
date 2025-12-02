@@ -116,7 +116,7 @@ const TeamLeaderboardPage = () => {
                     <td className="p-2 sm:p-4 text-sm sm:text-base">
                       <div className="flex flex-wrap gap-1">
                         {entry.memberNames.slice(0, 3).map((name, idx) => (
-                          <span key={idx} className="text-xs px-2 py-1 bg-surface/50 rounded">
+                          <span key={`${idx}-${name}`} className="text-xs px-2 py-1 bg-surface/50 rounded">
                             {name}
                           </span>
                         ))}
