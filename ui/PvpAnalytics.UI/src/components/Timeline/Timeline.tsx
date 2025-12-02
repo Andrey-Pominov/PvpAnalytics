@@ -3,7 +3,6 @@ import type { TimelineEvent } from '../../types/api'
 
 interface TimelineProps {
   events: TimelineEvent[]
-  matchDuration: number
 }
 
 type FilterType = 'all' | 'cooldowns' | 'cc' | 'kills'

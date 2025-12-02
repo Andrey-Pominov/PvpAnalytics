@@ -15,17 +15,13 @@ export interface ParsedMetric {
  * Escapes special regex characters in a string to make it safe for use in RegExp
  */
 function escapeRegex(str: string): string {
-  return str.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return str.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`)
 }
 
 /**
- * Validates that an expression only contains safe mathematical operations
+ * Checks if expression contains dangerous patterns
  */
-function isValidMathExpression(expression: string): { valid: boolean; error?: string } {
-  // Remove whitespace for validation
-  const cleaned = expression.replaceAll(/\s/g, '')
-
-  // Check for dangerous patterns
+function hasDangerousPatterns(cleaned: string): boolean {
   const dangerousPatterns = [
     /eval\s*\(/i,
     /function\s*\(/i,
@@ -38,55 +34,78 @@ function isValidMathExpression(expression: string): { valid: boolean; error?: st
     /constructor/i,
     /\[.*\]\s*\(/, // Array access followed by function call
   ]
+  return dangerousPatterns.some((pattern) => pattern.test(cleaned))
+}
 
-  for (const pattern of dangerousPatterns) {
-    if (pattern.test(cleaned)) {
-      return { valid: false, error: 'Expression contains unsafe patterns' }
-    }
-  }
-
-  // Check for method calls that are NOT Math.* (Math.* is allowed)
+/**
+ * Checks if expression contains unsafe method calls (non-Math.*)
+ */
+function hasUnsafeMethodCalls(cleaned: string): boolean {
   const methodCallPattern = /\.\s*\w+\s*\(/g
   let methodMatch
   while ((methodMatch = methodCallPattern.exec(cleaned)) !== null) {
     const beforeDot = cleaned.substring(Math.max(0, methodMatch.index - 10), methodMatch.index)
-    // Allow Math.* but block other method calls
     if (!beforeDot.endsWith('Math')) {
-      return { valid: false, error: 'Expression contains unsafe method calls (only Math.* functions are allowed)' }
+      return true
     }
   }
+  return false
+}
 
-  // Check for balanced parentheses
+/**
+ * Validates that parentheses are balanced
+ */
+function areParenthesesBalanced(cleaned: string): boolean {
   let parenCount = 0
   for (const char of cleaned) {
     if (char === '(') parenCount++
     if (char === ')') parenCount--
-    if (parenCount < 0) {
-      return { valid: false, error: 'Unbalanced parentheses' }
+    if (parenCount < 0) return false
+  }
+  return parenCount === 0
+}
+
+/**
+ * Validates Math function calls are allowed
+ */
+function validateMathFunctions(cleaned: string): { valid: boolean; error?: string } {
+  const mathFunctionPattern = /Math\.(\w+)/g
+  const allowedMathFunctions = new Set(['abs', 'acos', 'asin', 'atan', 'ceil', 'cos', 'exp', 'floor', 'ln', 'log', 'max', 'min', 'pow', 'round', 'sin', 'sqrt', 'tan'])
+  let match
+  while ((match = mathFunctionPattern.exec(cleaned)) !== null) {
+    if (!allowedMathFunctions.has(match[1])) {
+      return { valid: false, error: `Unsupported Math function: Math.${match[1]}` }
     }
   }
-  if (parenCount !== 0) {
+  return { valid: true }
+}
+
+/**
+ * Validates that an expression only contains safe mathematical operations
+ */
+function isValidMathExpression(expression: string): { valid: boolean; error?: string } {
+  // Remove whitespace for validation
+  const cleaned = expression.replaceAll(/\s/g, '')
+
+  if (hasDangerousPatterns(cleaned)) {
+    return { valid: false, error: 'Expression contains unsafe patterns' }
+  }
+
+  if (hasUnsafeMethodCalls(cleaned)) {
+    return { valid: false, error: 'Expression contains unsafe method calls (only Math.* functions are allowed)' }
+  }
+
+  if (!areParenthesesBalanced(cleaned)) {
     return { valid: false, error: 'Unbalanced parentheses' }
   }
 
   // Allow only: numbers, operators, parentheses, Math functions, and variable names
-  // Variable names must be alphanumeric with underscores, starting with letter
   const allowedPattern = /^[0-9+\-*/().\s,a-zA-Z_]+$/
   if (!allowedPattern.test(cleaned.replaceAll(/Math\.\w+/g, 'MATHFUNC'))) {
     return { valid: false, error: 'Expression contains invalid characters' }
   }
 
-  // Validate Math function calls are allowed
-  const mathFunctionPattern = /Math\.(\w+)/g
-  const allowedMathFunctions = ['abs', 'acos', 'asin', 'atan', 'ceil', 'cos', 'exp', 'floor', 'ln', 'log', 'max', 'min', 'pow', 'round', 'sin', 'sqrt', 'tan']
-  let match
-  while ((match = mathFunctionPattern.exec(cleaned)) !== null) {
-    if (!allowedMathFunctions.includes(match[1])) {
-      return { valid: false, error: `Unsupported Math function: Math.${match[1]}` }
-    }
-  }
-
-  return { valid: true }
+  return validateMathFunctions(cleaned)
 }
 
 /**
@@ -94,16 +113,16 @@ function isValidMathExpression(expression: string): { valid: boolean; error?: st
  */
 function extractVariables(expression: string): string[] {
   // Match variable names (alphanumeric + underscore, must start with letter)
-  const variablePattern = /\b[a-zA-Z_][a-zA-Z0-9_]*\b/g
+  const variablePattern = /\b[a-zA-Z_]\w*\b/g
   const matches = expression.match(variablePattern) || []
   
   // Filter out JavaScript keywords, Math functions, and operators
-  const keywords = [
+  const keywords = new Set([
     'Math', 'abs', 'acos', 'asin', 'atan', 'ceil', 'cos', 'exp', 'floor', 'ln', 'log', 'max', 'min', 'pow', 'round', 'sin', 'sqrt', 'tan',
     'and', 'or', 'not', 'if', 'true', 'false', 'null', 'undefined', 'NaN', 'Infinity',
-  ]
+  ])
   
-  return [...new Set(matches)].filter((v) => !keywords.includes(v) && !/^\d/.test(v))
+  return [...new Set(matches)].filter((v) => !keywords.has(v) && !/^\d/.test(v))
 }
 
 /**
@@ -189,7 +208,7 @@ export function evaluateMetric(
       // Escape regex metacharacters in variable name
       const escapedName = escapeRegex(varName)
       // Replace with actual value (use word boundaries to avoid partial matches)
-      const regex = new RegExp(`\\b${escapedName}\\b`, 'g')
+      const regex = new RegExp(String.raw`\b${escapedName}\b`, 'g')
       substituted = substituted.replace(regex, String(variables[varName]))
     }
 
@@ -260,7 +279,7 @@ export function substituteVariables(
     // Escape regex metacharacters in variable name
     const escapedName = escapeRegex(varName)
     // Replace with actual value
-    const regex = new RegExp(`\\b${escapedName}\\b`, 'g')
+    const regex = new RegExp(String.raw`\b${escapedName}\b`, 'g')
     substituted = substituted.replace(regex, String(variables[varName]))
   }
   

@@ -142,7 +142,7 @@ const StatsPage = () => {
             <ForecastCard
               forecast={ratingForecast}
               title="Rating Forecast"
-              currentValue={stats.overviewTrend[stats.overviewTrend.length - 1]}
+              currentValue={stats.overviewTrend.at(-1) ?? 0}
             />
           </div>
         )}
