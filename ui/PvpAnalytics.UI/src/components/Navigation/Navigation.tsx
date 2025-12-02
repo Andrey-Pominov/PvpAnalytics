@@ -178,13 +178,13 @@ const Navigation = () => {
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex flex-wrap items-center gap-2">
                     {navItems.map((item) => {
-                        const isActive = location.pathname === item.path ||
-                            (item.path === '/' && location.pathname === '/') ||
-                            (item.path === '/teams' && location.pathname.startsWith('/teams')) ||
-                            (item.path === '/leaderboards' && location.pathname.startsWith('/leaderboards')) ||
-                            (item.path === '/favorites' && location.pathname.startsWith('/favorites')) ||
-                            (item.path === '/rivals' && location.pathname.startsWith('/rivals')) ||
-                            (item.path === '/profile' && location.pathname.startsWith('/profile'))
+                        const isActive = item.path === '/' ?
+                            location.pathname === '/' :
+                        location.pathname.startsWith('/teams') ||
+                        location.pathname.startsWith('/leaderboards') ||
+                        location.pathname.startsWith('/favorites') ||
+                        location.pathname.startsWith('/rivals') ||
+                        location.pathname.startsWith('/profile')
                         return (
                             <Link
                                 key={item.path}

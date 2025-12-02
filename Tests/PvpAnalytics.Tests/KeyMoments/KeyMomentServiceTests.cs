@@ -60,7 +60,7 @@ public class KeyMomentServiceTests
         // Act
         var result = (bool)method.Invoke(
             null,
-            new object[] { logs, initialHit, targetPlayerId })!;
+            [logs, initialHit, targetPlayerId])!;
 
         // Assert
         result.Should().BeTrue("the target player has no activity within 5 seconds after the damage event");
@@ -131,19 +131,19 @@ public class KeyMomentServiceTests
         // Activity at 4.999s should be inside the 5s window -> NOT inactive
         var resultBelow = (bool)method.Invoke(
             null,
-            new object[] { new List<CombatLogEntry> { baseHit, justBelowFiveSeconds }, baseHit, targetPlayerId })!;
+            [new List<CombatLogEntry> { baseHit, justBelowFiveSeconds }, baseHit, targetPlayerId])!;
         resultBelow.Should().BeFalse("activity at 4.999s is within the 5-second window");
 
         // Activity at exactly 5.0s should be inside the window (<= 5s) -> NOT inactive
         var resultExactly = (bool)method.Invoke(
             null,
-            new object[] { new List<CombatLogEntry> { baseHit, exactlyFiveSeconds }, baseHit, targetPlayerId })!;
+            [new List<CombatLogEntry> { baseHit, exactlyFiveSeconds }, baseHit, targetPlayerId])!;
         resultExactly.Should().BeFalse("activity at exactly 5.0s is within the 5-second window");
 
         // Activity at 5.001s should be outside the window -> inactive
         var resultAbove = (bool)method.Invoke(
             null,
-            new object[] { new List<CombatLogEntry> { baseHit, justAboveFiveSeconds }, baseHit, targetPlayerId })!;
+            [new List<CombatLogEntry> { baseHit, justAboveFiveSeconds }, baseHit, targetPlayerId])!;
         resultAbove.Should().BeTrue("activity at 5.001s is outside the 5-second window");
     }
 
@@ -152,8 +152,9 @@ public class KeyMomentServiceTests
     {
         // Arrange
         var matchStart = new DateTime(2024, 1, 1, 14, 0, 0, DateTimeKind.Utc);
-        const long targetPlayerId = 20;
-        const long killerPlayerId = 30;
+
+        var killerPlayer = new Player { Id = 20, Name = "Killer" };
+        var targetPlayer = new Player { Id = 30, Name = "Target" };
 
         // Target player acts as a source earlier in the match, so they are tracked in playerLastActivity.
         var targetEarlyActivity = new CombatLogEntry
@@ -161,8 +162,10 @@ public class KeyMomentServiceTests
             Id = 1,
             MatchId = 1,
             Timestamp = matchStart.AddSeconds(5),
-            SourcePlayerId = targetPlayerId,
-            TargetPlayerId = killerPlayerId,
+            SourcePlayerId = targetPlayer.Id,
+            SourcePlayer = targetPlayer,
+            TargetPlayerId = killerPlayer.Id,
+            TargetPlayer = killerPlayer,
             DamageDone = 1_000,
             HealingDone = 0,
             Ability = "Opening Hit",
@@ -175,8 +178,10 @@ public class KeyMomentServiceTests
             Id = 2,
             MatchId = 1,
             Timestamp = matchStart.AddSeconds(20),
-            SourcePlayerId = killerPlayerId,
-            TargetPlayerId = targetPlayerId,
+            SourcePlayerId = killerPlayer.Id,
+            SourcePlayer = killerPlayer,
+            TargetPlayerId = targetPlayer.Id,
+            TargetPlayer = targetPlayer,
             DamageDone = 100_000, // Above the lethal threshold used by IsPotentialDeath
             HealingDone = 0,
             Ability = "Massive Crit",
@@ -190,10 +195,12 @@ public class KeyMomentServiceTests
             MatchId = 1,
             Timestamp = matchStart.AddSeconds(22),
             SourcePlayerId = 999,
-            TargetPlayerId = killerPlayerId,
-            DamageDone = 500,
+            SourcePlayer = new Player { Id = 999, Name = "Pri" },
+            TargetPlayerId = targetPlayer.Id,
+            TargetPlayer = targetPlayer,
+            DamageDone = 5_000,
             HealingDone = 0,
-            Ability = "Unrelated",
+            Ability = "Lightning Bolt",
             CrowdControl = string.Empty
         };
 
@@ -204,20 +211,18 @@ public class KeyMomentServiceTests
         // Act
         var result = (List<KeyMoment>)method.Invoke(
             null,
-            new object[] { logs, matchStart })!;
+            [logs, matchStart])!;
 
         // Assert
         result.Should().HaveCount(1, "one lethal high-damage event should produce a single death moment");
 
         var death = result[0];
         death.EventType.Should().Be("death");
-        death.TargetPlayerId.Should().Be(targetPlayerId);
-        death.SourcePlayerId.Should().Be(killerPlayerId);
+        death.TargetPlayerId.Should().Be(targetPlayer.Id);
+        death.SourcePlayerId.Should().Be(killerPlayer.Id);
         death.DamageDone.Should().Be(lethalHit.DamageDone);
 
         var expectedRelativeTimestamp = (long)(lethalHit.Timestamp - matchStart).TotalSeconds;
         death.Timestamp.Should().Be(expectedRelativeTimestamp);
     }
 }
-
-
