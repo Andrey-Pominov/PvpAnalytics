@@ -36,39 +36,23 @@ const StatsPage = () => {
     void loadStats()
   }, [loadStats])
 
-  const stats = useMemo(() => data, [data])
-
-  if (!stats) {
-    return (
-      <div className="flex flex-col gap-6">
-        {loading && (
-          <div className="rounded-2xl border border-accent-muted/40 border-dashed bg-accent-muted/10 px-4 py-3 text-center text-sm text-text">
-            Loading latest data…
-          </div>
-        )}
-        {!loading && (
-          <div className="rounded-2xl border border-accent-muted/40 bg-surface/50 px-4 py-3 text-sm text-text-muted">
-            No statistics available.
-          </div>
-        )}
-      </div>
-    )
-  }
+  const stats = data
 
   // Calculate win rate from matches
   const winRate = useMemo(() => {
+    if (!stats) return 0
     const wins = stats.matches.filter((m) => m.result === 'Victory').length
     const total = stats.matches.length
     return total > 0 ? Math.round((wins / total) * 100) : 0
-  }, [stats.matches])
+  }, [stats])
 
   // Detect win rate anomaly
   const winRateAnomaly = useMemo(() => {
-    if (stats.matches.length === 0) return null
+    if (!stats || stats.matches.length === 0) return null
     const wins = stats.matches.filter((m) => m.result === 'Victory').length
     const winRateDecimal = wins / stats.matches.length
     return detectWinRateAnomaly(winRateDecimal, stats.matches.length)
-  }, [stats.matches])
+  }, [stats])
 
   // Detect rating trend anomalies
 
@@ -79,6 +63,7 @@ const StatsPage = () => {
 
   // Calculate average duration
   const avgDuration = useMemo(() => {
+    if (!stats) return '0:00'
     const durations = stats.matches.map((m) => {
       const [mins, secs] = m.duration.split(':').map(Number)
       return mins * 60 + secs
@@ -87,37 +72,50 @@ const StatsPage = () => {
     const mins = Math.floor(avg / 60)
     const secs = Math.round(avg % 60)
     return `${mins}:${secs.toString().padStart(2, '0')}`
-  }, [stats.matches])
+  }, [stats])
 
   // Calculate rating trend
   const ratingTrend = useMemo(() => {
-    if (stats.overviewTrend.length < 2) return 'neutral'
+    if (!stats || stats.overviewTrend.length < 2) return 'neutral'
     const current = stats.overviewTrend[stats.overviewTrend.length - 1]
     const previous = stats.overviewTrend[stats.overviewTrend.length - 2]
     if (current > previous) return 'up'
     if (current < previous) return 'down'
     return 'neutral'
-  }, [stats.overviewTrend])
+  }, [stats])
 
   const ratingChange = useMemo(() => {
-    if (stats.overviewTrend.length < 2) return undefined
+    if (!stats || stats.overviewTrend.length < 2) return undefined
     const current = stats.overviewTrend[stats.overviewTrend.length - 1]
     const previous = stats.overviewTrend[stats.overviewTrend.length - 2]
     const change = current - previous
     return change > 0 ? `+${change}` : change < 0 ? `${change}` : '0'
-  }, [stats.overviewTrend])
+  }, [stats])
 
   // Generate rating forecast
   const ratingForecast = useMemo(() => {
-    if (stats.overviewTrend.length < 5) return null
+    if (!stats || stats.overviewTrend.length < 5) return null
     const currentRating = stats.overviewTrend[stats.overviewTrend.length - 1]
     // Target: next rating milestone (e.g., 2000, 2100, etc.)
     const nextMilestone = Math.ceil(currentRating / 100) * 100
     return generateForecast(stats.overviewTrend, 7, nextMilestone)
-  }, [stats.overviewTrend])
+  }, [stats])
 
-  return (
-    <div className="flex flex-col gap-8">
+  const content = !stats ? (
+    <div className="flex flex-col gap-6">
+      {loading && (
+        <div className="rounded-2xl border border-accent-muted/40 border-dashed bg-accent-muted/10 px-4 py-3 text-center text-sm text-text">
+          Loading latest data…
+        </div>
+      )}
+      {!loading && (
+        <div className="rounded-2xl border border-accent-muted/40 bg-surface/50 px-4 py-3 text-sm text-text-muted">
+          No statistics available.
+        </div>
+      )}
+    </div>
+  ) : (
+    <>
       <div className="flex justify-end overflow-x-auto">
         <ToggleGroup
           options={[
@@ -268,6 +266,12 @@ const StatsPage = () => {
           Loading latest data…
         </div>
       )}
+    </>
+  )
+
+  return (
+    <div className="flex flex-col gap-8">
+      {content}
     </div>
   )
 }
