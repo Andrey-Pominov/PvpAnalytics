@@ -25,29 +25,26 @@ public static partial class LuaTableParser
     /// </summary>
     private static List<LuaMatchData> ParseContent(string content)
     {
-        var matches = new List<LuaMatchData>();
-
         // Pattern to match a match block: { ["Logs"] = { ... }, ["StartTime"] = "...", etc. }
         // We'll use a simpler approach: find all match blocks using a compiled, source-generated regex.
         var regexMatches = MatchBlockRegex().Matches(content);
 
-        foreach (Match match in regexMatches)
-        {
-            var matchData = new LuaMatchData();
+        var matches = regexMatches
+            .Select(match =>
+            {
+                var groups = match.Groups;
 
-            // Extract logs
-            var logsContent = match.Groups[1].Value;
-            matchData.Logs = ParseLogsArray(logsContent);
-
-            // Extract metadata
-            matchData.StartTime = match.Groups[2].Value.Trim();
-            matchData.EndTime = match.Groups[3].Value.Trim();
-            matchData.Zone = match.Groups[4].Value.Trim();
-            matchData.Faction = match.Groups[5].Value.Trim();
-            matchData.Mode = match.Groups[6].Value.Trim();
-
-            matches.Add(matchData);
-        }
+                return new LuaMatchData
+                {
+                    Logs = ParseLogsArray(groups[1].Value),
+                    StartTime = groups[2].Value.Trim(),
+                    EndTime = groups[3].Value.Trim(),
+                    Zone = groups[4].Value.Trim(),
+                    Faction = groups[5].Value.Trim(),
+                    Mode = groups[6].Value.Trim()
+                };
+            })
+            .ToList();
 
         // If regex didn't work, try a more manual approach
         if (matches.Count == 0)

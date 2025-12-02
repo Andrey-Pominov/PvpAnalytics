@@ -4,7 +4,6 @@ import axios from 'axios'
 import Card from '../components/Card/Card'
 import Timeline from '../components/Timeline/Timeline'
 import type { MatchDetailDto } from '../types/api'
-import { mockMatchDetails } from '../mocks/matchDetail'
 
 const MatchDetailPage = () => {
   const { id } = useParams<{ id: string }>()
@@ -23,40 +22,14 @@ const MatchDetailPage = () => {
     const loadMatchDetail = async () => {
       setLoading(true)
       setError(null)
-      
-      try {
-        if (await loadMockDataIfNeeded(abortController, matchId)) {
-          return
-        }
 
+      try {
         await loadApiData(abortController, matchId)
       } catch (err) {
         handleLoadError(err, abortController, matchId)
       } finally {
         finalizeLoading(abortController)
       }
-    }
-
-    const loadMockDataIfNeeded = async (
-      abortController: AbortController,
-      matchId: number
-    ): Promise<boolean> => {
-      const baseUrl = getBaseUrl()
-      if (baseUrl !== 'mock') {
-        return false
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, 500))
-      if (abortController.signal.aborted) return true
-
-      const mockDetail = mockMatchDetails[matchId]
-      if (!mockDetail) {
-        setError('Match not found')
-        return true
-      }
-
-      setMatchDetail(mockDetail)
-      return true
     }
 
     const loadApiData = async (
@@ -105,27 +78,13 @@ const MatchDetailPage = () => {
     }
 
     const handleNotFoundError = (matchId: number): void => {
+      console.warn(`Match ${matchId} not found`)
       setError('Match not found')
-      tryUseMockData(matchId)
     }
 
     const handleGenericError = (err: unknown, matchId: number): void => {
-      if (tryUseMockData(matchId)) {
-        console.error('Failed to load match detail, using mock data', err)
-        return
-      }
-      console.error('Failed to load match detail and no mock data available', err)
+      console.error('Failed to load match detail', matchId, err)
       setError('Failed to load match detail. Please try again later.')
-    }
-
-    const tryUseMockData = (matchId: number): boolean => {
-      const mockDetail = mockMatchDetails[matchId]
-      if (mockDetail) {
-        setMatchDetail(mockDetail)
-        setError(null)
-        return true
-      }
-      return false
     }
 
     const finalizeLoading = (abortController: AbortController): void => {

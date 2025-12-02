@@ -2,7 +2,6 @@ import { useState } from 'react'
 import axios from 'axios'
 import Card from '../components/Card/Card'
 import SearchBar from '../components/SearchBar/SearchBar'
-import { mockOpponentScoutList } from '../mocks/opponentScouting'
 
 const OpponentScoutingPage = () => {
   const [searchTerm, setSearchTerm] = useState('')
@@ -17,24 +16,14 @@ const OpponentScoutingPage = () => {
     setLoading(true)
     try {
       const baseUrl = import.meta.env.VITE_ANALYTICS_API_BASE_URL || 'http://localhost:8080/api'
-      
-      if (baseUrl === 'mock') {
-        await new Promise((resolve) => setTimeout(resolve, 500))
-        setResults(mockOpponentScoutList.filter(p => 
-          p.playerName.toLowerCase().includes(searchValue.toLowerCase())
-        ))
-        return
-      }
 
       const { data } = await axios.get(`${baseUrl}/opponent-scouting/search`, {
-        params: { name: searchValue }
+        params: { name: searchValue },
       })
-      setResults(data.length > 0 ? data : mockOpponentScoutList)
+      setResults(data)
     } catch (error) {
-      console.error('Error searching players, using mock data:', error)
-      setResults(mockOpponentScoutList.filter(p => 
-        p.playerName.toLowerCase().includes(searchValue.toLowerCase())
-      ))
+      console.error('Error searching players:', error)
+      setResults([])
     } finally {
       setLoading(false)
     }

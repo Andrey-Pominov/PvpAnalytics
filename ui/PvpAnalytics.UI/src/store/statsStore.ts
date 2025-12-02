@@ -1,7 +1,6 @@
 import { create } from 'zustand'
 import axios from 'axios'
 import type { PlayerStatistics } from '../types/stats'
-import { mockPlayerStatistics } from '../mocks/playerStats'
 
 interface StatsState {
   data: PlayerStatistics | null
@@ -9,8 +8,6 @@ interface StatsState {
   error: string | null
   loadStats: (playerId?: string) => Promise<void>
 }
-
-const cloneMock = (stats: PlayerStatistics): PlayerStatistics => JSON.parse(JSON.stringify(stats))
 
 export const useStatsStore = create<StatsState>((set) => ({
   data: null,
@@ -22,17 +19,14 @@ export const useStatsStore = create<StatsState>((set) => ({
     try {
       const baseUrl = import.meta.env.VITE_ANALYTICS_API_BASE_URL as string | undefined
 
-      if (baseUrl && baseUrl !== 'mock') {
-        const encodedId = encodeURIComponent(playerId)
-        const { data } = await axios.get<PlayerStatistics>(`${baseUrl}/players/${encodedId}/stats`, {
-          timeout: 5000,
-        })
-        set({ data, loading: false })
-        return
+      if (!baseUrl) {
+        throw new Error('Analytics API base URL is not configured.')
       }
 
-      // Mock data until API endpoint is ready. Remove this block when wiring real API responses.
-      const data = cloneMock(mockPlayerStatistics)
+      const encodedId = encodeURIComponent(playerId)
+      const { data } = await axios.get<PlayerStatistics>(`${baseUrl}/players/${encodedId}/stats`, {
+        timeout: 5000,
+      })
       set({ data, loading: false })
     } catch (error) {
       console.error('Failed to load stats', error)

@@ -3,8 +3,6 @@ using Grpc.Net.Client;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using PvpAnalytics.Shared.Protos;
-using System.Diagnostics;
-using System.Threading;
 
 namespace PvpAnalytics.Shared.Services;
 
@@ -14,7 +12,7 @@ public class LoggingClient : ILoggingClient
     private readonly LoggingService.LoggingServiceClient _client;
     private readonly string _serviceName;
     private readonly ILogger<LoggingClient>? _logger;
-    private readonly object _timerLock = new object();
+    private readonly Lock _timerLock = new();
     private Timer? _heartbeatTimer;
     private CancellationTokenSource? _heartbeatCts;
     private int _disposed; // 0 = false, 1 = true (for Interlocked operations)
@@ -102,11 +100,10 @@ public class LoggingClient : ILoggingClient
 
     public void StartHeartbeat(string serviceName, TimeSpan interval)
     {
-        if (Volatile.Read(ref _disposed) != 0)
-            throw new ObjectDisposedException(nameof(LoggingClient));
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
 
-        Timer? oldTimer = null;
-        CancellationTokenSource? oldCts = null;
+        Timer? oldTimer;
+        CancellationTokenSource? oldCts;
         lock (_timerLock)
         {
             // Atomically swap out the old timer and cancellation token source
@@ -125,7 +122,7 @@ public class LoggingClient : ILoggingClient
                     return;
                 
                 // Use Task.Run to handle async operation safely
-                _ = Task.Run(async () =>
+                Task.Run(async () =>
                 {
                     try
                     {
@@ -155,8 +152,8 @@ public class LoggingClient : ILoggingClient
 
     public void StopHeartbeat()
     {
-        Timer? timerToDispose = null;
-        CancellationTokenSource? ctsToDispose = null;
+        Timer? timerToDispose;
+        CancellationTokenSource? ctsToDispose;
         lock (_timerLock)
         {
             // Atomically swap out the timer and cancellation token source
@@ -180,7 +177,7 @@ public class LoggingClient : ILoggingClient
             return;
         
         StopHeartbeat();
-        _channel?.Dispose();
+        _channel.Dispose();
     }
 }
 

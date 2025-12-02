@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import axios from 'axios'
 import Card from '../components/Card/Card'
-import { mockKeyMoments } from '../mocks/keyMoments'
 
 const KeyMomentsPage = () => {
   const { matchId } = useParams<{ matchId: string }>()
@@ -14,20 +13,13 @@ const KeyMomentsPage = () => {
     
     setLoading(true)
     const baseUrl = import.meta.env.VITE_ANALYTICS_API_BASE_URL || 'http://localhost:8080/api'
-    
-    if (baseUrl === 'mock') {
-      setTimeout(() => {
-        setData(mockKeyMoments)
-        setLoading(false)
-      }, 500)
-      return
-    }
 
-    axios.get(`${baseUrl}/key-moments/match/${matchId}`)
-      .then(response => setData(response.data || mockKeyMoments))
+    axios
+      .get(`${baseUrl}/key-moments/match/${matchId}`)
+      .then(response => setData(response.data))
       .catch(error => {
-        console.error('Error loading key moments, using mock data:', error)
-        setData(mockKeyMoments)
+        console.error('Error loading key moments:', error)
+        setData(null)
       })
       .finally(() => setLoading(false))
   }, [matchId])

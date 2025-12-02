@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
 import Card from '../components/Card/Card'
-import { mockMetaAnalysis } from '../mocks/metaAnalysis'
 
 const MetaAnalysisPage = () => {
   const [data, setData] = useState<any>(null)
@@ -10,20 +9,13 @@ const MetaAnalysisPage = () => {
   useEffect(() => {
     setLoading(true)
     const baseUrl = import.meta.env.VITE_ANALYTICS_API_BASE_URL || 'http://localhost:8080/api'
-    
-    if (baseUrl === 'mock') {
-      setTimeout(() => {
-        setData(mockMetaAnalysis)
-        setLoading(false)
-      }, 500)
-      return
-    }
 
-    axios.get(`${baseUrl}/meta-analysis`)
-      .then(response => setData(response.data || mockMetaAnalysis))
+    axios
+      .get(`${baseUrl}/meta-analysis`)
+      .then(response => setData(response.data))
       .catch(error => {
-        console.error('Error loading meta analysis, using mock data:', error)
-        setData(mockMetaAnalysis)
+        console.error('Error loading meta analysis:', error)
+        setData(null)
       })
       .finally(() => setLoading(false))
   }, [])

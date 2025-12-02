@@ -1,5 +1,5 @@
 export const getSecureRandomFloat = (): number => {
-  if (typeof window !== 'undefined' && globalThis.window?.crypto?.getRandomValues) {
+  if (globalThis.window?.crypto?.getRandomValues) {
     const array = new Uint32Array(1)
     globalThis.window.crypto.getRandomValues(array)
     // Convert to [0, 1)
@@ -16,7 +16,7 @@ export const getSecureRandomInt = (minInclusive: number, maxExclusive: number): 
 }
 
 export const getSecureRandomId = (prefix: string): string => {
-  if (typeof window !== 'undefined' && globalThis.window?.crypto?.randomUUID) {
+  if (globalThis.window?.crypto?.randomUUID) {
     return `${prefix}-${globalThis.window.crypto.randomUUID()}`
   }
 

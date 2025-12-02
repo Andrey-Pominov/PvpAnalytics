@@ -3,6 +3,7 @@ using PvpAnalytics.Core.DTOs;
 using PvpAnalytics.Core.Entities;
 using PvpAnalytics.Core.Logs;
 using PvpAnalytics.Infrastructure;
+using PvpAnalytics.Shared;
 
 namespace PvpAnalytics.Application.Services;
 
@@ -81,7 +82,7 @@ public class KeyMomentService(PvpAnalyticsDbContext dbContext) : IKeyMomentServi
 
     private static bool IsPotentialDeath(CombatLogEntry log)
     {
-        return log is { TargetPlayerId: not null, DamageDone: > 50000 };
+        return log is { TargetPlayerId: not null, DamageDone: > AppConstants.AnalyticsThresholds.PotentialDeathDamage };
     }
 
     private static bool IsPlayerInactiveAfterDamage(
@@ -182,7 +183,9 @@ public class KeyMomentService(PvpAnalyticsDbContext dbContext) : IKeyMomentServi
     private static List<KeyMoment> DetectDamageSpikes(List<CombatLogEntry> combatLogs,
         DateTime matchStart)
     {
-        var damageSpikes = combatLogs.Where(c => c.DamageDone > 100000).ToList();
+        var damageSpikes = combatLogs
+            .Where(c => c.DamageDone > AppConstants.AnalyticsThresholds.DamageSpike)
+            .ToList();
 
         return (from spike in damageSpikes
             let relativeTime = (long)(spike.Timestamp - matchStart).TotalSeconds
@@ -198,7 +201,7 @@ public class KeyMomentService(PvpAnalyticsDbContext dbContext) : IKeyMomentServi
                 Ability = spike.Ability,
                 DamageDone = spike.DamageDone,
                 ImpactScore = Math.Min(spike.DamageDone / 200000.0, 1.0),
-                IsCritical = spike.DamageDone > 150000
+                IsCritical = spike.DamageDone > AppConstants.AnalyticsThresholds.CriticalDamageSpike
             }).ToList();
     }
 

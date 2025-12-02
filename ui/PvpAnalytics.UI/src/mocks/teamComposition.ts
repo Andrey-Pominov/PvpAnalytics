@@ -74,16 +74,3 @@ export const mockPlayerTeams = [
   }
 ]
 
-export const mockPlayerSynergy = {
-  player1Id: 1,
-  player1Name: 'Elyssia',
-  player2Id: 5,
-  player2Name: 'Rugina',
-  matchesTogether: 78,
-  winsTogether: 52,
-  winRateTogether: 66.67,
-  averageRatingTogether: 2400,
-  synergyScore: 82.3,
-  commonCompositions: [mockTeamComposition]
-}
-

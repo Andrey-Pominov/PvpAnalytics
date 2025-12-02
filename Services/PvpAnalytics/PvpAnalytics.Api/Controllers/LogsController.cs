@@ -1,6 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
 using PvpAnalytics.Application.Logs;
 using PvpAnalytics.Core.Entities;
 
@@ -31,15 +29,16 @@ public class LogsController(ICombatLogIngestionService ingestion, ILogger<LogsCo
             return BadRequest("No file provided");
         }
 
-        logger.LogInformation("Starting combat log ingestion for file {FileName} ({FileSizeBytes} bytes).", file.FileName, file.Length);
+        logger.LogInformation("Starting combat log ingestion for file {FileName} ({FileSizeBytes} bytes).",
+            file.FileName, file.Length);
 
         try
         {
             await using var stream = file.OpenReadStream();
             var matches = await ingestion.IngestAsync(stream, ct);
-            
+
             logger.LogInformation("Combat log ingestion completed. Processed {MatchCount} match(es).", matches.Count);
-            
+
             if (matches.Count > 0)
             {
                 var firstMatch = matches[0];
@@ -49,17 +48,12 @@ public class LogsController(ICombatLogIngestionService ingestion, ILogger<LogsCo
                     return Ok(matches);
                 }
             }
-            
+
             return Ok(matches);
-        }
-        catch (OperationCanceledException)
-        {
-            logger.LogWarning("Combat log ingestion cancelled for file {FileName}.", file.FileName);
-            throw;
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Combat log ingestion failed for file {FileName}.", file.FileName);
+            logger.LogError(ex, "Combat log ingestion failed for file.");
             // Rethrow with additional context so callers have more information than the raw exception.
             throw new InvalidOperationException(
                 $"Combat log ingestion failed for file '{file.FileName}'. See inner exception for details.",
@@ -67,4 +61,3 @@ public class LogsController(ICombatLogIngestionService ingestion, ILogger<LogsCo
         }
     }
 }
-

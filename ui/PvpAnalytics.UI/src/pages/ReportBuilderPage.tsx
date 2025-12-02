@@ -1,11 +1,11 @@
-import {useState, useEffect} from 'react'
-import {useReportBuilderStore, type WidgetType, type DashboardWidget} from '../store/reportBuilderStore'
+import { useState, useEffect } from 'react'
+import { useReportBuilderStore, type WidgetType, type DashboardWidget } from '../store/reportBuilderStore'
 import Card from '../components/Card/Card'
 import MetricCard from '../components/MetricCard/MetricCard'
 import Sparkline from '../components/Sparkline/Sparkline'
 import WinRateList from '../components/WinRateList/WinRateList'
 import MatchesTable from '../components/MatchesTable/MatchesTable'
-import {mockPlayerStatistics} from '../mocks/playerStats'
+import { useStatsStore } from '../store/statsStore'
 
 const WIDGET_TYPES: Array<{ type: WidgetType; label: string; icon: string }> = [
     {type: 'metric-card', label: 'Metric Card', icon: '📊'},
@@ -26,6 +26,7 @@ const ReportBuilderPage = () => {
         deleteWidget,
         loadLayouts,
     } = useReportBuilderStore()
+    const { data: stats } = useStatsStore()
 
     const [draggedWidget, setDraggedWidget] = useState<WidgetType | null>(null)
     const [newLayoutName, setNewLayoutName] = useState('')
@@ -58,7 +59,13 @@ const ReportBuilderPage = () => {
     }
 
     const renderWidget = (widget: DashboardWidget) => {
-        const stats = mockPlayerStatistics
+        if (!stats) {
+            return (
+                <div className="flex h-full items-center justify-center text-sm text-text-muted">
+                    No statistics loaded. Open the Stats page first or ensure data is available.
+                </div>
+            )
+        }
 
         switch (widget.type) {
             case 'metric-card':

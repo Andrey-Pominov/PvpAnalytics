@@ -58,7 +58,19 @@ const Timeline = ({ events }: TimelineProps) => {
     <div className="flex flex-col gap-4">
       {/* Filter Toggles */}
       <div className="flex flex-wrap gap-2">
-        {(['all', 'cooldowns', 'cc', 'kills'] as FilterType[]).map((filterType) => (
+        {(['all', 'cooldowns', 'cc', 'kills'] as FilterType[]).map((filterType) => {
+          let label: string
+          if (filterType === 'all') {
+            label = 'All Events'
+          } else if (filterType === 'cooldowns') {
+            label = 'Cooldowns/Defensives'
+          } else if (filterType === 'cc') {
+            label = 'Crowd Control'
+          } else {
+            label = 'Kills'
+          }
+
+          return (
           <button
             key={filterType}
             onClick={() => setFilter(filterType)}
@@ -68,15 +80,9 @@ const Timeline = ({ events }: TimelineProps) => {
                 : 'text-text-muted hover:text-text hover:bg-surface/50'
             }`}
           >
-            {filterType === 'all'
-              ? 'All Events'
-              : filterType === 'cooldowns'
-                ? 'Cooldowns/Defensives'
-                : filterType === 'cc'
-                  ? 'Crowd Control'
-                  : 'Kills'}
+            {label}
           </button>
-        ))}
+        )})}
       </div>
 
       {/* Timeline Events */}
@@ -104,19 +110,22 @@ const Timeline = ({ events }: TimelineProps) => {
                     <div className="flex items-center gap-2">
                       <span className="text-lg">{getEventIcon(event)}</span>
                       <span className="font-semibold text-text">{event.ability}</span>
-                      {getEventBadge(event) && (
-                        <span
-                          className={`rounded-full px-2 py-1 text-xs font-semibold ${
-                            event.isCooldown
-                              ? 'bg-blue-500/20 text-blue-200'
-                              : event.isCC
-                                ? 'bg-purple-500/20 text-purple-200'
-                                : 'bg-red-500/20 text-red-200'
-                          }`}
-                        >
-                          {getEventBadge(event)}
-                        </span>
-                      )}
+                      {getEventBadge(event) && (() => {
+                        let badgeClasses = 'bg-red-500/20 text-red-200'
+                        if (event.isCooldown) {
+                          badgeClasses = 'bg-blue-500/20 text-blue-200'
+                        } else if (event.isCC) {
+                          badgeClasses = 'bg-purple-500/20 text-purple-200'
+                        }
+
+                        return (
+                          <span
+                            className={`rounded-full px-2 py-1 text-xs font-semibold ${badgeClasses}`}
+                          >
+                            {getEventBadge(event)}
+                          </span>
+                        )
+                      })()}
                     </div>
 
                     <div className="mt-1 text-sm text-text-muted">

@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import axios from 'axios'
 import Card from '../components/Card/Card'
-import { mockMatchupAnalytics } from '../mocks/matchupAnalytics'
 
 const MatchupAnalyticsPage = () => {
   const [class1, setClass1] = useState('')
@@ -15,20 +14,14 @@ const MatchupAnalyticsPage = () => {
     setLoading(true)
     try {
       const baseUrl = import.meta.env.VITE_ANALYTICS_API_BASE_URL || 'http://localhost:8080/api'
-      
-      if (baseUrl === 'mock') {
-        await new Promise((resolve) => setTimeout(resolve, 500))
-        setData({ ...mockMatchupAnalytics, class1, class2 })
-        return
-      }
 
       const { data } = await axios.get(`${baseUrl}/matchup-analytics`, {
-        params: { class1, class2 }
+        params: { class1, class2 },
       })
-      setData(data || { ...mockMatchupAnalytics, class1, class2 })
+      setData(data)
     } catch (error) {
-      console.error('Error loading matchup, using mock data:', error)
-      setData({ ...mockMatchupAnalytics, class1, class2 })
+      console.error('Error loading matchup:', error)
+      setData(null)
     } finally {
       setLoading(false)
     }

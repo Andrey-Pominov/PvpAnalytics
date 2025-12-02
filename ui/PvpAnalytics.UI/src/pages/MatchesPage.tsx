@@ -5,7 +5,6 @@ import MatchesTable from '../components/MatchesTable/MatchesTable'
 import ExportButton from '../components/ExportButton/ExportButton'
 import type { Match } from '../types/api'
 import type { MatchSummary } from '../types/stats'
-import { mockMatches } from '../mocks/matches'
 
 const MatchesPage = () => {
   const [matches, setMatches] = useState<Match[]>([])
@@ -21,29 +20,17 @@ const MatchesPage = () => {
       setError(null)
       try {
         const baseUrl = import.meta.env.VITE_ANALYTICS_API_BASE_URL || 'http://localhost:8080/api'
-        
-        // Use mock data if API base URL is set to 'mock' or if API call fails
-        if (baseUrl === 'mock') {
-          // Simulate API delay
-          await new Promise((resolve) => setTimeout(resolve, 500))
-          if (abortController.signal.aborted) return
-          setMatches(mockMatches)
-          return
-        }
-
         const { data } = await axios.get<Match[]>(`${baseUrl}/matches`, {
           signal: abortController.signal,
         })
         if (abortController.signal.aborted) return
-        setMatches(data.length > 0 ? data : mockMatches) // Fallback to mock if empty
+        setMatches(data)
       } catch (err) {
         if (abortController.signal.aborted) return
         if (axios.isCancel(err) || (err as Error).name === 'CanceledError') return
         
-        console.error('Failed to load matches, using mock data', err)
-        // Use mock data on error
-        setMatches(mockMatches)
-        setError(null) // Don't show error, just use mock data
+        console.error('Failed to load matches', err)
+        setError('Failed to load matches. Please try again later.')
       } finally {
         if (!abortController.signal.aborted) {
           setLoading(false)
