@@ -6,7 +6,20 @@ using PvpAnalytics.Shared.Protos;
 
 namespace PvpAnalytics.Shared.Services;
 
-public sealed class LoggingClient : ILoggingClient, IDisposable
+public sealed class LogRequest
+{
+    public required string Level { get; init; }
+    public required string Message { get; init; }
+    public string? Exception { get; init; }
+    public Guid? UserId { get; init; }
+    public string? RequestPath { get; init; }
+    public string? RequestMethod { get; init; }
+    public int? StatusCode { get; init; }
+    public double? Duration { get; init; }
+    public string? Properties { get; init; }
+}
+
+public sealed class LoggingClient : ILoggingClient
 {
     private readonly GrpcChannel _channel;
     private readonly LoggingService.LoggingServiceClient _client;
@@ -30,25 +43,23 @@ public sealed class LoggingClient : ILoggingClient, IDisposable
         _client = new LoggingService.LoggingServiceClient(_channel);
     }
 
-    public async Task LogAsync(string level, string message, string? exception = null, Guid? userId = null,
-        string? requestPath = null, string? requestMethod = null, int? statusCode = null,
-        double? duration = null, string? properties = null, CancellationToken ct = default)
+    public async Task LogAsync(LogRequest logRequest, CancellationToken ct = default)
     {
         try
         {
             var request = new CreateLogRequest
             {
-                Level = level,
+                Level = logRequest.Level,
                 ServiceName = _serviceName,
-                Message = message,
-                Exception = exception ?? string.Empty,
-                UserId = userId?.ToString() ?? string.Empty,
-                RequestPath = requestPath ?? string.Empty,
-                RequestMethod = requestMethod ?? string.Empty,
-                StatusCode = statusCode ?? 0,
-                Duration = duration ?? 0,
-                Properties = !string.IsNullOrEmpty(properties) 
-                    ? Struct.Parser.ParseJson(properties)
+                Message = logRequest.Message,
+                Exception = logRequest.Exception ?? string.Empty,
+                UserId = logRequest.UserId?.ToString() ?? string.Empty,
+                RequestPath = logRequest.RequestPath ?? string.Empty,
+                RequestMethod = logRequest.RequestMethod ?? string.Empty,
+                StatusCode = logRequest.StatusCode ?? 0,
+                Duration = logRequest.Duration ?? 0,
+                Properties = !string.IsNullOrEmpty(logRequest.Properties) 
+                    ? Struct.Parser.ParseJson(logRequest.Properties)
                     : new Struct()
             };
 

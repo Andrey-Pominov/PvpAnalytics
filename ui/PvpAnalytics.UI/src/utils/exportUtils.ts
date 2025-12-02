@@ -33,10 +33,11 @@ export function convertToCSV<T extends Record<string, unknown>>(
       try {
         str = JSON.stringify(value)
       } catch {
-        str = String(value)
+        // Fallback for circular references or non-serializable objects
+        str = Array.isArray(value) ? '[Array]' : '[Object]'
       }
     } else {
-      str = String(value)
+      str = Array.isArray(value) ? '[Array]' : '[Object]'
     }
     // If contains comma, quote, or newline, wrap in quotes and escape quotes
     if (str.includes(',') || str.includes('"') || str.includes('\n')) {
