@@ -110,7 +110,7 @@ public class PvpAnalyticsDbContext(DbContextOptions<PvpAnalyticsDbContext> optio
         modelBuilder.Entity<Rival>()
             .ToTable(t => t.HasCheckConstraint(
                 "CK_Rival_IntensityScore",
-                "IntensityScore >= 1 AND IntensityScore <= 10"));
+                "\"IntensityScore\" >= 1 AND \"IntensityScore\" <= 10"));
 
         modelBuilder.Entity<UserBadge>()
             .HasIndex(ub => ub.UserId);

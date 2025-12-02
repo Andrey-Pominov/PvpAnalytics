@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import axios from 'axios'
 import Card from '../components/Card/Card'
-import { mockSessionAnalysis } from '../mocks/sessionAnalysis'
 
 const SessionAnalysisPage = () => {
   const { playerId } = useParams<{ playerId: string }>()
@@ -14,20 +13,13 @@ const SessionAnalysisPage = () => {
     
     setLoading(true)
     const baseUrl = import.meta.env.VITE_ANALYTICS_API_BASE_URL || 'http://localhost:8080/api'
-    
-    if (baseUrl === 'mock') {
-      setTimeout(() => {
-        setData(mockSessionAnalysis)
-        setLoading(false)
-      }, 500)
-      return
-    }
 
-    axios.get(`${baseUrl}/session-analysis/${playerId}`)
-      .then(response => setData(response.data || mockSessionAnalysis))
+    axios
+      .get(`${baseUrl}/session-analysis/${playerId}`)
+      .then(response => setData(response.data))
       .catch(error => {
-        console.error('Error loading session analysis, using mock data:', error)
-        setData(mockSessionAnalysis)
+        console.error('Error loading session analysis:', error)
+        setData(null)
       })
       .finally(() => setLoading(false))
   }, [playerId])

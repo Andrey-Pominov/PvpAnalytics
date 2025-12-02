@@ -11,3 +11,4 @@ dist/
 *.DotSettings.user
 *.lua
 sonar-project.properties
+.cursor

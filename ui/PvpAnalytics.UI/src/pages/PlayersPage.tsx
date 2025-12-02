@@ -5,7 +5,6 @@ import Card from '../components/Card/Card'
 import SearchBar from '../components/SearchBar/SearchBar'
 import ExportButton from '../components/ExportButton/ExportButton'
 import type { Player } from '../types/api'
-import { mockPlayers } from '../mocks/players'
 
 const PlayersPage = () => {
   const navigate = useNavigate()
@@ -32,29 +31,17 @@ const PlayersPage = () => {
       setError(null)
       try {
         const baseUrl = import.meta.env.VITE_ANALYTICS_API_BASE_URL || 'http://localhost:8080/api'
-        
-        // Use mock data if API base URL is set to 'mock' or if API call fails
-        if (baseUrl === 'mock') {
-          // Simulate API delay
-          await new Promise((resolve) => setTimeout(resolve, 500))
-          if (abortController.signal.aborted) return
-          setPlayers(mockPlayers)
-          return
-        }
-
         const { data } = await axios.get<Player[]>(`${baseUrl}/players`, {
           signal: abortController.signal,
         })
         if (abortController.signal.aborted) return
-        setPlayers(data.length > 0 ? data : mockPlayers) // Fallback to mock if empty
+        setPlayers(data)
       } catch (err) {
         if (abortController.signal.aborted) return
         if (axios.isCancel(err) || (err as Error).name === 'CanceledError') return
         
-        console.error('Failed to load players, using mock data', err)
-        // Use mock data on error
-        setPlayers(mockPlayers)
-        setError(null) // Don't show error, just use mock data
+        console.error('Failed to load players', err)
+        setError('Failed to load players. Please try again later.')
       } finally {
         if (!abortController.signal.aborted) {
           setLoading(false)

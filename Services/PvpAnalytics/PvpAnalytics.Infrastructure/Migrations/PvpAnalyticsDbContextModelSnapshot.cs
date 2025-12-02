@@ -111,7 +111,7 @@ namespace PvpAnalytics.Infrastructure.Migrations
 
                     b.ToTable("CommunityRankings", t =>
                         {
-                            t.HasCheckConstraint("CK_CommunityRankings_PlayerOrTeam", "PlayerId IS NOT NULL OR TeamId IS NOT NULL");
+                            t.HasCheckConstraint("CK_CommunityRankings_PlayerOrTeam", "\"PlayerId\" IS NOT NULL OR \"TeamId\" IS NOT NULL");
                         });
                 });
 
@@ -403,7 +403,7 @@ namespace PvpAnalytics.Infrastructure.Migrations
 
                     b.ToTable("Rivals", t =>
                         {
-                            t.HasCheckConstraint("CK_Rival_IntensityScore", "IntensityScore >= 1 AND IntensityScore <= 10");
+                            t.HasCheckConstraint("CK_Rival_IntensityScore", "\"IntensityScore\" >= 1 AND \"IntensityScore\" <= 10");
                         });
                 });
 

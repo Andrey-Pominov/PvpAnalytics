@@ -12,8 +12,8 @@ using PvpAnalytics.Infrastructure;
 namespace PvpAnalytics.Infrastructure.Migrations
 {
     [DbContext(typeof(PvpAnalyticsDbContext))]
-    [Migration("20251126105331_AddCommunityFeatures")]
-    partial class AddCommunityFeatures
+    [Migration("20251202114759_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -112,7 +112,10 @@ namespace PvpAnalytics.Infrastructure.Migrations
 
                     b.HasIndex("RankingType", "Period", "Rank");
 
-                    b.ToTable("CommunityRankings");
+                    b.ToTable("CommunityRankings", t =>
+                        {
+                            t.HasCheckConstraint("CK_CommunityRankings_PlayerOrTeam", "\"PlayerId\" IS NOT NULL OR \"TeamId\" IS NOT NULL");
+                        });
                 });
 
             modelBuilder.Entity("PvpAnalytics.Core.Entities.FavoritePlayer", b =>
@@ -401,7 +404,10 @@ namespace PvpAnalytics.Infrastructure.Migrations
                     b.HasIndex("OwnerUserId", "OpponentPlayerId")
                         .IsUnique();
 
-                    b.ToTable("Rivals");
+                    b.ToTable("Rivals", t =>
+                        {
+                            t.HasCheckConstraint("CK_Rival_IntensityScore", "IntensityScore >= 1 AND IntensityScore <= 10");
+                        });
                 });
 
             modelBuilder.Entity("PvpAnalytics.Core.Entities.Team", b =>

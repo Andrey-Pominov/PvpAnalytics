@@ -6,8 +6,6 @@ import ExportButton from '../components/ExportButton/ExportButton'
 import AnomalyBadge from '../components/AnomalyBadge/AnomalyBadge'
 import ForecastCard from '../components/ForecastCard/ForecastCard'
 import type { Player, PlayerStats, PlayerMatch } from '../types/api'
-import { mockPlayerStats, mockPlayerMatches } from '../mocks/playerStats'
-import { mockPlayers } from '../mocks/players'
 import { detectWinRateAnomaly, detectAnomaliesInData, generateForecast } from '../utils/statisticsUtils'
 
 const PlayerProfilePage = () => {
@@ -28,42 +26,14 @@ const PlayerProfilePage = () => {
     const loadPlayerData = async () => {
       setLoading(true)
       setError(null)
-      
-      try {
-        if (await loadMockDataIfNeeded(abortController, playerId)) {
-          return
-        }
 
+      try {
         await loadApiData(abortController, playerId)
       } catch (err) {
         handleLoadError(err, abortController)
       } finally {
         finalizeLoading(abortController)
       }
-    }
-
-    const loadMockDataIfNeeded = async (
-      abortController: AbortController,
-      playerId: number
-    ): Promise<boolean> => {
-      const baseUrl = getBaseUrl()
-      if (baseUrl !== 'mock') {
-        return false
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, 500))
-      if (abortController.signal.aborted) return true
-
-      const mockPlayer = mockPlayers.find((p) => p.id === playerId)
-      if (!mockPlayer) {
-        setError('Player not found')
-        return true
-      }
-
-      setPlayer(mockPlayer)
-      setStats(mockPlayerStats[playerId] || null)
-      setMatches(mockPlayerMatches[playerId] || [])
-      return true
     }
 
     const loadApiData = async (
@@ -104,7 +74,7 @@ const PlayerProfilePage = () => {
           setStats(statsResponse.data)
         }
       } catch (err) {
-        handleStatsError(err, abortController, playerId)
+        handleStatsError(err, abortController)
       }
     }
 
@@ -122,34 +92,30 @@ const PlayerProfilePage = () => {
           setMatches(matchesResponse.data)
         }
       } catch (err) {
-        handleMatchesError(err, abortController, playerId)
+        handleMatchesError(err, abortController)
       }
     }
 
     const handleStatsError = (
       err: unknown,
       abortController: AbortController,
-      playerId: number
     ): void => {
       if (abortController.signal.aborted || axios.isCancel(err)) {
         return
       }
 
       console.warn('Failed to load player stats', err)
-      setStats(mockPlayerStats[playerId] || null)
     }
 
     const handleMatchesError = (
       err: unknown,
       abortController: AbortController,
-      playerId: number
     ): void => {
       if (abortController.signal.aborted || axios.isCancel(err)) {
         return
       }
 
       console.warn('Failed to load player matches', err)
-      setMatches(mockPlayerMatches[playerId] || [])
     }
 
     const handleLoadError = (

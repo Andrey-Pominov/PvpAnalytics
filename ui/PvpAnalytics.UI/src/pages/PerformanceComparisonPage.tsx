@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import axios from 'axios'
 import Card from '../components/Card/Card'
-import { mockPerformanceComparison } from '../mocks/performanceComparison'
 
 const PerformanceComparisonPage = () => {
   const { playerId } = useParams<{ playerId: string }>()
@@ -16,20 +15,14 @@ const PerformanceComparisonPage = () => {
     setLoading(true)
     try {
       const baseUrl = import.meta.env.VITE_ANALYTICS_API_BASE_URL || 'http://localhost:8080/api'
-      
-      if (baseUrl === 'mock') {
-        await new Promise((resolve) => setTimeout(resolve, 500))
-        setData({ ...mockPerformanceComparison, spec })
-        return
-      }
 
       const { data } = await axios.get(`${baseUrl}/performance-comparison/${playerId}`, {
-        params: { spec }
+        params: { spec },
       })
-      setData(data || { ...mockPerformanceComparison, spec })
+      setData(data)
     } catch (error) {
-      console.error('Error loading comparison, using mock data:', error)
-      setData({ ...mockPerformanceComparison, spec })
+      console.error('Error loading comparison:', error)
+      setData(null)
     } finally {
       setLoading(false)
     }

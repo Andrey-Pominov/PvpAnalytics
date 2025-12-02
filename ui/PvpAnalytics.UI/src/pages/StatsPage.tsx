@@ -11,7 +11,6 @@ import Tooltip from '../components/Tooltip/Tooltip'
 import ComparisonToggle from '../components/ComparisonToggle/ComparisonToggle'
 import AnomalyBadge from '../components/AnomalyBadge/AnomalyBadge'
 import ForecastCard from '../components/ForecastCard/ForecastCard'
-import { mockPlayerStatistics } from '../mocks/playerStats'
 import { useStatsStore } from '../store/statsStore'
 import { detectWinRateAnomaly, generateForecast } from '../utils/statisticsUtils'
 
@@ -37,7 +36,24 @@ const StatsPage = () => {
     void loadStats()
   }, [loadStats])
 
-  const stats = useMemo(() => data ?? mockPlayerStatistics, [data])
+  const stats = useMemo(() => data, [data])
+
+  if (!stats) {
+    return (
+      <div className="flex flex-col gap-6">
+        {loading && (
+          <div className="rounded-2xl border border-accent-muted/40 border-dashed bg-accent-muted/10 px-4 py-3 text-center text-sm text-text">
+            Loading latest data…
+          </div>
+        )}
+        {!loading && (
+          <div className="rounded-2xl border border-accent-muted/40 bg-surface/50 px-4 py-3 text-sm text-text-muted">
+            No statistics available.
+          </div>
+        )}
+      </div>
+    )
+  }
 
   // Calculate win rate from matches
   const winRate = useMemo(() => {

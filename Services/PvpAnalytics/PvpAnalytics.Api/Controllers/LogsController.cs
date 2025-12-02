@@ -1,6 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
 using PvpAnalytics.Application.Logs;
 using PvpAnalytics.Core.Entities;
 
@@ -56,13 +54,12 @@ public class LogsController(ICombatLogIngestionService ingestion, ILogger<LogsCo
         catch (OperationCanceledException ex)
         {
             logger.LogWarning(
+                ex,
                 "Combat log ingestion cancelled for file {FileName}. See inner exception for details.",
                 file.FileName);
 
-            // Rethrow with additional context so upstream callers have a clear, descriptive message.
-            throw new OperationCanceledException(
-                $"Combat log ingestion was cancelled for file '{file.FileName}'. See inner exception for details.",
-                ex);
+            // Preserve the original cancellation and stack trace.
+            throw;
         }
         catch (Exception ex)
         {
