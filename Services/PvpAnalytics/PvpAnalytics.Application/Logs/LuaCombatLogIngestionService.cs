@@ -30,9 +30,7 @@ public class LuaCombatLogIngestionService(
     {
         logger.LogInformation("Lua combat log ingestion started.");
 
-        // Parse Lua table structure
         var luaMatches = LuaTableParser.Parse(fileStream);
-        logger.LogInformation("Parsed {MatchCount} match(es) from Lua table.", luaMatches.Count);
 
         var allPersistedMatches = new List<Match>();
 
@@ -343,15 +341,11 @@ public class LuaCombatLogIngestionService(
 
         var trimmed = fullName.Trim('"', ' ');
         var regionSuffixes = new[] { "-EU", "-US", "-KR", "-TW", "-CN" };
-        foreach (var suffix in regionSuffixes)
-        {
-            if (trimmed.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
-            {
-                return suffix[1..].ToLowerInvariant();
-            }
-        }
 
-        return "eu"; // Default to EU
+        var suffix = regionSuffixes.FirstOrDefault(s =>
+            trimmed.EndsWith(s, StringComparison.OrdinalIgnoreCase));
+
+        return !string.IsNullOrEmpty(suffix) ? suffix[1..].ToLowerInvariant() : "eu"; // Default to EU
     }
 
     private Task UpdatePlayersFromSpellsAsync(

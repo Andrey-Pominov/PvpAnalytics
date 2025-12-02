@@ -17,8 +17,7 @@ const WinRateList = ({ title, entries }: WinRateListProps) => (
           <span>{entry.label}</span>
           <span className="font-semibold text-accent">{entry.value}%</span>
           <div className="col-span-2 h-1.5 rounded-full bg-white/10">
-            <div
-              role="progressbar"
+            <progress
               aria-valuenow={entry.value}
               aria-valuemin={0}
               aria-valuemax={100}

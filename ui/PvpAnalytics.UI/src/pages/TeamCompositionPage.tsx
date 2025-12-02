@@ -39,7 +39,7 @@ const TeamCompositionPage = () => {
       <h1 className="text-2xl sm:text-3xl font-bold">Team Compositions</h1>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {data.map((team, idx) => (
-          <Card key={idx}>
+          <Card key={`${idx}-${team.id}`}>
             <h3 className="text-base sm:text-lg font-semibold mb-2 truncate">{team.composition}</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
               <p>Matches: <span className="font-semibold">{team.totalMatches}</span></p>
@@ -51,7 +51,7 @@ const TeamCompositionPage = () => {
               <p className="text-xs sm:text-sm font-semibold mb-1">Members:</p>
               <div className="flex flex-wrap gap-2">
                 {team.members?.map((member: any, mIdx: number) => (
-                  <span key={mIdx} className="text-xs sm:text-sm px-2 py-1 bg-surface/50 rounded">{member.playerName} ({member.class})</span>
+                  <span key={`${mIdx}-${member.class}`} className="text-xs sm:text-sm px-2 py-1 bg-surface/50 rounded">{member.playerName} ({member.class})</span>
                 ))}
               </div>
             </div>

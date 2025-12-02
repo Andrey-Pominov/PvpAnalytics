@@ -89,7 +89,7 @@ const RivalsPage = () => {
               <p>Class: <span className="font-semibold">{rival.class}</span></p>
               {rival.spec && <p>Spec: <span className="font-semibold">{rival.spec}</span></p>}
               <p>Matches: <span className="font-semibold">{rival.matchesPlayed}</span></p>
-              {rival.winRate != null ? (
+              {rival.winRate !== null && rival.winRate !== undefined ? (
                 <>
                   <p>Wins: <span className="font-semibold">{rival.wins ?? 0}</span></p>
                   <p>Losses: <span className="font-semibold">{rival.losses ?? 0}</span></p>

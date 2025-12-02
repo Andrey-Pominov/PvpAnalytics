@@ -57,7 +57,7 @@ const UploadPage = () => {
   }
 
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
+    if (e.target.files?.[0]) {
       handleFileChange(e.target.files[0])
     }
   }
@@ -264,7 +264,8 @@ const UploadPage = () => {
                   <p className="text-sm font-semibold">{result.message}</p>
                   {result.success && result.matchCount !== undefined && (
                     <p className="mt-1 text-xs opacity-80">
-                      Processed {result.matchCount} match{result.matchCount !== 1 ? 'es' : ''} from the log file.
+                      Processed {result.matchCount}{' '}
+                      {result.matchCount === 1 ? 'match' : 'matches'} from the log file.
                     </p>
                   )}
                 </div>

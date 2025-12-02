@@ -6,7 +6,20 @@ using PvpAnalytics.Shared.Protos;
 
 namespace PvpAnalytics.Shared.Services;
 
-public class LoggingClient : ILoggingClient
+public sealed class LogRequest
+{
+    public required string Level { get; init; }
+    public required string Message { get; init; }
+    public string? Exception { get; init; }
+    public Guid? UserId { get; init; }
+    public string? RequestPath { get; init; }
+    public string? RequestMethod { get; init; }
+    public int? StatusCode { get; init; }
+    public double? Duration { get; init; }
+    public string? Properties { get; init; }
+}
+
+public sealed class LoggingClient : ILoggingClient
 {
     private readonly GrpcChannel _channel;
     private readonly LoggingService.LoggingServiceClient _client;
@@ -30,26 +43,22 @@ public class LoggingClient : ILoggingClient
         _client = new LoggingService.LoggingServiceClient(_channel);
     }
 
-    public async Task LogAsync(string level, string message, string? exception = null, Guid? userId = null,
-        string? requestPath = null, string? requestMethod = null, int? statusCode = null,
-        double? duration = null, string? properties = null, CancellationToken ct = default)
+    public async Task LogAsync(LogRequest logRequest, CancellationToken ct = default)
     {
         try
         {
             var request = new CreateLogRequest
             {
-                Level = level,
+                Level = logRequest.Level,
                 ServiceName = _serviceName,
-                Message = message,
-                Exception = exception ?? string.Empty,
-                UserId = userId?.ToString() ?? string.Empty,
-                RequestPath = requestPath ?? string.Empty,
-                RequestMethod = requestMethod ?? string.Empty,
-                StatusCode = statusCode ?? 0,
-                Duration = duration ?? 0,
-                Properties = !string.IsNullOrEmpty(properties) 
-                    ? Struct.Parser.ParseJson(properties)
-                    : new Struct()
+                Message = logRequest.Message,
+                Exception = logRequest.Exception ?? string.Empty,
+                UserId = logRequest.UserId?.ToString() ?? string.Empty,
+                RequestPath = logRequest.RequestPath ?? string.Empty,
+                RequestMethod = logRequest.RequestMethod ?? string.Empty,
+                StatusCode = logRequest.StatusCode ?? 0,
+                Duration = logRequest.Duration ?? 0,
+                Properties = ParsePropertiesOrEmpty(logRequest.Properties)
             };
 
             await _client.CreateLogAsync(request, cancellationToken: ct);
@@ -170,12 +179,41 @@ public class LoggingClient : ILoggingClient
         timerToDispose?.Dispose();
     }
 
+    private Struct ParsePropertiesOrEmpty(string? json)
+    {
+        if (string.IsNullOrEmpty(json))
+        {
+            return new Struct();
+        }
+
+        try
+        {
+            return Struct.Parser.ParseJson(json);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to parse log properties JSON: {Properties}", json);
+            return new Struct();
+        }
+    }
+
     public void Dispose()
     {
-        // Use Interlocked to atomically check and set disposed flag
+        Dispose(disposing: true);
+    }
+
+    private void Dispose(bool disposing)
+    {
+        // Ensure we only dispose once, even if called from multiple threads
         if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
             return;
-        
+
+        if (!disposing)
+        {
+            return;
+        }
+
+        // Dispose managed resources
         StopHeartbeat();
         _channel.Dispose();
     }

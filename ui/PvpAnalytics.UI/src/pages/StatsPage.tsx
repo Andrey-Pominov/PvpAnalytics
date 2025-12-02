@@ -54,13 +54,6 @@ const StatsPage = () => {
     return detectWinRateAnomaly(winRateDecimal, stats.matches.length)
   }, [stats])
 
-  // Detect rating trend anomalies
-
-  // const ratingAnomalies = useMemo(() => {
-  //   if (stats.overviewTrend.length < 5) return []
-  //   return detectAnomalies(stats.overviewTrend)
-  // }, [stats.overviewTrend])
-
   // Calculate average duration
   const avgDuration = useMemo(() => {
     if (!stats) return '0:00'
@@ -77,8 +70,8 @@ const StatsPage = () => {
   // Calculate rating trend
   const ratingTrend = useMemo(() => {
     if (!stats || stats.overviewTrend.length < 2) return 'neutral'
-    const current = stats.overviewTrend[stats.overviewTrend.length - 1]
-    const previous = stats.overviewTrend[stats.overviewTrend.length - 2]
+    const current = stats.overviewTrend.at(-1) ?? 0
+    const previous = stats.overviewTrend.at(-2) ?? current
     if (current > previous) return 'up'
     if (current < previous) return 'down'
     return 'neutral'
@@ -86,16 +79,24 @@ const StatsPage = () => {
 
   const ratingChange = useMemo(() => {
     if (!stats || stats.overviewTrend.length < 2) return undefined
-    const current = stats.overviewTrend[stats.overviewTrend.length - 1]
-    const previous = stats.overviewTrend[stats.overviewTrend.length - 2]
+    const current = stats.overviewTrend.at(-1) ?? 0
+    const previous = stats.overviewTrend.at(-2) ?? current
     const change = current - previous
-    return change > 0 ? `+${change}` : change < 0 ? `${change}` : '0'
+
+    let label = '0'
+    if (change > 0) {
+      label = `+${change}`
+    } else if (change < 0) {
+      label = `${change}`
+    }
+
+    return label
   }, [stats])
 
   // Generate rating forecast
   const ratingForecast = useMemo(() => {
     if (!stats || stats.overviewTrend.length < 5) return null
-    const currentRating = stats.overviewTrend[stats.overviewTrend.length - 1]
+    const currentRating = stats.overviewTrend.at(-1) || 0
     // Target: next rating milestone (e.g., 2000, 2100, etc.)
     const nextMilestone = Math.ceil(currentRating / 100) * 100
     return generateForecast(stats.overviewTrend, 7, nextMilestone)

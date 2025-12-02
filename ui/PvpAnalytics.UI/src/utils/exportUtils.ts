@@ -24,7 +24,22 @@ export function convertToCSV<T extends Record<string, unknown>>(
     if (value === null || value === undefined) {
       return ''
     }
-    const str = String(value)
+    let str: string
+
+    if (value instanceof Date) {
+      str = value.toISOString()
+    } else if (typeof value === 'object') {
+      // For objects/arrays, serialize to JSON to avoid "[object Object]"
+      try {
+        str = JSON.stringify(value)
+      } catch {
+        // Fallback for circular references or non-serializable objects
+        str = Array.isArray(value) ? '[Array]' : '[Object]'
+      }
+    } else {
+      // Primitives (string, number, boolean, etc.) - convert to string
+      str = String(value)
+    }
     // If contains comma, quote, or newline, wrap in quotes and escape quotes
     if (str.includes(',') || str.includes('"') || str.includes('\n')) {
       return `"${str.replaceAll('"', '""')}"`

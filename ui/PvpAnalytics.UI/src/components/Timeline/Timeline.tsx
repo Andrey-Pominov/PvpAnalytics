@@ -92,7 +92,7 @@ const Timeline = ({ events }: TimelineProps) => {
         ) : (
           filteredEvents.map((event, index) => (
             <div
-              key={index}
+              key={`${index}-${event.timestamp}`}
               className={`flex items-start gap-4 rounded-lg border p-4 transition-colors hover:border-accent-muted/60 ${getEventColor(
                 event
               )}`}

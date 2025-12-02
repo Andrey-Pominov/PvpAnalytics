@@ -63,8 +63,8 @@ const PlayersPage = () => {
       (p) =>
         p.name.toLowerCase().includes(term) ||
         p.realm.toLowerCase().includes(term) ||
-        (p.class && p.class.toLowerCase().includes(term)) ||
-        (p.faction && p.faction.toLowerCase().includes(term))
+        p.class?.toLowerCase().includes(term) ||
+        p.faction?.toLowerCase().includes(term)
     )
   }, [players, searchTerm])
 
@@ -97,6 +97,12 @@ const PlayersPage = () => {
     return 'bg-gray-500/20 text-gray-300'
   }
 
+  const playerCountLabel = useMemo(() => {
+    const count = filteredPlayers.length
+    const suffix = count === 1 ? '' : 's'
+    return `${count} player${suffix}`
+  }, [filteredPlayers])
+
   return (
     <div className="flex flex-col gap-6">
       <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:items-center">
@@ -106,7 +112,7 @@ const PlayersPage = () => {
         />
         <div className="flex justify-start lg:justify-end">
           <div className="text-sm text-text-muted">
-            {loading ? 'Loading...' : `${filteredPlayers.length} player${filteredPlayers.length !== 1 ? 's' : ''}`}
+            {loading ? 'Loading...' : playerCountLabel}
           </div>
         </div>
       </div>

@@ -231,7 +231,7 @@ const PlayerProfilePage = () => {
       (a, b) => new Date(a.createdOn).getTime() - new Date(b.createdOn).getTime()
     )
     const ratings = sortedMatches.map((m) => m.ratingAfter)
-    const currentRating = ratings[ratings.length - 1]
+    const currentRating = ratings.at(-1) || 0
     // Target: next rating milestone
     const nextMilestone = Math.ceil(currentRating / 100) * 100
     return generateForecast(ratings, 7, nextMilestone)
@@ -306,7 +306,7 @@ const PlayerProfilePage = () => {
               <ForecastCard
                 forecast={ratingForecast}
                 title="Rating Forecast"
-                currentValue={matches.length > 0 ? matches[matches.length - 1].ratingAfter : 0}
+                currentValue={matches.at(-1)?.ratingAfter ?? 0}
               />
             </div>
           )}

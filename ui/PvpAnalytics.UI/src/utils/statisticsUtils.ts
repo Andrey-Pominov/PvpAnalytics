@@ -191,7 +191,7 @@ export function generateForecast(
   // Guard against NaN values from regression
   if (!Number.isFinite(slope) || !Number.isFinite(intercept)) {
     return {
-      projectedValue: historicalValues[historicalValues.length - 1],
+      projectedValue: historicalValues.at(-1) || 0,
       confidence: 'low',
       trend: 'stable',
     }

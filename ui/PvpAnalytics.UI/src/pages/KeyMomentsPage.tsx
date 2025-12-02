@@ -35,7 +35,7 @@ const KeyMomentsPage = () => {
       </Card>
       <div className="space-y-2">
         {data.moments?.map((moment: any, idx: number) => (
-          <Card key={idx} className={moment.isCritical ? 'border-2 border-red-500' : ''}>
+          <Card key={`${idx}-${moment.timestamp}`} className={moment.isCritical ? 'border-2 border-red-500' : ''}>
             <div className="flex flex-col sm:flex-row sm:justify-between gap-2 sm:gap-4">
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-sm sm:text-base">{moment.eventType.toUpperCase()}</p>
