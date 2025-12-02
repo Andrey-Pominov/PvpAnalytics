@@ -157,5 +157,5 @@ static string GetServiceEndpoint(IConfiguration configuration)
 
 namespace AuthService.Api
 {
-    public abstract class Program;
+    public interface IProgram;
 }

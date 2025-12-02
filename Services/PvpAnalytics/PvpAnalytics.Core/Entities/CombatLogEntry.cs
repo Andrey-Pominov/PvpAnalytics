@@ -2,15 +2,6 @@ namespace PvpAnalytics.Core.Entities;
 
 public class CombatLogEntry
 {
-    public CombatLogEntry()
-    {
-        Match = null!;
-        SourcePlayer = null!;
-        TargetPlayer = null!;
-        Ability = string.Empty;
-        CrowdControl = string.Empty;
-    }
-
     public long Id { get; set; }
 
     public long MatchId { get; set; }

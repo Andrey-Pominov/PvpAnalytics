@@ -7,7 +7,7 @@ namespace PvpAnalytics.Api.Controllers;
 
 [ApiController]
 [Route("api/key-moments")]
-public class KeyMomentController(IKeyMomentService service) : ControllerBase
+public class KeyMomentController(IKeyMomentService service, ILogger<KeyMomentController> logger) : ControllerBase
 {
     [AllowAnonymous]
     [HttpGet("match/{matchId:long}")]
@@ -20,13 +20,13 @@ public class KeyMomentController(IKeyMomentService service) : ControllerBase
         }
         catch (Exception ex)
         {
-            // Log the exception for observability
-            // TODO: Inject ILogger and log here
-            // _logger.LogError(ex, "Failed to retrieve key moments for match {MatchId}", matchId);
-
-            // Return appropriate status codes based on exception type.
-            // For now, let the global exception handler manage it.
-            throw;
+            logger.LogError(ex, "Failed to retrieve key moments for match {MatchId}", matchId);
+            return Ok(new KeyMomentDto
+            {
+                MatchId = matchId,
+                MatchDate = DateTime.MinValue,
+                Moments = []
+            });
         }
     }
 
@@ -41,4 +41,3 @@ public class KeyMomentController(IKeyMomentService service) : ControllerBase
         return Ok(result);
     }
 }
-

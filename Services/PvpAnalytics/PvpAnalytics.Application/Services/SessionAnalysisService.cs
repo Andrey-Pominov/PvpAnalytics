@@ -191,11 +191,11 @@ public class SessionAnalysisService(PvpAnalyticsDbContext dbContext) : ISessionA
             MatchCount = matches.Count,
             Wins = wins,
             Losses = matches.Count - wins,
-            WinRate = matches.Count > 0 ? Math.Round(wins * 100.0 / matches.Count, 2) : 0,
+            WinRate = Math.Round(wins * 100.0 / matches.Count, 2),
             RatingStart = ratingStart,
             RatingEnd = ratingEnd,
             RatingChange = ratingEnd - ratingStart,
-            AverageMatchDuration = matches.Count != 0 ? Math.Round(matches.Average(m => (double)m.duration), 2) : 0,
+            AverageMatchDuration = Math.Round(matches.Average(m => (double)m.duration), 2),
             DayOfWeek = startTime.DayOfWeek.ToString(),
             HourOfDay = startTime.Hour
         };

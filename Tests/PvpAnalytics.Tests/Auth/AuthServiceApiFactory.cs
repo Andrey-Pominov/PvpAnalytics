@@ -6,7 +6,7 @@ using PvpAnalytics.Shared.Security;
 
 namespace PvpAnalytics.Tests.Auth;
 
-public sealed class AuthServiceApiFactory : WebApplicationFactory<AuthService.Api.Program>
+public sealed class AuthServiceApiFactory : WebApplicationFactory<AuthService.Api.IProgram>
 {
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {

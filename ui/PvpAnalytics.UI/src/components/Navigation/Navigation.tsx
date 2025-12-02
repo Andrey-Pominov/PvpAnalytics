@@ -134,6 +134,7 @@ const Navigation = () => {
       }
     } catch (error) {
       if (!isSearchAborted(abortController, token)) {
+          console.error('Search error:', error)
         // Match not found or error - continue to player lookup
       }
     }

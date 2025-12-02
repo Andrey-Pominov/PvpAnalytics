@@ -261,9 +261,7 @@ public class LuaCombatLogIngestionService(
             DamageDone = parsed.Damage ?? 0,
             HealingDone = parsed.Healing ?? 0,
             CrowdControl = string.Empty,
-            Match = null, //TODO
             SourcePlayer = source,
-            TargetPlayer = target
         });
     }
 
@@ -492,8 +490,6 @@ public class LuaCombatLogIngestionService(
                 : 0,
             IsRanked = true,
             UniqueHash = uniqueHash,
-            Results = null,
-            CombatLogs = null
         };
     }
 
@@ -575,7 +571,6 @@ public class LuaCombatLogIngestionService(
                 RatingAfter = 0,
                 IsWinner = false,
                 Spec = matchSpec,
-                Match = null,
                 Player = player
             }, true, ct);
         }

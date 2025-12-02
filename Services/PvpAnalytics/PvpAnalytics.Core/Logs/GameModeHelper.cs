@@ -36,10 +36,8 @@ public static class GameModeHelper
 
         return participantCount switch
         {
-            4 => GameMode.TwoVsTwo,     
-            6 => GameMode.ThreeVsThree, 
-            10 => GameMode.Skirmish,
-            _ => GameMode.TwoVsTwo
+            6 => GameMode.ThreeVsThree,
+            _ => throw new ArgumentOutOfRangeException(nameof(participantCount), participantCount, null)
         };
     }
     

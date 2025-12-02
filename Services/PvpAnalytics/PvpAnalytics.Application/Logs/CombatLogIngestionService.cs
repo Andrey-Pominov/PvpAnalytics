@@ -244,9 +244,7 @@ public class CombatLogIngestionService(
             DamageDone = parsed.Damage ?? 0,
             HealingDone = parsed.Healing ?? 0,
             CrowdControl = string.Empty,
-            Match = null,
-            SourcePlayer = source,
-            TargetPlayer = target
+            SourcePlayer = source
         });
     }
 
@@ -472,8 +470,6 @@ public class CombatLogIngestionService(
                 : 0,
             IsRanked = true,
             UniqueHash = uniqueHash,
-            Results = null,
-            CombatLogs = null
         };
     }
 
@@ -555,7 +551,6 @@ public class CombatLogIngestionService(
                 RatingAfter = 0,
                 IsWinner = false,
                 Spec = matchSpec,
-                Match = null,
                 Player = player
             }, true, ct);
         }

@@ -1,14 +1,13 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PvpAnalytics.Application.Services;
-using PvpAnalytics.Core.DTOs;
 using PvpAnalytics.Core.Entities;
 
 namespace PvpAnalytics.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class MatchesController(ICrudService<Match> service, IMatchDetailService detailService) : ControllerBase
+public class MatchesController(ICrudService<Match> service) : ControllerBase
 {
     [AllowAnonymous]
     [HttpGet]
