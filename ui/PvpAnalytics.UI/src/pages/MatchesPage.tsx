@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, type ReactNode } from 'react'
 import axios from 'axios'
 import Card from '../components/Card/Card'
 import MatchesTable from '../components/MatchesTable/MatchesTable'
@@ -115,7 +115,7 @@ const MatchesPage = () => {
     return `${count} match${suffix}`
   }, [filteredMatches])
 
-  let matchesContent: JSX.Element
+  let matchesContent: ReactNode
   if (loading) {
     matchesContent = (
       <div className="text-center py-12 text-text-muted">Loading matches...</div>
