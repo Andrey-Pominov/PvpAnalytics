@@ -58,9 +58,7 @@ public sealed class LoggingClient : ILoggingClient
                 RequestMethod = logRequest.RequestMethod ?? string.Empty,
                 StatusCode = logRequest.StatusCode ?? 0,
                 Duration = logRequest.Duration ?? 0,
-                Properties = !string.IsNullOrEmpty(logRequest.Properties) 
-                    ? Struct.Parser.ParseJson(logRequest.Properties)
-                    : new Struct()
+                Properties = ParsePropertiesOrEmpty(logRequest.Properties)
             };
 
             await _client.CreateLogAsync(request, cancellationToken: ct);
@@ -179,6 +177,24 @@ public sealed class LoggingClient : ILoggingClient
             ctsToDispose.Dispose();
         }
         timerToDispose?.Dispose();
+    }
+
+    private Struct ParsePropertiesOrEmpty(string? json)
+    {
+        if (string.IsNullOrEmpty(json))
+        {
+            return new Struct();
+        }
+
+        try
+        {
+            return Struct.Parser.ParseJson(json);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to parse log properties JSON: {Properties}", json);
+            return new Struct();
+        }
     }
 
     public void Dispose()

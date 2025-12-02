@@ -37,7 +37,8 @@ export function convertToCSV<T extends Record<string, unknown>>(
         str = Array.isArray(value) ? '[Array]' : '[Object]'
       }
     } else {
-      str = Array.isArray(value) ? '[Array]' : '[Object]'
+      // Primitives (string, number, boolean, etc.) - convert to string
+      str = String(value)
     }
     // If contains comma, quote, or newline, wrap in quotes and escape quotes
     if (str.includes(',') || str.includes('"') || str.includes('\n')) {
