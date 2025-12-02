@@ -28,27 +28,8 @@ public static class GameModeHelper
                 _ => GameMode.TwoVsTwo
             };
         // Solo Shuffle arena matches typically have "shuffle" in the arena match ID
-        if (arenaMatchId.Contains("shuffle", StringComparison.OrdinalIgnoreCase))
-        {
-            return GameMode.Shuffle;
-        }
-        // If no shuffle indicator found, fall through to default ThreeVsThree logic
-
-        return participantCount switch
-        {
-            6 => GameMode.ThreeVsThree,
-            _ => throw new ArgumentOutOfRangeException(nameof(participantCount), participantCount, null)
-        };
-    }
-    
-    /// <summary>
-    /// Determines the GameMode corresponding to an optional participant count.
-    /// </summary>
-    /// <param name="participantCount">Number of participants in the match; when null, the participant count is unknown.</param>
-    /// <param name="arenaMatchId">Optional arena match ID to help distinguish Solo Shuffle from regular 3v3.</param>
-    /// <returns>`GameMode.TwoVsTwo` if <paramref name="participantCount"/> is null; otherwise the GameMode that corresponds to the provided participant count.</returns>
-    public static GameMode GetGameModeFromParticipantCount(int? participantCount, string? arenaMatchId = null)
-    {
-        return participantCount.HasValue ? GetGameModeFromParticipantCount(participantCount.Value, arenaMatchId) : GameMode.TwoVsTwo;
+        return arenaMatchId.Contains("shuffle", StringComparison.OrdinalIgnoreCase) ? GameMode.Shuffle :
+            // If no shuffle indicator found, fall through to default ThreeVsThree logic
+            GameMode.ThreeVsThree;
     }
 }
