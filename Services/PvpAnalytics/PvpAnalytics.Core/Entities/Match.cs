@@ -4,6 +4,14 @@ namespace PvpAnalytics.Core.Entities;
 
 public class Match
 {
+    public Match()
+    {
+        UniqueHash = string.Empty;
+        MapName = string.Empty;
+        Results = [];
+        CombatLogs = [];
+    }
+
     public long Id { get; set; }
     public string UniqueHash  { get; set; }
     public DateTime CreatedOn { get; set; }

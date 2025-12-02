@@ -19,7 +19,7 @@ builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptio
 
 var jwtOptions = GetJwtOptions(builder.Configuration);
 var useInMemoryDatabase = IsInMemoryDatabaseEnabled(builder.Configuration);
-ValidateJwtOptions(jwtOptions, useInMemoryDatabase);
+ValidateJwtOptions(jwtOptions, useInMemoryDatabase, builder.Environment);
 var corsOrigins = GetCorsOrigins(builder.Configuration, useInMemoryDatabase);
 
 builder.Services.AddCors(options =>
@@ -163,9 +163,11 @@ static bool IsInMemoryDatabaseEnabled(IConfiguration configuration)
             useInMemoryDatabaseValue.Equals("1", StringComparison.OrdinalIgnoreCase));
 }
 
-static void ValidateJwtOptions(JwtOptions jwtOptions, bool useInMemoryDatabase)
+static void ValidateJwtOptions(JwtOptions jwtOptions, bool useInMemoryDatabase, IHostEnvironment environment)
 {
-    if (useInMemoryDatabase)
+    // In tests we run with an in-memory database and known dummy signing keys.
+    // Relax validation when running under the dedicated Testing environment.
+    if (useInMemoryDatabase || string.Equals(environment.EnvironmentName, "Testing", StringComparison.OrdinalIgnoreCase))
     {
         return;
     }

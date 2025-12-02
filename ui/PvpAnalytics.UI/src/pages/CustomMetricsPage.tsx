@@ -148,7 +148,7 @@ const CustomMetricsPage = () => {
             {/* Test Section */}
             {parsedExpression.isValid && parsedExpression.variables.length > 0 && (
               <div className="rounded-lg border border-accent-muted/40 bg-surface/30 p-4">
-                <label className="block text-sm font-semibold text-text-muted mb-2">Test Expression</label>
+                <p className="block text-sm font-semibold text-text-muted mb-2">Test Expression</p>
                 <div className="space-y-2">
                   {parsedExpression.variables.map((varName) => (
                     <div key={varName} className="flex items-center gap-2">

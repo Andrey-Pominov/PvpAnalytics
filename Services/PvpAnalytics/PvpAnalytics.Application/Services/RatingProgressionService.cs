@@ -90,11 +90,11 @@ public class RatingProgressionService(PvpAnalyticsDbContext dbContext) : IRating
         }).ToList();
 
         // Calculate summary
-        if (dto.DataPoints.Any())
+        if (dto.DataPoints.Count != 0)
         {
             dto.Summary = new RatingSummary
             {
-                CurrentRating = dto.DataPoints.Last().RatingAfter,
+                CurrentRating = dto.DataPoints[^1].RatingAfter,
                 PeakRating = dto.DataPoints.Max(dp => Math.Max(dp.RatingBefore, dp.RatingAfter)),
                 LowestRating = dto.DataPoints.Min(dp => Math.Min(dp.RatingBefore, dp.RatingAfter)),
                 AverageRating = Math.Round(dto.DataPoints.Average(dp => (double)dp.RatingAfter), 2),
@@ -125,14 +125,14 @@ public class RatingProgressionService(PvpAnalyticsDbContext dbContext) : IRating
             })
             .ToListAsync(ct);
 
-        if (!matchResults.Any())
+        if (matchResults.Count == 0)
             return new RatingSummary();
 
         var ratings = matchResults.SelectMany(mr => new[] { mr.RatingBefore, mr.RatingAfter }).ToList();
 
         return new RatingSummary
         {
-            CurrentRating = matchResults.Last().RatingAfter,
+            CurrentRating = matchResults[^1].RatingAfter,
             PeakRating = ratings.Max(),
             LowestRating = ratings.Min(),
             AverageRating = Math.Round(ratings.Average(), 2),

@@ -2,6 +2,13 @@ namespace PvpAnalytics.Core.Entities;
 
 public class MatchResult
 {
+    public MatchResult()
+    {
+        Match = null!;
+        Player = null!;
+        Team = string.Empty;
+    }
+
     public long Id { get; set; }
 
     public long MatchId { get; set; }

@@ -13,9 +13,12 @@ public class LuaTableParserTests
         // Arrange
         var lines = new[]
         {
-            "PvPAnalyticsDB = {",
-            "}, -- [1]",
-            "{"
+            "PvPAnalyticsDB = {", 
+            "{",
+            "[\"Logs\"] = {",
+            "23:07:55 - HEAL: Cyclonex-Hellfire healed with Thriving Vegetation for 556252,",
+            "23:07:56 - HEAL: Cyclonex-Hellfire healed with Symbiotic Relationship for 62757,",
+            "}}}"
         };
 
         var luaType = typeof(LuaTableParser);

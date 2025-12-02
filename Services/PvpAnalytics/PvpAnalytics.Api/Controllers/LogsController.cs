@@ -60,7 +60,10 @@ public class LogsController(ICombatLogIngestionService ingestion, ILogger<LogsCo
         catch (Exception ex)
         {
             logger.LogError(ex, "Combat log ingestion failed for file {FileName}.", file.FileName);
-            throw;
+            // Rethrow with additional context so callers have more information than the raw exception.
+            throw new InvalidOperationException(
+                $"Combat log ingestion failed for file '{file.FileName}'. See inner exception for details.",
+                ex);
         }
     }
 }

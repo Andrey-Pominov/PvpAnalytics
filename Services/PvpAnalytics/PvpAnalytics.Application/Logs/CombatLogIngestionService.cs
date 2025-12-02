@@ -1,6 +1,7 @@
 using System.Text;
 using Microsoft.Extensions.Logging;
 using PvpAnalytics.Application.Services;
+using PvpAnalytics.Core.DTOs;
 using PvpAnalytics.Core.Entities;
 using PvpAnalytics.Core.Enum;
 using PvpAnalytics.Core.Models;
@@ -45,7 +46,6 @@ public class CombatLogIngestionService(
             return await RouteToLuaServiceAsync(fileStream, ct);
         }
 
-        logger.LogInformation("Detected traditional format, using standard parser.");
         var allPersistedMatches = await ProcessTraditionalFormatAsync(fileStream, ct);
         await FinalizeIngestionAsync(ct);
 
@@ -78,7 +78,7 @@ public class CombatLogIngestionService(
 
         while (await reader.ReadLineAsync(ct) is { } line)
         {
-            if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#")) continue;
+            if (string.IsNullOrWhiteSpace(line) || line.StartsWith('#')) continue;
 
             var parsed = CombatLogParser.ParseLine(line);
             if (parsed == null) continue;
@@ -144,6 +144,7 @@ public class CombatLogIngestionService(
                 logger.LogInformation("Persisted match {MatchId} with arena match ID {ArenaMatchId}.",
                     persistedMatch.Id, state.CurrentArenaMatchId);
             }
+
             state.ResetMatchState();
         }
 
@@ -242,7 +243,8 @@ public class CombatLogIngestionService(
             Ability = parsed.SpellName ?? parsed.EventType,
             DamageDone = parsed.Damage ?? 0,
             HealingDone = parsed.Healing ?? 0,
-            CrowdControl = string.Empty
+            CrowdControl = string.Empty,
+            SourcePlayer = source
         });
     }
 
@@ -252,15 +254,18 @@ public class CombatLogIngestionService(
         LoadCachedPlayersIntoState(state);
         await UpdatePlayersFromSpellsAsync(state.PlayersByKey, state.PlayerSpells);
 
-        var gameMode = GameModeHelper.GetGameModeFromParticipantCount(state.Participants.Count, state.CurrentArenaMatchId);
+        var gameMode =
+            GameModeHelper.GetGameModeFromParticipantCount(state.Participants.Count, state.CurrentArenaMatchId);
         var arenaZone = state.CurrentZoneId.HasValue
             ? ArenaZoneIds.GetArenaZone(state.CurrentZoneId.Value)
             : ArenaZone.Unknown;
         var mapName = ArenaZoneIds.GetDisplayName(arenaZone);
-
-        return await FinalizeAndPersistAsync(arenaZone, state.MatchStart, state.MatchEnd,
-            state.Participants, state.BufferedEntries, state.PlayersByKey, state.PlayerSpells, ct, gameMode,
+        var context = new MatchIngestionContext(
+            arenaZone, state.MatchStart, state.MatchEnd,
+            state.Participants, state.BufferedEntries, state.PlayersByKey, state.PlayerSpells, gameMode,
             state.CurrentArenaMatchId!, mapName);
+
+        return await FinalizeAndPersistAsync(context, ct);
     }
 
     private void LoadCachedPlayersIntoState(MatchProcessingState state)
@@ -337,15 +342,8 @@ public class CombatLogIngestionService(
 
         var trimmed = fullName.Trim('"', ' ');
         var regionSuffixes = new[] { "-EU", "-US", "-KR", "-TW", "-CN" };
-        foreach (var suffix in regionSuffixes)
-        {
-            if (trimmed.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
-            {
-                return suffix[1..].ToLowerInvariant();
-            }
-        }
-
-        return "eu"; // Default to EU
+        var suffix = regionSuffixes.FirstOrDefault(s => trimmed.EndsWith(s, StringComparison.OrdinalIgnoreCase));
+        return suffix?[1..].ToLowerInvariant() ?? "eu"; // Default to EU
     }
 
     private Task UpdatePlayersFromSpellsAsync(
@@ -363,7 +361,8 @@ public class CombatLogIngestionService(
 
             PlayerInfoExtractor.UpdatePlayerFromSpells(player, spells);
 
-            if (player.Class == originalClass && player.Faction == originalFaction && player.Spec == originalSpec) continue;
+            if (player.Class == originalClass && player.Faction == originalFaction &&
+                player.Spec == originalSpec) continue;
             _playerCache.MarkForUpdate(player);
             logger.LogDebug("Marked player {PlayerName} for update: Class={Class}, Faction={Faction}, Spec={Spec}",
                 player.Name, player.Class, player.Faction, player.Spec);
@@ -427,34 +426,25 @@ public class CombatLogIngestionService(
             needsUpdate = true;
         }
 
-        if (string.IsNullOrWhiteSpace(player.Faction) && !string.IsNullOrWhiteSpace(apiData.Faction))
-        {
-            player.Faction = apiData.Faction;
-            needsUpdate = true;
-        }
+        if (!string.IsNullOrWhiteSpace(player.Faction) || string.IsNullOrWhiteSpace(apiData.Faction))
+            return needsUpdate;
+        player.Faction = apiData.Faction;
+        needsUpdate = true;
 
         return needsUpdate;
     }
 
     private async Task<Match> FinalizeAndPersistAsync(
-        ArenaZone arenaZone,
-        DateTime? start,
-        DateTime? end,
-        HashSet<string> participants,
-        List<CombatLogEntry> entries,
-        Dictionary<string, Player> playersByKey,
-        Dictionary<string, HashSet<string>> playerSpells,
-        CancellationToken ct,
-        GameMode gameMode,
-        string arenaMatchId,
-        string mapName)
+        MatchIngestionContext context,
+        CancellationToken ct)
     {
-        var uniqueHash = ComputeMatchHash(participants, start, end, arenaMatchId);
-        var match = CreateMatchEntity(arenaZone, start, end, arenaMatchId, gameMode, mapName, uniqueHash);
+        var uniqueHash = ComputeMatchHash(context.Participants, context.Start, context.End, context.ArenaMatchId);
+        var match = CreateMatchEntity(context.ArenaZone, context.Start, context.End, context.ArenaMatchId,
+            context.GameMode, context.MapName, uniqueHash);
 
-        match = await PersistMatchWithDuplicateHandlingAsync(match, uniqueHash, participants.Count, ct);
-        await PersistCombatLogEntriesAsync(entries, match.Id, ct);
-        await PersistMatchResultsAsync(participants, playersByKey, playerSpells, match.Id, ct);
+        match = await PersistMatchWithDuplicateHandlingAsync(match, uniqueHash, context.Participants.Count, ct);
+        await PersistCombatLogEntriesAsync(context.Entries, match.Id, ct);
+        await PersistMatchResultsAsync(context.Participants, context.PlayersByKey, context.PlayerSpells, match.Id, ct);
 
         return match;
     }
@@ -475,9 +465,11 @@ public class CombatLogIngestionService(
             MapName = mapName,
             ArenaMatchId = arenaMatchId,
             GameMode = gameMode,
-            Duration = start.HasValue && end.HasValue ? (long)(end.Value - start.Value).TotalSeconds : 0,
+            Duration = start.HasValue && end.HasValue
+                ? (long)(end.Value - start.Value).TotalSeconds
+                : 0,
             IsRanked = true,
-            UniqueHash = uniqueHash
+            UniqueHash = uniqueHash,
         };
     }
 
@@ -489,8 +481,9 @@ public class CombatLogIngestionService(
     {
         try
         {
-            match = await matchRepo.AddAsync(match, ct);
-            logger.LogInformation("Persisted new match {MatchId} with UniqueHash {UniqueHash} and {ParticipantCount} participants.",
+            match = await matchRepo.AddAsync(match, true, ct);
+            logger.LogInformation(
+                "Persisted new match {MatchId} with UniqueHash {UniqueHash} and {ParticipantCount} participants.",
                 match.Id, uniqueHash, participantCount);
             return match;
         }
@@ -509,7 +502,8 @@ public class CombatLogIngestionService(
     {
         return ex.GetType().FullName?.Contains("DbUpdateException") == true &&
                ex.InnerException?.GetType().FullName?.Contains("PostgresException") == true &&
-               (ex.InnerException.GetType().GetProperty("SqlState")?.GetValue(ex.InnerException)?.ToString() == "23505" ||
+               (ex.InnerException.GetType().GetProperty("SqlState")?.GetValue(ex.InnerException)?.ToString() ==
+                "23505" ||
                 ex.Message.Contains("23505") ||
                 ex.Message.Contains("duplicate key value") ||
                 ex.Message.Contains("IX_Matches_UniqueHash"));
@@ -517,11 +511,13 @@ public class CombatLogIngestionService(
 
     private async Task<Match> HandleDuplicateMatchAsync(string uniqueHash, CancellationToken ct)
     {
-        logger.LogInformation("Match with UniqueHash {UniqueHash} already exists in database, returning existing match.", uniqueHash);
+        logger.LogInformation(
+            "Match with UniqueHash {UniqueHash} already exists in database, returning existing match.", uniqueHash);
         var existingMatches = await matchRepo.ListAsync(m => m.UniqueHash == uniqueHash, ct);
         return existingMatches.Count > 0
             ? existingMatches[0]
-            : throw new InvalidOperationException($"Match with UniqueHash {uniqueHash} was reported as duplicate but not found in database.");
+            : throw new InvalidOperationException(
+                $"Match with UniqueHash {uniqueHash} was reported as duplicate but not found in database.");
     }
 
     private async Task PersistCombatLogEntriesAsync(List<CombatLogEntry> entries, long matchId, CancellationToken ct)
@@ -529,7 +525,7 @@ public class CombatLogIngestionService(
         foreach (var e in entries)
         {
             e.MatchId = matchId;
-            await entryRepo.AddAsync(e, ct);
+            await entryRepo.AddAsync(e, true, ct);
         }
     }
 
@@ -554,8 +550,9 @@ public class CombatLogIngestionService(
                 RatingBefore = 0,
                 RatingAfter = 0,
                 IsWinner = false,
-                Spec = matchSpec
-            }, ct);
+                Spec = matchSpec,
+                Player = player
+            }, true, ct);
         }
     }
 

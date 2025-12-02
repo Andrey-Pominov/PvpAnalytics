@@ -128,7 +128,7 @@ public class SessionAnalysisService(PvpAnalyticsDbContext dbContext) : ISessionA
         if (currentSession.Count == 0)
             return false;
 
-        var lastMatchDate = currentSession.Last().matchDate;
+        var lastMatchDate = currentSession[^1].matchDate;
         var timeDiff = (matchDate - lastMatchDate).TotalMinutes;
         return timeDiff > thresholdMinutes;
     }
@@ -176,11 +176,11 @@ public class SessionAnalysisService(PvpAnalyticsDbContext dbContext) : ISessionA
         List<(DateTime matchDate, int ratingBefore, int ratingAfter, bool isWinner, long matchId, long duration)> matches,
         long sessionId)
     {
-        var startTime = matches.First().matchDate;
-        var endTime = matches.Last().matchDate;
+        var startTime = matches[0].matchDate;
+        var endTime = matches[^1].matchDate;
         var wins = matches.Count(m => m.isWinner);
-        var ratingStart = matches.First().ratingBefore;
-        var ratingEnd = matches.Last().ratingAfter;
+        var ratingStart = matches[0].ratingBefore;
+        var ratingEnd = matches[^1].ratingAfter;
 
         return new SessionData
         {
@@ -191,11 +191,11 @@ public class SessionAnalysisService(PvpAnalyticsDbContext dbContext) : ISessionA
             MatchCount = matches.Count,
             Wins = wins,
             Losses = matches.Count - wins,
-            WinRate = matches.Count > 0 ? Math.Round(wins * 100.0 / matches.Count, 2) : 0,
+            WinRate = Math.Round(wins * 100.0 / matches.Count, 2),
             RatingStart = ratingStart,
             RatingEnd = ratingEnd,
             RatingChange = ratingEnd - ratingStart,
-            AverageMatchDuration = matches.Count != 0 ? Math.Round(matches.Average(m => (double)m.duration), 2) : 0,
+            AverageMatchDuration = Math.Round(matches.Average(m => (double)m.duration), 2),
             DayOfWeek = startTime.DayOfWeek.ToString(),
             HourOfDay = startTime.Hour
         };
@@ -242,15 +242,15 @@ public class SessionAnalysisService(PvpAnalyticsDbContext dbContext) : ISessionA
             .OrderByDescending(t => t.WinRate)
             .ToList();
 
-        var bestHour = byHour.OrderByDescending(h => h.WinRate).FirstOrDefault();
-        var bestDay = byDay.OrderByDescending(d => d.WinRate).FirstOrDefault();
+        var bestHour = byHour.OrderByDescending(h => h.WinRate).First();
+        var bestDay = byDay.OrderByDescending(d => d.WinRate).First();
 
         return new OptimalPlayTimes
         {
             ByHour = byHour,
             ByDayOfWeek = byDay,
-            BestHour = bestHour?.TimeSlot ?? "Unknown",
-            BestDay = bestDay?.TimeSlot ?? "Unknown"
+            BestHour = bestHour.TimeSlot,
+            BestDay = bestDay.TimeSlot
         };
     }
 
@@ -266,7 +266,7 @@ public class SessionAnalysisService(PvpAnalyticsDbContext dbContext) : ISessionA
 
     private static FatigueAnalysis CalculateFatigueAnalysis(List<SessionData> sessionData)
     {
-        if (!sessionData.Any())
+        if (sessionData.Count == 0)
             return new FatigueAnalysis();
 
         // Group sessions by date and order within day
@@ -300,7 +300,7 @@ public class SessionAnalysisService(PvpAnalyticsDbContext dbContext) : ISessionA
         var secondHalfAvg = secondHalf.Count != 0 ? secondHalf.Average(p => p.AverageWinRate) : 0;
 
         var showsFatigue = secondHalfAvg < firstHalfAvg - 5; // 5% drop indicates fatigue
-        var fatiguePattern = showsFatigue ? "Declining" : (secondHalfAvg > firstHalfAvg + 5 ? "Improving" : "Stable");
+        var fatiguePattern = showsFatigue ? "Declining" : secondHalfAvg > firstHalfAvg + 5 ? "Improving" : "Stable";
 
         // Calculate optimal session length (average duration of best performing sessions)
         var bestSessions = sessionData

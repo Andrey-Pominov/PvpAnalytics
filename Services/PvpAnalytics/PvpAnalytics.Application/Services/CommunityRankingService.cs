@@ -37,7 +37,7 @@ public class CommunityRankingService(PvpAnalyticsDbContext dbContext) : ICommuni
             Period = period,
             Scope = scope,
             Entries = entries,
-            LastUpdated = rankings.Any() ? rankings.Max(cr => cr.CalculatedAt) : DateTime.UtcNow
+            LastUpdated = rankings.Count != 0 ? rankings.Max(cr => cr.CalculatedAt) : DateTime.UtcNow
         };
     }
 }

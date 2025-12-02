@@ -7,7 +7,9 @@ using Microsoft.Extensions.Hosting;
 using PvpAnalytics.Application.Logs;
 using PvpAnalytics.Core.Entities;
 using PvpAnalytics.Core.Enum;
+using PvpAnalytics.Core.Configuration;
 using PvpAnalytics.Shared.Security;
+using PvpAnalytics.Infrastructure;
 
 namespace PvpAnalytics.Tests.Integration;
 
@@ -24,9 +26,13 @@ public sealed class PvpAnalyticsApiFactory : WebApplicationFactory<Api.Program>
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["EfMigrations:Skip"] = "true",
+                ["EfProvider"] = "InMemory",
                 [$"{JwtOptions.SectionName}:Issuer"] = "TestIssuer",
                 [$"{JwtOptions.SectionName}:Audience"] = "TestAudience",
-                [$"{JwtOptions.SectionName}:SigningKey"] = "0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF"
+                [$"{JwtOptions.SectionName}:SigningKey"] = "0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF",
+                // Provide dummy but valid WowApi credentials so option validation passes in tests
+                [$"{WowApiOptions.SectionName}:ClientId"] = "TestClientId",
+                [$"{WowApiOptions.SectionName}:ClientSecret"] = "TestClientSecret"
             });
         });
 

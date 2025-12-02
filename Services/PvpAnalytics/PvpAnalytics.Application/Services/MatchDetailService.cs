@@ -69,12 +69,12 @@ public class MatchDetailService(PvpAnalyticsDbContext dbContext) : IMatchDetailS
             if (entry.SourcePlayerId <= 0)
                 continue;
 
-            if (!participantStats.ContainsKey(entry.SourcePlayerId))
+            if (!participantStats.TryGetValue(entry.SourcePlayerId, out var stats))
             {
-                participantStats[entry.SourcePlayerId] = (0, 0, 0);
+                stats = (0, 0, 0);
+                participantStats[entry.SourcePlayerId] = stats;
             }
 
-            var stats = participantStats[entry.SourcePlayerId];
             stats.damage += entry.DamageDone;
             stats.healing += entry.HealingDone;
             if (!string.IsNullOrWhiteSpace(entry.CrowdControl))
@@ -92,16 +92,11 @@ public class MatchDetailService(PvpAnalyticsDbContext dbContext) : IMatchDetailS
         ICollection<Core.Entities.MatchResult> matchResults,
         Dictionary<long, (long damage, long healing, int cc)> participantStats)
     {
-        var teams = new List<TeamInfo>();
         var participantsByTeam = matchResults.GroupBy(r => r.Team).ToList();
 
-        foreach (var teamGroup in participantsByTeam)
-        {
-            var participants = CreateParticipantsForTeam(teamGroup, participantStats);
-            teams.Add(CreateTeamInfo(teamGroup.Key, participants));
-        }
-
-        return teams;
+        return (from teamGroup in participantsByTeam
+            let participants = CreateParticipantsForTeam(teamGroup, participantStats)
+            select CreateTeamInfo(teamGroup.Key, participants)).ToList();
     }
 
     private static List<ParticipantInfo> CreateParticipantsForTeam(
@@ -158,8 +153,8 @@ public class MatchDetailService(PvpAnalyticsDbContext dbContext) : IMatchDetailS
     {
         var relativeTimestamp = (long)(entry.Timestamp - matchStartTime).TotalSeconds;
         var isCooldown = ImportantAbilities.IsCooldownOrDefensive(entry.Ability);
-        var isCC = ImportantAbilities.IsCrowdControl(entry.Ability);
-        var isImportant = isCooldown || isCC || entry.DamageDone > 50000 || entry.HealingDone > 30000;
+        var isCc = ImportantAbilities.IsCrowdControl(entry.Ability);
+        var isImportant = isCooldown || isCc || entry.DamageDone > 50000 || entry.HealingDone > 30000;
         var eventType = DetermineEventType(entry, isCooldown);
 
         return new TimelineEvent
@@ -167,16 +162,16 @@ public class MatchDetailService(PvpAnalyticsDbContext dbContext) : IMatchDetailS
             Timestamp = relativeTimestamp,
             EventType = eventType,
             SourcePlayerId = entry.SourcePlayerId,
-            SourcePlayerName = entry.SourcePlayer?.Name,
+            SourcePlayerName = entry.SourcePlayer?.Name ?? "Unknown",
             TargetPlayerId = entry.TargetPlayerId,
-            TargetPlayerName = entry.TargetPlayer?.Name,
+            TargetPlayerName = entry.TargetPlayer?.Name ?? "Unknown",
             Ability = entry.Ability,
             DamageDone = entry.DamageDone > 0 ? entry.DamageDone : null,
             HealingDone = entry.HealingDone > 0 ? entry.HealingDone : null,
             CrowdControl = !string.IsNullOrWhiteSpace(entry.CrowdControl) ? entry.CrowdControl : null,
             IsImportant = isImportant,
             IsCooldown = isCooldown,
-            IsCC = isCC,
+            IsCC = isCc,
         };
     }
 
@@ -184,13 +179,13 @@ public class MatchDetailService(PvpAnalyticsDbContext dbContext) : IMatchDetailS
     {
         if (entry.HealingDone > 0)
             return "healing";
-        
+
         if (!string.IsNullOrWhiteSpace(entry.CrowdControl))
             return "cc";
-        
+
         if (isCooldown)
             return "cooldown";
-        
+
         return "damage";
     }
 }

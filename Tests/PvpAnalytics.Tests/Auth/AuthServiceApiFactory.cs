@@ -1,4 +1,3 @@
-using System;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
@@ -7,7 +6,7 @@ using PvpAnalytics.Shared.Security;
 
 namespace PvpAnalytics.Tests.Auth;
 
-public sealed class AuthServiceApiFactory : WebApplicationFactory<AuthService.Api.Program>
+public sealed class AuthServiceApiFactory : WebApplicationFactory<AuthService.Api.IProgram>
 {
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {

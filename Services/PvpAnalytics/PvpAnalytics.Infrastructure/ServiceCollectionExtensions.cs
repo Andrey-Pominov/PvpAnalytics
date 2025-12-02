@@ -13,13 +13,31 @@ public static class ServiceCollectionExtensions
     {
         services.AddDbContext<PvpAnalyticsDbContext>(options =>
         {
-            options.UseNpgsql(config.GetConnectionString("DefaultConnection"));
+            var provider = config["EfProvider"];
+            var connectionString = config.GetConnectionString("DefaultConnection");
+
+            if (string.Equals(provider, "InMemory", StringComparison.OrdinalIgnoreCase))
+            {
+                options.UseInMemoryDatabase("PvpAnalyticsDb");
+            }
+            else
+            {
+                if (string.IsNullOrWhiteSpace(connectionString))
+                {
+                    throw new InvalidOperationException(
+                        "Database connection string 'DefaultConnection' is not configured. " +
+                        "Please provide it via appsettings.json, environment variables, or user secrets.");
+                }
+
+                options.UseNpgsql(connectionString);
+            }
+
             // Log the pending model changes warning instead of throwing
             options.ConfigureWarnings(warnings =>
                 warnings.Log(RelationalEventId.PendingModelChangesWarning));
         });
         services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
-        
+
         return services;
     }
 }

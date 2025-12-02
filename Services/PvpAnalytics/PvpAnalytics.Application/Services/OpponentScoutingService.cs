@@ -192,12 +192,17 @@ public class OpponentScoutingService(
             .Select(mr => new { mr.MatchId, mr.Team })
             .ToListAsync(ct);
 
-        var opponentResults = await dbContext.MatchResults
+        // Load all relevant match results into memory so we can safely apply
+        // team-based filtering without relying on provider-specific translation.
+        var matchResults = await dbContext.MatchResults
             .Include(mr => mr.Player)
             .Include(mr => mr.Match)
-            .Where(mr => playerMatchIds.Contains(mr.MatchId) &&
-                         !playerTeam.Any(pt => pt.MatchId == mr.MatchId && pt.Team == mr.Team))
+            .Where(mr => playerMatchIds.Contains(mr.MatchId))
             .ToListAsync(ct);
+
+        var opponentResults = matchResults
+            .Where(mr => !playerTeam.Any(pt => pt.MatchId == mr.MatchId && pt.Team == mr.Team))
+            .ToList();
 
         var matchups = opponentResults
             .GroupBy(mr => new { mr.Player.Class, mr.Spec })

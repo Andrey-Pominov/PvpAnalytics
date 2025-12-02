@@ -1,0 +1,19 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using PvpAnalytics.Application.Services;
+using PvpAnalytics.Core.DTOs;
+
+namespace PvpAnalytics.Api.Controllers;
+
+[ApiController]
+[Route("api/matches")]
+public class MatchDetailsController(IMatchDetailService detailService) : ControllerBase
+{
+    [AllowAnonymous]
+    [HttpGet("{id:long}/detail")]
+    public async Task<ActionResult<MatchDetailDto>> GetDetail(long id, CancellationToken ct)
+    {
+        var detail = await detailService.GetMatchDetailAsync(id, ct);
+        return detail is null ? NotFound() : Ok(detail);
+    }
+}

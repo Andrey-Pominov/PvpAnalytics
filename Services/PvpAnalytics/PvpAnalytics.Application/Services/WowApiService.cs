@@ -51,36 +51,31 @@ public class WowApiService(
     {
         await EnsureAccessTokenAsync(region, ct);
 
-        if (string.IsNullOrEmpty(_accessToken))
-        {
-            logger.LogWarning("Failed to obtain access token for WoW API");
-            return false;
-        }
+        if (!string.IsNullOrEmpty(_accessToken)) return true;
+        logger.LogWarning("Failed to obtain access token for WoW API");
+        return false;
 
-        return true;
     }
 
-    private static string GetBaseUrlForRegion(string region)
+    private string GetBaseUrlForRegion(string region)
     {
         return region.Equals("eu", StringComparison.InvariantCultureIgnoreCase)
-            ? "https://eu.api.blizzard.com"
-            : "https://us.api.blizzard.com";
+            ? _options.EuApiBaseUrl
+            : _options.UsApiBaseUrl;
     }
 
     private async Task<JsonElement> FetchProfileDataAsync(
         string baseUrl, string realmSlug, string nameSlug, string region, CancellationToken ct)
     {
-        var profileUrl = $"{baseUrl}/profile/wow/character/{realmSlug}/{nameSlug}?namespace=profile-{region}&locale=en_US";
+        var profileUrl =
+            $"{baseUrl}/profile/wow/character/{realmSlug}/{nameSlug}?namespace=profile-{region}&locale=en_US";
         var response = await SendAuthenticatedRequestAsync(HttpMethod.Get, profileUrl, ct);
 
 
-        if (response is not { IsSuccessStatusCode: true })
-        {
-            HandleProfileRequestError(response, realmSlug, nameSlug);
-            return new JsonElement();
-        }
+        if (response is { IsSuccessStatusCode: true }) return await response.Content.ReadFromJsonAsync<JsonElement>(ct);
+        HandleProfileRequestError(response, realmSlug, nameSlug);
+        return new JsonElement();
 
-        return await response.Content.ReadFromJsonAsync<JsonElement>(ct);
     }
 
     private async Task<HttpResponseMessage?> SendAuthenticatedRequestAsync(
@@ -150,13 +145,13 @@ public class WowApiService(
             return;
 
         playerData.Race = ExtractStringProperty(raceProp, "name");
-        
+
         // Extract faction from API response (authoritative source)
         if (profileData.TryGetProperty("faction", out var factionProp))
         {
             playerData.Faction = ExtractStringProperty(factionProp, "name");
         }
-        
+
         // Fallback to race-based inference only if faction is not available from API
         if (string.IsNullOrWhiteSpace(playerData.Faction) && playerData.Race != null)
         {
@@ -200,8 +195,8 @@ public class WowApiService(
             // Determine OAuth URL based on region
             var oauthUrl = region.Equals("eu"
                 , StringComparison.InvariantCultureIgnoreCase)
-                ? "https://eu.battle.net/oauth/token"
-                : "https://us.battle.net/oauth/token";
+                ? _options.EuOAuthUrl
+                : _options.UsOAuthUrl;
 
             var requestBody = new FormUrlEncodedContent([
                 new KeyValuePair<string, string>("grant_type", "client_credentials")

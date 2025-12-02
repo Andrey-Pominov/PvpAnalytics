@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PvpAnalytics.Application.Services;
-using PvpAnalytics.Core.Enum;
+using PvpAnalytics.Core.DTOs;
 
 namespace PvpAnalytics.Api.Controllers;
 
@@ -12,26 +12,16 @@ public class MatchupAnalyticsController(IMatchupAnalyticsService service) : Cont
     [AllowAnonymous]
     [HttpGet]
     public async Task<ActionResult> GetMatchup(
-        [FromQuery] string class1,
-        [FromQuery] string class2,
-        [FromQuery] string? spec1 = null,
-        [FromQuery] string? spec2 = null,
-        [FromQuery] GameMode? gameMode = null,
-        [FromQuery] int? ratingMin = null,
-        [FromQuery] int? ratingMax = null,
-        [FromQuery] DateTime? startDate = null,
-        [FromQuery] DateTime? endDate = null,
+        [FromQuery] MatchupQueryDto query,
         CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(class1) || string.IsNullOrWhiteSpace(class2))
+        if (string.IsNullOrWhiteSpace(query.Class1) || string.IsNullOrWhiteSpace(query.Class2))
         {
             return BadRequest("class1 and class2 parameters are required");
         }
+        
 
-        var result = await service.GetMatchupAsync(
-            class1, spec1, class2, spec2,
-            gameMode, ratingMin, ratingMax,
-            startDate, endDate, ct);
+        var result = await service.GetMatchupAsync(query, ct);
         return Ok(result);
     }
 

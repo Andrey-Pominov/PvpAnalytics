@@ -19,11 +19,11 @@ RUN dotnet restore "Services/PvpAnalytics/PvpAnalytics.Api/PvpAnalytics.Api.cspr
 # Copy the full source and build
 COPY . .
 WORKDIR /src/Services/PvpAnalytics/PvpAnalytics.Api
-RUN dotnet build "PvpAnalytics.Api.csproj" -c $BUILD_CONFIGURATION -o /app/build
+RUN dotnet build "PvpAnalytics.Api.csproj" -c "$BUILD_CONFIGURATION" -o /app/build
 
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish "PvpAnalytics.Api.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+RUN dotnet publish "PvpAnalytics.Api.csproj" -c "$BUILD_CONFIGURATION" -o /app/publish /p:UseAppHost=false
 
 FROM base AS final
 WORKDIR /app

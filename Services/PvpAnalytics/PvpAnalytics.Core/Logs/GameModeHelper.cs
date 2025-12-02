@@ -19,33 +19,17 @@ public static class GameModeHelper
         System.Diagnostics.Debug.Assert(participantCount >= 0, "Participant count should be non-negative");
         
         // For 6 participants, check if it's Solo Shuffle based on arena match ID pattern
-        if (participantCount == 6 && !string.IsNullOrEmpty(arenaMatchId))
-        {
-            // Solo Shuffle arena matches typically have "shuffle" in the arena match ID
-            if (arenaMatchId.Contains("shuffle", StringComparison.OrdinalIgnoreCase))
+        if (participantCount != 6 || string.IsNullOrEmpty(arenaMatchId))
+            return participantCount switch
             {
-                return GameMode.Shuffle;
-            }
+                4 => GameMode.TwoVsTwo,
+                6 => GameMode.ThreeVsThree,
+                10 => GameMode.Skirmish,
+                _ => GameMode.TwoVsTwo
+            };
+        // Solo Shuffle arena matches typically have "shuffle" in the arena match ID
+        return arenaMatchId.Contains("shuffle", StringComparison.OrdinalIgnoreCase) ? GameMode.Shuffle :
             // If no shuffle indicator found, fall through to default ThreeVsThree logic
-        }
-        
-        return participantCount switch
-        {
-            4 => GameMode.TwoVsTwo,     
-            6 => GameMode.ThreeVsThree, 
-            10 => GameMode.Skirmish,
-            _ => GameMode.TwoVsTwo
-        };
-    }
-    
-    /// <summary>
-    /// Determines the GameMode corresponding to an optional participant count.
-    /// </summary>
-    /// <param name="participantCount">Number of participants in the match; when null, the participant count is unknown.</param>
-    /// <param name="arenaMatchId">Optional arena match ID to help distinguish Solo Shuffle from regular 3v3.</param>
-    /// <returns>`GameMode.TwoVsTwo` if <paramref name="participantCount"/> is null; otherwise the GameMode that corresponds to the provided participant count.</returns>
-    public static GameMode GetGameModeFromParticipantCount(int? participantCount, string? arenaMatchId = null)
-    {
-        return participantCount.HasValue ? GetGameModeFromParticipantCount(participantCount.Value, arenaMatchId) : GameMode.TwoVsTwo;
+            GameMode.ThreeVsThree;
     }
 }

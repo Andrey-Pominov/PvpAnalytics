@@ -27,7 +27,7 @@ public class LogsControllerTests : IClassFixture<PvpAnalyticsApiFactory>, IDispo
         _state.Reset();
     }
 
-    [SkipAll]
+    [Fact]
     public async Task Upload_ReturnsBadRequest_WhenFileMissing()
     {
         using var content = new MultipartFormDataContent();
@@ -37,15 +37,15 @@ public class LogsControllerTests : IClassFixture<PvpAnalyticsApiFactory>, IDispo
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    [SkipAll]
+    [Fact]
     public async Task Upload_ReturnsOk_WithListOfMatches()
     {
         _state.Handler = async (stream, ct) =>
         {
             using var reader = new StreamReader(stream, Encoding.UTF8, leaveOpen: true);
             await reader.ReadToEndAsync(ct);
-            return new List<Match>
-            {
+            return
+            [
                 new Match
                 {
                     Id = 42,
@@ -57,16 +57,16 @@ public class LogsControllerTests : IClassFixture<PvpAnalyticsApiFactory>, IDispo
                     Duration = 95,
                     IsRanked = true
                 }
-            };
+            ];
         };
 
-        var log = """
-                  # Header
-                  1/2/2024 19:10:03.100  ZONE_CHANGE,559,Nagrand Arena,,,,,,,,,,,,
-                  1/2/2024 19:10:04.200  SPELL_DAMAGE,0x0100,Alpha-Illidan,0x0,0x0,0x0200,Bravo-Illidan,0x0,0x0,1337,Chaos Bolt,0x0,1200,0,0,0,0,0,0,0
-                  1/2/2024 19:10:05.300  SPELL_DAMAGE,0x0200,Bravo-Illidan,0x0,0x0,0x0100,Alpha-Illidan,0x0,0x0,6789,Shadow Bolt,0x0,1300,0,0,0,0,0,0,0
-                  1/2/2024 19:10:36.000  ZONE_CHANGE,84,Ironforge,,,,,,,,,,,,
-                  """;
+        const string log = """
+                           # Header
+                           1/2/2024 19:10:03.100  ZONE_CHANGE,559,Nagrand Arena,,,,,,,,,,,,
+                           1/2/2024 19:10:04.200  SPELL_DAMAGE,0x0100,Alpha-Illidan,0x0,0x0,0x0200,Bravo-Illidan,0x0,0x0,1337,Chaos Bolt,0x0,1200,0,0,0,0,0,0,0
+                           1/2/2024 19:10:05.300  SPELL_DAMAGE,0x0200,Bravo-Illidan,0x0,0x0,0x0100,Alpha-Illidan,0x0,0x0,6789,Shadow Bolt,0x0,1300,0,0,0,0,0,0,0
+                           1/2/2024 19:10:36.000  ZONE_CHANGE,84,Ironforge,,,,,,,,,,,,
+                           """;
 
         using var content = new MultipartFormDataContent();
         var bytes = Encoding.UTF8.GetBytes(log);

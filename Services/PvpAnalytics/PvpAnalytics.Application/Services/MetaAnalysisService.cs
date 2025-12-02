@@ -72,11 +72,11 @@ public class MetaAnalysisService(PvpAnalyticsDbContext dbContext) : IMetaAnalysi
             .GroupBy(mr => new { mr.MatchId, mr.Team })
             .Select(g => new
             {
-                MatchId = g.Key.MatchId,
-                Team = g.Key.Team,
+                 g.Key.MatchId,
+                 g.Key.Team,
                 Composition = string.Join("-", g
                     .Where(mr => !string.IsNullOrWhiteSpace(mr.Player.Class))
-                    .Select(mr => mr.Player.Class!)
+                    .Select(mr => mr.Player.Class)
                     .OrderBy(c => c)
                     .Distinct()),
                 IsWinner = g.Any(mr => mr.IsWinner),
@@ -95,7 +95,7 @@ public class MetaAnalysisService(PvpAnalyticsDbContext dbContext) : IMetaAnalysi
                 Composition = g.Key,
                 TotalMatches = g.Count(),
                 Wins = g.Count(tc => tc.IsWinner),
-                WinRate = g.Count() > 0 ? Math.Round(g.Count(tc => tc.IsWinner) * 100.0 / g.Count(), 2) : 0,
+                WinRate = g.Any() ? Math.Round(g.Count(tc => tc.IsWinner) * 100.0 / g.Count(), 2) : 0,
                 Popularity = totalMatches > 0 ? Math.Round(g.Count() * 100.0 / totalMatches, 2) : 0,
                 AverageRating = Math.Round(g.Average(tc => tc.Rating), 0)
             })
@@ -131,12 +131,12 @@ public class MetaAnalysisService(PvpAnalyticsDbContext dbContext) : IMetaAnalysi
             .GroupBy(mr => new { mr.MatchId, mr.Team, mr.Match.CreatedOn })
             .Select(g => new
             {
-                MatchId = g.Key.MatchId,
+                g.Key.MatchId,
                 MatchDate = g.Key.CreatedOn.Date,
-                Team = g.Key.Team,
+                g.Key.Team,
                 Composition = string.Join("-", g
                     .Where(mr => !string.IsNullOrWhiteSpace(mr.Player.Class))
-                    .Select(mr => mr.Player.Class!)
+                    .Select(mr => mr.Player.Class)
                     .OrderBy(c => c)
                     .Distinct()),
                 IsWinner = g.Any(mr => mr.IsWinner)
