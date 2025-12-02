@@ -101,20 +101,7 @@ const StatsPage = () => {
     return generateForecast(stats.overviewTrend, 7, nextMilestone)
   }, [stats])
 
-  const content = !stats ? (
-    <div className="flex flex-col gap-6">
-      {loading && (
-        <div className="rounded-2xl border border-accent-muted/40 border-dashed bg-accent-muted/10 px-4 py-3 text-center text-sm text-text">
-          Loading latest data…
-        </div>
-      )}
-      {!loading && (
-        <div className="rounded-2xl border border-accent-muted/40 bg-surface/50 px-4 py-3 text-sm text-text-muted">
-          No statistics available.
-        </div>
-      )}
-    </div>
-  ) : (
+  const content = stats ? (
     <>
       <div className="flex justify-end overflow-x-auto">
         <ToggleGroup
@@ -267,6 +254,24 @@ const StatsPage = () => {
         </div>
       )}
     </>
+  ) : (
+    <div className="flex flex-col gap-6">
+      {error && (
+        <div className="rounded-2xl border border-rose-400/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+          {error}
+        </div>
+      )}
+      {!error && loading && (
+        <div className="rounded-2xl border border-accent-muted/40 border-dashed bg-accent-muted/10 px-4 py-3 text-center text-sm text-text">
+          Loading latest data…
+        </div>
+      )}
+      {!error && !loading && (
+        <div className="rounded-2xl border border-accent-muted/40 bg-surface/50 px-4 py-3 text-sm text-text-muted">
+          No statistics available.
+        </div>
+      )}
+    </div>
   )
 
   return (
