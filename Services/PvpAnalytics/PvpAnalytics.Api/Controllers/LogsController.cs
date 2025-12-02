@@ -31,15 +31,16 @@ public class LogsController(ICombatLogIngestionService ingestion, ILogger<LogsCo
             return BadRequest("No file provided");
         }
 
-        logger.LogInformation("Starting combat log ingestion for file {FileName} ({FileSizeBytes} bytes).", file.FileName, file.Length);
+        logger.LogInformation("Starting combat log ingestion for file {FileName} ({FileSizeBytes} bytes).",
+            file.FileName, file.Length);
 
         try
         {
             await using var stream = file.OpenReadStream();
             var matches = await ingestion.IngestAsync(stream, ct);
-            
+
             logger.LogInformation("Combat log ingestion completed. Processed {MatchCount} match(es).", matches.Count);
-            
+
             if (matches.Count > 0)
             {
                 var firstMatch = matches[0];
@@ -49,12 +50,14 @@ public class LogsController(ICombatLogIngestionService ingestion, ILogger<LogsCo
                     return Ok(matches);
                 }
             }
-            
+
             return Ok(matches);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            logger.LogWarning("Combat log ingestion cancelled for file {FileName}.", file.FileName);
+            logger.LogWarning(
+                "Combat log ingestion cancelled for file {FileName}. See inner exception for details. {ex} ",
+                file.FileName, ex.Message);
             throw;
         }
         catch (Exception ex)
@@ -67,4 +70,3 @@ public class LogsController(ICombatLogIngestionService ingestion, ILogger<LogsCo
         }
     }
 }
-

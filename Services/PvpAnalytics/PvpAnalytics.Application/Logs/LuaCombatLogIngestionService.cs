@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text;
 using Microsoft.Extensions.Logging;
 using PvpAnalytics.Application.Services;
+using PvpAnalytics.Core.DTOs;
 using PvpAnalytics.Core.Entities;
 using PvpAnalytics.Core.Enum;
 using PvpAnalytics.Core.Logs;
@@ -22,7 +23,7 @@ public class LuaCombatLogIngestionService(
     ILogger<LuaCombatLogIngestionService> logger)
     : ICombatLogIngestionService
 {
-    private readonly PlayerCache _playerCache = new PlayerCache(playerRepo);
+    private readonly PlayerCache _playerCache = new(playerRepo);
     private readonly Dictionary<string, string> _playerRegions = new(StringComparer.OrdinalIgnoreCase);
 
     public async Task<List<Match>> IngestAsync(Stream fileStream, CancellationToken ct = default)
@@ -43,7 +44,6 @@ public class LuaCombatLogIngestionService(
                 if (persistedMatch is { Id: > 0 })
                 {
                     allPersistedMatches.Add(persistedMatch);
-                    logger.LogInformation("Persisted match {MatchId} from Lua format.", persistedMatch.Id);
                 }
             }
             catch (Exception ex)
@@ -53,14 +53,11 @@ public class LuaCombatLogIngestionService(
             }
         }
 
-        // Batch persist all pending creates and updates at file end
         var pendingPlayerNames = _playerCache.GetPendingCreates().Keys.ToList();
         await _playerCache.BatchPersistAsync(ct);
 
-        // Enrich players with WoW API data if missing information
         await EnrichPlayersWithWowApiAsync(pendingPlayerNames, ct);
 
-        // Persist any updates from enrichment
         await _playerCache.BatchPersistAsync(ct);
 
         logger.LogInformation("Lua combat log ingestion completed. Persisted {MatchCount} match(es).",
@@ -86,19 +83,18 @@ public class LuaCombatLogIngestionService(
 
         var arenaMatchId = GenerateArenaMatchId(luaMatch, startTime, endTime);
         var mapName = ArenaZoneIds.GetDisplayName(arenaZone);
-
-        return await FinalizeAndPersistAsync(
-            arenaZone,
+        var context = new MatchIngestionContext(arenaZone,
             startTime,
             endTime,
             matchState.Participants,
             matchState.BufferedEntries,
             matchState.PlayersByKey,
             matchState.PlayerSpells,
-            ct,
             gameMode,
             arenaMatchId,
             mapName);
+
+        return await FinalizeAndPersistAsync(context, ct);
     }
 
     private bool TryParseTimestamps(LuaMatchData luaMatch, out DateTime startTime, out DateTime endTime)
@@ -191,9 +187,9 @@ public class LuaCombatLogIngestionService(
         var (playerName, realm) = PlayerInfoExtractor.ParsePlayerName(fullName);
         if (string.IsNullOrEmpty(playerName))
         {
-         return;   
+            return;
         }
-        
+
         var cached = _playerCache.GetCached(playerName);
         if (cached != null)
         {
@@ -446,25 +442,15 @@ public class LuaCombatLogIngestionService(
         return needsUpdate;
     }
 
-    private async Task<Match> FinalizeAndPersistAsync(
-        ArenaZone arenaZone,
-        DateTime? start,
-        DateTime? end,
-        HashSet<string> participants,
-        List<CombatLogEntry> entries,
-        Dictionary<string, Player> playersByKey,
-        Dictionary<string, HashSet<string>> playerSpells,
-        CancellationToken ct,
-        GameMode gameMode,
-        string arenaMatchId,
-        string mapName)
+    private async Task<Match> FinalizeAndPersistAsync(MatchIngestionContext context, CancellationToken ct)
     {
-        var uniqueHash = ComputeMatchHash(participants, start, end, arenaMatchId);
-        var match = CreateMatchEntity(arenaZone, start, end, arenaMatchId, gameMode, mapName, uniqueHash);
+        var uniqueHash = ComputeMatchHash(context.Participants, context.Start, context.End, context.ArenaMatchId);
+        var match = CreateMatchEntity(context.ArenaZone, context.Start, context.End, context.ArenaMatchId,
+            context.GameMode, context.MapName, uniqueHash);
 
-        match = await PersistMatchWithDuplicateHandlingAsync(match, uniqueHash, participants.Count, ct);
-        await PersistCombatLogEntriesAsync(entries, match.Id, ct);
-        await PersistMatchResultsAsync(participants, playersByKey, playerSpells, match.Id, ct);
+        match = await PersistMatchWithDuplicateHandlingAsync(match, uniqueHash, context.Participants.Count, ct);
+        await PersistCombatLogEntriesAsync(context.Entries, match.Id, ct);
+        await PersistMatchResultsAsync(context.Participants, context.PlayersByKey, context.PlayerSpells, match.Id, ct);
 
         return match;
     }

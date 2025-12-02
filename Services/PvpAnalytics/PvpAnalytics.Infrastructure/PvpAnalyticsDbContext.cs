@@ -108,7 +108,9 @@ public class PvpAnalyticsDbContext(DbContextOptions<PvpAnalyticsDbContext> optio
             .HasIndex(r => r.OwnerUserId);
 
         modelBuilder.Entity<Rival>()
-            .HasCheckConstraint("CK_Rival_IntensityScore", "IntensityScore >= 1 AND IntensityScore <= 10");
+            .ToTable(t => t.HasCheckConstraint(
+                "CK_Rival_IntensityScore",
+                "IntensityScore >= 1 AND IntensityScore <= 10"));
 
         modelBuilder.Entity<UserBadge>()
             .HasIndex(ub => ub.UserId);
@@ -135,10 +137,12 @@ public class PvpAnalyticsDbContext(DbContextOptions<PvpAnalyticsDbContext> optio
             .OnDelete(DeleteBehavior.Restrict);
 
         modelBuilder.Entity<CommunityRanking>()
-            .HasCheckConstraint("CK_CommunityRankings_PlayerOrTeam", "\"PlayerId\" IS NOT NULL OR \"TeamId\" IS NOT NULL");
+            .HasIndex(cr => new { cr.RankingType, cr.Period, cr.Rank });
 
         modelBuilder.Entity<CommunityRanking>()
-            .HasIndex(cr => new { cr.RankingType, cr.Period, cr.Rank });
+            .ToTable(t => t.HasCheckConstraint(
+                "CK_CommunityRankings_PlayerOrTeam",
+                "\"PlayerId\" IS NOT NULL OR \"TeamId\" IS NOT NULL"));
 
         modelBuilder.Entity<MatchDiscussionThread>()
             .HasOne(dt => dt.Match)

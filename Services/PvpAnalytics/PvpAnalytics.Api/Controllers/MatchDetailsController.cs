@@ -2,11 +2,12 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PvpAnalytics.Application.Services;
 using PvpAnalytics.Core.DTOs;
+using PvpAnalytics.Shared;
 
 namespace PvpAnalytics.Api.Controllers;
 
 [ApiController]
-[Route("api/matches")]
+[Route(AppConstants.RouteConstants.MatchesBase)]
 public class MatchDetailsController(IMatchDetailService detailService) : ControllerBase
 {
     [AllowAnonymous]

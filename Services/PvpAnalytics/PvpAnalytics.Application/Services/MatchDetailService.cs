@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using PvpAnalytics.Core.DTOs;
 using PvpAnalytics.Core.Logs;
 using PvpAnalytics.Infrastructure;
+using PvpAnalytics.Shared;
 
 namespace PvpAnalytics.Application.Services;
 
@@ -143,7 +144,9 @@ public class MatchDetailService(PvpAnalyticsDbContext dbContext) : IMatchDetailS
         return combatLogs
             .OrderBy(e => e.Timestamp)
             .Select(e => CreateTimelineEvent(e, matchStartTime))
-            .Where(e => e.IsImportant || e.DamageDone > 10000 || e.HealingDone > 5000)
+            .Where(e => e.IsImportant
+                        || e.DamageDone > AppConstants.AnalyticsThresholds.TimelineMinDamage
+                        || e.HealingDone > AppConstants.AnalyticsThresholds.TimelineMinHealing)
             .ToList();
     }
 
@@ -154,7 +157,10 @@ public class MatchDetailService(PvpAnalyticsDbContext dbContext) : IMatchDetailS
         var relativeTimestamp = (long)(entry.Timestamp - matchStartTime).TotalSeconds;
         var isCooldown = ImportantAbilities.IsCooldownOrDefensive(entry.Ability);
         var isCc = ImportantAbilities.IsCrowdControl(entry.Ability);
-        var isImportant = isCooldown || isCc || entry.DamageDone > 50000 || entry.HealingDone > 30000;
+        var isImportant = isCooldown
+                          || isCc
+                          || entry.DamageDone > AppConstants.AnalyticsThresholds.MatchDetailHighDamage
+                          || entry.HealingDone > AppConstants.AnalyticsThresholds.MatchDetailHighHealing;
         var eventType = DetermineEventType(entry, isCooldown);
 
         return new TimelineEvent

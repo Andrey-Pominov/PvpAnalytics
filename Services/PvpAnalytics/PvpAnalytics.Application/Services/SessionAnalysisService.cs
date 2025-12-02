@@ -300,7 +300,15 @@ public class SessionAnalysisService(PvpAnalyticsDbContext dbContext) : ISessionA
         var secondHalfAvg = secondHalf.Count != 0 ? secondHalf.Average(p => p.AverageWinRate) : 0;
 
         var showsFatigue = secondHalfAvg < firstHalfAvg - 5; // 5% drop indicates fatigue
-        var fatiguePattern = showsFatigue ? "Declining" : secondHalfAvg > firstHalfAvg + 5 ? "Improving" : "Stable";
+        string fatiguePattern;
+        if (showsFatigue)
+        {
+            fatiguePattern = "Declining";
+        }
+        else
+        {
+            fatiguePattern = secondHalfAvg > firstHalfAvg + 5 ? "Improving" : "Stable";
+        }
 
         // Calculate optimal session length (average duration of best performing sessions)
         var bestSessions = sessionData

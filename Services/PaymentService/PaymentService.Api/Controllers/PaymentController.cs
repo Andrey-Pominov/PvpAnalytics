@@ -7,6 +7,7 @@ using PaymentService.Application.Services;
 using PaymentService.Core.Entities;
 using PaymentService.Core.Enum;
 using PaymentService.Core.Repositories;
+using PvpAnalytics.Shared;
 
 namespace PaymentService.Api.Controllers;
 
@@ -23,13 +24,13 @@ public class PaymentController(ICrudService<Payment> service, IRepository<Paymen
     {
         // Try NameIdentifier first (standard claim type)
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        
+
         // Fallback to "sub" claim (JWT standard, used by AuthService)
         if (string.IsNullOrWhiteSpace(userId))
         {
             userId = User.FindFirst("sub")?.Value;
         }
-        
+
         return userId;
     }
 
@@ -40,25 +41,20 @@ public class PaymentController(ICrudService<Payment> service, IRepository<Paymen
 
     [HttpGet]
     public async Task<ActionResult<PaginatedResponse<Payment>>> GetAll(
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = DefaultPageSize,
-        [FromQuery] string? userId = null,
-        [FromQuery] PaymentStatus? status = null,
-        [FromQuery] DateTime? startDate = null,
-        [FromQuery] DateTime? endDate = null,
-        [FromQuery] string sortBy = "createdAt",
-        [FromQuery] string sortOrder = "desc",
+        [FromQuery] GetPaymentRequest paymentRequest,
         CancellationToken ct = default)
     {
         var currentUserId = GetCurrentUserId();
         if (string.IsNullOrWhiteSpace(currentUserId))
         {
-            return Unauthorized("User ID claim not found in token.");
+            return Unauthorized(AppConstants.ErrorMessages.UserIdClaimNotFound);
         }
 
-        var (validatedPage, validatedPageSize) = ValidatePaginationParameters(page, pageSize);
-        var query = ApplyFilters(repository.GetQueryable(), currentUserId, userId, status, startDate, endDate);
-        query = ApplySorting(query, sortBy, sortOrder);
+        var (validatedPage, validatedPageSize) =
+            ValidatePaginationParameters(paymentRequest.Page, paymentRequest.PageSize);
+        var query = ApplyFilters(repository.GetQueryable(), currentUserId, paymentRequest.UserId, paymentRequest.Status,
+            paymentRequest.StartDate, paymentRequest.EndDate);
+        query = ApplySorting(query, paymentRequest.SortBy, paymentRequest.SortOrder);
 
         var (items, total) = await repository.GetPagedAsync(query, validatedPage, validatedPageSize, ct);
 
@@ -116,6 +112,7 @@ public class PaymentController(ICrudService<Payment> service, IRepository<Paymen
         {
             query = query.Where(p => p.Status == status.Value);
         }
+
         return query;
     }
 
@@ -160,7 +157,7 @@ public class PaymentController(ICrudService<Payment> service, IRepository<Paymen
         var currentUserId = GetCurrentUserId();
         if (string.IsNullOrWhiteSpace(currentUserId))
         {
-            return Unauthorized("User ID claim not found in token.");
+            return Unauthorized(AppConstants.ErrorMessages.UserIdClaimNotFound);
         }
 
         var entity = await service.GetAsync([id], ct);
@@ -185,7 +182,7 @@ public class PaymentController(ICrudService<Payment> service, IRepository<Paymen
         var currentUserId = GetCurrentUserId();
         if (string.IsNullOrWhiteSpace(currentUserId))
         {
-            return Unauthorized("User ID claim not found in token.");
+            return Unauthorized(AppConstants.ErrorMessages.UserIdClaimNotFound);
         }
 
         // Create payment entity from DTO
@@ -210,7 +207,7 @@ public class PaymentController(ICrudService<Payment> service, IRepository<Paymen
         var currentUserId = GetCurrentUserId();
         if (string.IsNullOrWhiteSpace(currentUserId))
         {
-            return Unauthorized("User ID claim not found in token.");
+            return Unauthorized(AppConstants.ErrorMessages.UserIdClaimNotFound);
         }
 
         var existing = await service.GetAsync([id], ct);
@@ -241,7 +238,7 @@ public class PaymentController(ICrudService<Payment> service, IRepository<Paymen
         var currentUserId = GetCurrentUserId();
         if (string.IsNullOrWhiteSpace(currentUserId))
         {
-            return Unauthorized("User ID claim not found in token.");
+            return Unauthorized(AppConstants.ErrorMessages.UserIdClaimNotFound);
         }
 
         var existing = await service.GetAsync([id], ct);
@@ -260,4 +257,3 @@ public class PaymentController(ICrudService<Payment> service, IRepository<Paymen
         return NoContent();
     }
 }
-

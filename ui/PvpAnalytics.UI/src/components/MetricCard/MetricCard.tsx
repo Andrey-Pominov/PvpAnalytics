@@ -33,7 +33,12 @@ const MetricCard = ({
     neutral: 'bg-surface/50',
   }
 
-  const trendIcon = trend === 'up' ? '↑' : trend === 'down' ? '↓' : ''
+  let trendIcon = ''
+  if (trend === 'up') {
+    trendIcon = '↑'
+  } else if (trend === 'down') {
+    trendIcon = '↓'
+  }
 
   return (
     <div

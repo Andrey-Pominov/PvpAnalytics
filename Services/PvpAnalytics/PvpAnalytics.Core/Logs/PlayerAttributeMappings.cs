@@ -1,3 +1,5 @@
+using PvpAnalytics.Shared;
+
 namespace PvpAnalytics.Core.Logs;
 
 /// <summary>
@@ -12,119 +14,121 @@ namespace PvpAnalytics.Core.Logs;
 /// </summary>
 public static class PlayerAttributeMappings
 {
+   
+
     /// <summary>
     /// Maps spell names to player classes. These are class-defining spells that only one class can use.
     /// </summary>
     private static readonly Dictionary<string, string> SpellToClass = new(StringComparer.OrdinalIgnoreCase)
     {
         // Mage spells
-        { "Arcane Intellect", "Mage" },
-        { "Polymorph", "Mage" },
-        { "Blink", "Mage" },
-        { "Counterspell", "Mage" },
-        { "Ice Block", "Mage" },
-        { "Combustion", "Mage" },
-        { "Icy Veins", "Mage" },
-        { "Time Warp", "Mage" },
+        { "Arcane Intellect", AppConstants.WoWClass.Mage },
+        { "Polymorph", AppConstants.WoWClass.Mage },
+        { "Blink", AppConstants.WoWClass.Mage },
+        { "Counterspell", AppConstants.WoWClass.Mage },
+        { "Ice Block", AppConstants.WoWClass.Mage },
+        { "Combustion", AppConstants.WoWClass.Mage },
+        { "Icy Veins", AppConstants.WoWClass.Mage },
+        { "Time Warp", AppConstants.WoWClass.Mage },
         
         // Priest spells
-        { "Power Word: Shield", "Priest" },
-        { "Shadow Word: Pain", "Priest" },
-        { "Dispel Magic", "Priest" },
-        { "Psychic Scream", "Priest" },
-        { "Mind Control", "Priest" },
-        { "Voidform", "Priest" },
-        { "Shadowfiend", "Priest" },
+        { "Power Word: Shield", AppConstants.WoWClass.Priest },
+        { "Shadow Word: Pain", AppConstants.WoWClass.Priest },
+        { "Dispel Magic", AppConstants.WoWClass.Priest },
+        { "Psychic Scream",AppConstants.WoWClass.Priest },
+        { "Mind Control", AppConstants.WoWClass.Priest },
+        { "Voidform", AppConstants.WoWClass.Priest },
+        { "Shadowfiend", AppConstants.WoWClass.Priest },
         
         // Warlock spells
-        { "Soulstone", "Warlock" },
-        { "Summon Imp", "Warlock" },
-        { "Summon Voidwalker", "Warlock" },
-        { "Summon Succubus", "Warlock" },
-        { "Summon Felhunter", "Warlock" },
-        { "Demonic Gateway", "Warlock" },
-        { "Soulburn", "Warlock" },
-        { "Chaos Bolt", "Warlock" },
+        { "Soulstone", AppConstants.WoWClass.Warlock },
+        { "Summon Imp", AppConstants.WoWClass.Warlock },
+        { "Summon Voidwalker", AppConstants.WoWClass.Warlock },
+        { "Summon Succubus", AppConstants.WoWClass.Warlock },
+        { "Summon Felhunter", AppConstants.WoWClass.Warlock },
+        { "Demonic Gateway", AppConstants.WoWClass.Warlock },
+        { "Soulburn", AppConstants.WoWClass.Warlock },
+        { "Chaos Bolt", AppConstants.WoWClass.Warlock },
         
         // Warrior spells
-        { "Charge", "Warrior" },
-        { "Shield Slam", "Warrior" },
-        { "Execute", "Warrior" },
-        { "Whirlwind", "Warrior" },
-        { "Battle Shout", "Warrior" },
-        { "Recklessness", "Warrior" },
+        { "Charge", AppConstants.WoWClass.Warrior },
+        { "Shield Slam", AppConstants.WoWClass.Warrior },
+        { "Execute", AppConstants.WoWClass.Warrior },
+        { "Whirlwind", AppConstants.WoWClass.Warrior },
+        { "Battle Shout", AppConstants.WoWClass.Warrior },
+        { "Recklessness", AppConstants.WoWClass.Warrior },
         
         // Paladin spells
-        { "Lay on Hands", "Paladin" },
-        { "Divine Shield", "Paladin" },
-        { "Hammer of Wrath", "Paladin" },
-        { "Consecration", "Paladin" },
-        { "Avenging Wrath", "Paladin" },
-        { "Word of Glory", "Paladin" },
+        { "Lay on Hands", AppConstants.WoWClass.Paladin },
+        { "Divine Shield", AppConstants.WoWClass.Paladin },
+        { "Hammer of Wrath", AppConstants.WoWClass.Paladin },
+        { "Consecration", AppConstants.WoWClass.Paladin },
+        { "Avenging Wrath", AppConstants.WoWClass.Paladin },
+        { "Word of Glory", AppConstants.WoWClass.Paladin },
         
         // Hunter spells
-        { "Hunter's Mark", "Hunter" },
-        { "Aspect of the Cheetah", "Hunter" },
-        { "Aspect of the Hawk", "Hunter" },
-        { "Trap Launcher", "Hunter" },
-        { "Freezing Trap", "Hunter" },
-        { "Kill Command", "Hunter" },
-        { "Bestial Wrath", "Hunter" },
+        { "Hunter's Mark", AppConstants.WoWClass.Hunter },
+        { "Aspect of the Cheetah", AppConstants.WoWClass.Hunter },
+        { "Aspect of the Hawk", AppConstants.WoWClass.Hunter },
+        { "Trap Launcher", AppConstants.WoWClass.Hunter },
+        { "Freezing Trap", AppConstants.WoWClass.Hunter },
+        { "Kill Command", AppConstants.WoWClass.Hunter },
+        { "Bestial Wrath", AppConstants.WoWClass.Hunter },
         
         // Rogue spells
-        { "Stealth", "Rogue" },
-        { "Sap", "Rogue" },
-        { "Vanish", "Rogue" },
-        { "Kidney Shot", "Rogue" },
-        { "Blade Flurry", "Rogue" },
-        { "Shadow Dance", "Rogue" },
-        { "Adrenaline Rush", "Rogue" },
+        { "Stealth", AppConstants.WoWClass.Rogue },
+        { "Sap", AppConstants.WoWClass.Rogue },
+        { "Vanish", AppConstants.WoWClass.Rogue },
+        { "Kidney Shot", AppConstants.WoWClass.Rogue },
+        { "Blade Flurry", AppConstants.WoWClass.Rogue },
+        { "Shadow Dance", AppConstants.WoWClass.Rogue },
+        { "Adrenaline Rush", AppConstants.WoWClass.Rogue },
         
         // Druid spells
-        { "Bear Form", "Druid" },
-        { "Cat Form", "Druid" },
-        { "Travel Form", "Druid" },
-        { "Moonkin Form", "Druid" },
-        { "Rejuvenation", "Druid" },
-        { "Entangling Roots", "Druid" },
-        { "Innervate", "Druid" },
-        { "Tranquility", "Druid" },
+        { "Bear Form", AppConstants.WoWClass.Druid },
+        { "Cat Form", AppConstants.WoWClass.Druid },
+        { "Travel Form", AppConstants.WoWClass.Druid },
+        { "Moonkin Form", AppConstants.WoWClass.Druid },
+        { "Rejuvenation", AppConstants.WoWClass.Druid },
+        { "Entangling Roots", AppConstants.WoWClass.Druid },
+        { "Innervate", AppConstants.WoWClass.Druid },
+        { "Tranquility", AppConstants.WoWClass.Druid },
         
         // Shaman spells
-        { "Lightning Bolt", "Shaman" },
-        { "Chain Lightning", "Shaman" },
-        { "Earth Shock", "Shaman" },
-        { "Frost Shock", "Shaman" },
-        { "Windfury Weapon", "Shaman" },
-        { "Totemic Recall", "Shaman" },
-        { "Spirit Walk", "Shaman" },
+        { "Lightning Bolt", AppConstants.WoWClass.Shaman },
+        { "Chain Lightning", AppConstants.WoWClass.Shaman },
+        { "Earth Shock", AppConstants.WoWClass.Shaman },
+        { "Frost Shock", AppConstants.WoWClass.Shaman },
+        { "Windfury Weapon", AppConstants.WoWClass.Shaman },
+        { "Totemic Recall", AppConstants.WoWClass.Shaman },
+        { "Spirit Walk", AppConstants.WoWClass.Shaman },
         
         // Death Knight spells
-        { "Death Grip", "Death Knight" },
-        { "Death Coil", "Death Knight" },
-        { "Army of the Dead", "Death Knight" },
-        { "Anti-Magic Shell", "Death Knight" },
-        { "Unholy Frenzy", "Death Knight" },
+        { "Death Grip", AppConstants.WoWClass.DeathKnight },
+        { "Death Coil", AppConstants.WoWClass.DeathKnight },
+        { "Army of the Dead",AppConstants.WoWClass.DeathKnight },
+        { "Anti-Magic Shell", AppConstants.WoWClass.DeathKnight },
+        { "Unholy Frenzy", AppConstants.WoWClass.DeathKnight },
         
         // Demon Hunter spells
-        { "Metamorphosis", "Demon Hunter" },
-        { "Chaos Strike", "Demon Hunter" },
-        { "Fel Rush", "Demon Hunter" },
-        { "Vengeful Retreat", "Demon Hunter" },
-        { "Imprison", "Demon Hunter" },
+        { "Metamorphosis", AppConstants.WoWClass.DemonHunter },
+        { "Chaos Strike", AppConstants.WoWClass.DemonHunter },
+        { "Fel Rush", AppConstants.WoWClass.DemonHunter },
+        { "Vengeful Retreat", AppConstants.WoWClass.DemonHunter },
+        { "Imprison", AppConstants.WoWClass.DemonHunter },
         
         // Monk spells
-        { "Roll", "Monk" },
-        { "Flying Serpent Kick", "Monk" },
-        { "Touch of Death", "Monk" },
-        { "Storm, Earth, and Fire", "Monk" },
-        { "Transcendence", "Monk" },
+        { "Roll", AppConstants.WoWClass.Monk },
+        { "Flying Serpent Kick", AppConstants.WoWClass.Monk },
+        { "Touch of Death", AppConstants.WoWClass.Monk },
+        { "Storm, Earth, and Fire", AppConstants.WoWClass.Monk },
+        { "Transcendence", AppConstants.WoWClass.Monk },
         
         // Evoker spells
-        { "Living Flame", "Evoker" },
-        { "Disintegrate", "Evoker" },
-        { "Deep Breath", "Evoker" },
-        { "Emerald Blossom", "Evoker" },
+        { "Living Flame", AppConstants.WoWClass.Evoker },
+        { "Disintegrate", AppConstants.WoWClass.Evoker },
+        { "Deep Breath", AppConstants.WoWClass.Evoker },
+        { "Emerald Blossom", AppConstants.WoWClass.Evoker },
     };
 
     /// <summary>
@@ -154,67 +158,67 @@ public static class PlayerAttributeMappings
         { "Drain Soul", "Affliction" },
         
         // Warrior specs
-        { "Shield Slam", "Protection" },
-        { "Recklessness", "Fury" },
-        { "Colossus Smash", "Arms" },
-        { "Raging Blow", "Fury" },
-        { "Mortal Strike", "Arms" },
+        { "Shield Slam", AppConstants.WoWSpec.Protection },
+        { "Recklessness", AppConstants.WoWSpec.Fury },
+        { "Colossus Smash", AppConstants.WoWSpec.Arms },
+        { "Raging Blow", AppConstants.WoWSpec.Fury },
+        { "Mortal Strike", AppConstants.WoWSpec.Arms },
         
         // Paladin specs
-        { "Word of Glory", "Protection" },
-        { "Hammer of Wrath", "Retribution" },
-        { "Light of Dawn", "Holy" },
-        { "Shield of Vengeance", "Retribution" },
-        { "Consecration", "Protection" },
+        { "Word of Glory", AppConstants.WoWSpec.Protection },
+        { "Hammer of Wrath", AppConstants.WoWSpec.Retribution },
+        { "Light of Dawn", AppConstants.WoWSpec.Holy },
+        { "Shield of Vengeance", AppConstants.WoWSpec.Retribution },
+        { "Consecration", AppConstants.WoWSpec.Protection },
         
         // Hunter specs
-        { "Kill Command", "Beast Mastery" },
-        { "Bestial Wrath", "Beast Mastery" },
-        { "Explosive Shot", "Marksmanship" },
-        { "Black Arrow", "Survival" },
-        { "Carve", "Survival" },
+        { "Kill Command", AppConstants.WoWSpec.BeastMastery },
+        { "Bestial Wrath", AppConstants.WoWSpec.BeastMastery },
+        { "Explosive Shot", AppConstants.WoWSpec.Marksmanship },
+        { "Black Arrow", AppConstants.WoWSpec.Survival },
+        { "Carve", AppConstants.WoWSpec.Survival },
         
         // Rogue specs
-        { "Shadow Dance", "Subtlety" },
-        { "Adrenaline Rush", "Outlaw" },
-        { "Blade Flurry", "Outlaw" },
-        { "Envenom", "Assassination" },
-        { "Mutilate", "Assassination" },
+        { "Shadow Dance", AppConstants.WoWSpec.Subtlety },
+        { "Adrenaline Rush", AppConstants.WoWSpec.Outlaw },
+        { "Blade Flurry", AppConstants.WoWSpec.Outlaw },
+        { "Envenom", AppConstants.WoWSpec.Assassination },
+        { "Mutilate", AppConstants.WoWSpec.Assassination },
         
         // Druid specs
-        { "Bear Form", "Guardian" },
-        { "Cat Form", "Feral" },
-        { "Moonkin Form", "Balance" },
-        { "Tranquility", "Restoration" },
-        { "Innervate", "Restoration" },
+        { "Bear Form", AppConstants.WoWSpec.Guardian },
+        { "Cat Form", AppConstants.WoWSpec.Feral },
+        { "Moonkin Form", AppConstants.WoWSpec.Balance },
+        { "Tranquility", AppConstants.WoWSpec.Restoration },
+        { "Innervate", AppConstants.WoWSpec.Restoration },
         
         // Shaman specs
-        { "Lava Burst", "Elemental" },
-        { "Stormstrike", "Enhancement" },
-        { "Riptide", "Restoration" },
-        { "Chain Heal", "Restoration" },
+        { "Lava Burst", AppConstants.WoWSpec.Elemental },
+        { "Stormstrike", AppConstants.WoWSpec.Enhancement },
+        { "Riptide", AppConstants.WoWSpec.Restoration },
+        { "Chain Heal", AppConstants.WoWSpec.Restoration },
         
         // Death Knight specs
-        { "Frost Strike", "Frost" },
-        { "Scourge Strike", "Unholy" },
-        { "Heart Strike", "Blood" },
-        { "Death Strike", "Blood" },
+        { "Frost Strike", AppConstants.WoWSpec.Frost },
+        { "Scourge Strike", AppConstants.WoWSpec.Unholy },
+        { "Heart Strike", AppConstants.WoWSpec.Blood },
+        { "Death Strike", AppConstants.WoWSpec.Blood },
         
         // Demon Hunter specs
-        { "Chaos Strike", "Havoc" },
-        { "Soul Cleave", "Vengeance" },
-        { "Immolation Aura", "Havoc" },
+        { "Chaos Strike", AppConstants.WoWSpec.Havoc },
+        { "Soul Cleave", AppConstants.WoWSpec.Vengeance },
+        { "Immolation Aura", AppConstants.WoWSpec.Havoc },
         
         // Monk specs
-        { "Storm, Earth, and Fire", "Windwalker" },
-        { "Touch of Death", "Windwalker" },
-        { "Guard", "Brewmaster" },
-        { "Soothing Mist", "Mistweaver" },
+        { "Storm, Earth, and Fire", AppConstants.WoWSpec.Windwalker },
+        { "Touch of Death", AppConstants.WoWSpec.Windwalker },
+        { "Guard", AppConstants.WoWSpec.Brewmaster },
+        { "Soothing Mist", AppConstants.WoWSpec.Mistweaver },
         
         // Evoker specs
-        { "Disintegrate", "Devastation" },
-        { "Emerald Blossom", "Preservation" },
-        { "Deep Breath", "Devastation" },
+        { "Disintegrate", AppConstants.WoWSpec.Devastation },
+        { "Emerald Blossom", AppConstants.WoWSpec.Preservation },
+        { "Deep Breath", AppConstants.WoWSpec.Devastation },
     };
 
     /// <summary>

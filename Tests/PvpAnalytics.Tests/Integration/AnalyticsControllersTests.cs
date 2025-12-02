@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using PvpAnalytics.Core.Entities;
 using PvpAnalytics.Core.Enum;
 using PvpAnalytics.Infrastructure;
+using PvpAnalytics.Shared;
 using System.Net;
 using System.Net.Http.Json;
 using Xunit;
@@ -32,7 +33,7 @@ public class AnalyticsControllersTests(PvpAnalyticsApiFactory factory) : IClassF
         await dbContext.SaveChangesAsync();
 
         // Act
-        var response = await _client.GetAsync($"/api/opponent-scouting/search?name=Test");
+        var response = await _client.GetAsync($"/{AppConstants.RouteConstants.OpponentScoutingBase}/search?name=Test");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -59,7 +60,7 @@ public class AnalyticsControllersTests(PvpAnalyticsApiFactory factory) : IClassF
         await dbContext.SaveChangesAsync();
 
         // Act
-        var response = await _client.GetAsync($"/api/opponent-scouting/{player.Id}");
+        var response = await _client.GetAsync($"/{AppConstants.RouteConstants.OpponentScoutingBase}/{player.Id}");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -109,7 +110,7 @@ public class AnalyticsControllersTests(PvpAnalyticsApiFactory factory) : IClassF
         await dbContext.SaveChangesAsync();
 
         // Act
-        var response = await _client.GetAsync($"/api/rating-progression/{player.Id}");
+        var response = await _client.GetAsync($"/{AppConstants.RouteConstants.RatingProgressionBase}/{player.Id}");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -161,7 +162,7 @@ public class AnalyticsControllersTests(PvpAnalyticsApiFactory factory) : IClassF
         await dbContext.SaveChangesAsync();
 
         // Act
-        var response = await _client.GetAsync($"/api/key-moments/match/{match.Id}");
+        var response = await _client.GetAsync($"/{AppConstants.RouteConstants.KeyMomentsBase}/match/{match.Id}");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -171,7 +172,7 @@ public class AnalyticsControllersTests(PvpAnalyticsApiFactory factory) : IClassF
     public async Task MetaAnalysis_GetMetaAnalysis_ReturnsData()
     {
         // Act
-        var response = await _client.GetAsync("/api/meta-analysis");
+        var response = await _client.GetAsync($"/{AppConstants.RouteConstants.MetaAnalysisBase}");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -223,7 +224,7 @@ public class AnalyticsControllersTests(PvpAnalyticsApiFactory factory) : IClassF
         await dbContext.SaveChangesAsync();
 
         // Act
-        var response = await _client.GetAsync($"/api/session-analysis/{player.Id}");
+        var response = await _client.GetAsync($"/{AppConstants.RouteConstants.SessionAnalysisBase}/{player.Id}");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);

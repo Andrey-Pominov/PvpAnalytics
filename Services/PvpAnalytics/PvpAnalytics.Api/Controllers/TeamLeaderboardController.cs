@@ -1,11 +1,12 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PvpAnalytics.Application.Services;
+using PvpAnalytics.Shared;
 
 namespace PvpAnalytics.Api.Controllers;
 
 [ApiController]
-[Route("api/team-leaderboards")]
+[Route(AppConstants.RouteConstants.TeamLeaderboardsBase)]
 public class TeamLeaderboardController(ITeamLeaderboardService service) : ControllerBase
 {
     [AllowAnonymous]

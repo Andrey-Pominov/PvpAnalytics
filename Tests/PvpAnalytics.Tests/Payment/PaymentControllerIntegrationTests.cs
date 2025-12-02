@@ -6,7 +6,6 @@ using PaymentService.Application.DTOs;
 using PaymentService.Application.Models;
 using PaymentEntity = PaymentService.Core.Entities.Payment;
 using PaymentService.Core.Enum;
-using PvpAnalytics.Tests.Helper;
 using Xunit;
 
 namespace PvpAnalytics.Tests.Payment;
@@ -63,7 +62,7 @@ public class PaymentControllerIntegrationTests(PaymentServiceApiFactory factory)
         var result = await response.Content.ReadFromJsonAsync<PaginatedResponse<PaymentEntity>>(JsonOptions);
         result.Should().NotBeNull();
         result!.Items.Should().HaveCount(1);
-        result.Items.First().TransactionId.Should().Be("txn-user1-001");
+        result.Items[0].TransactionId.Should().Be("txn-user1-001");
     }
 
     [Fact]
@@ -139,8 +138,8 @@ public class PaymentControllerIntegrationTests(PaymentServiceApiFactory factory)
         var result = await response.Content.ReadFromJsonAsync<PaginatedResponse<PaymentEntity>>(JsonOptions);
         result.Should().NotBeNull();
         result!.Items.Should().HaveCount(3);
-        result.Items.First().Amount.Should().Be(300.00m);
-        result.Items.Last().Amount.Should().Be(100.00m);
+        result.Items[0].Amount.Should().Be(300.00m);
+        result.Items[^1].Amount.Should().Be(100.00m);
     }
 
     [Fact]
@@ -187,7 +186,7 @@ public class PaymentControllerIntegrationTests(PaymentServiceApiFactory factory)
         var payment = await CreatePaymentAsync("txn-other-001", 100.00m, otherUserClient);
 
         // Act - Try to access other user's payment as a non-admin
-        var currentUserClient = factory.CreateAuthenticatedClient("test-user-123");
+        var currentUserClient = factory.CreateAuthenticatedClient();
         var response = await currentUserClient.GetAsync($"/api/payment/{payment.Id}");
 
         // Assert
@@ -306,7 +305,7 @@ public class PaymentControllerIntegrationTests(PaymentServiceApiFactory factory)
         };
 
         // Act - Try to update other user's payment as a non-admin
-        var currentUserClient = factory.CreateAuthenticatedClient("test-user-123");
+        var currentUserClient = factory.CreateAuthenticatedClient();
         var response = await currentUserClient.PutAsJsonAsync($"/api/payment/{payment.Id}", updateRequest);
 
         // Assert
@@ -355,7 +354,7 @@ public class PaymentControllerIntegrationTests(PaymentServiceApiFactory factory)
         var payment = await CreatePaymentAsync("txn-other-003", 100.00m, otherUserClient);
 
         // Act - Try to delete other user's payment as a non-admin
-        var currentUserClient = factory.CreateAuthenticatedClient("test-user-123");
+        var currentUserClient = factory.CreateAuthenticatedClient();
         var response = await currentUserClient.DeleteAsync($"/api/payment/{payment.Id}");
 
         // Assert

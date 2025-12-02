@@ -5,7 +5,7 @@ using System.Text;
 using FluentAssertions;
 using PvpAnalytics.Core.Entities;
 using PvpAnalytics.Core.Enum;
-using PvpAnalytics.Tests.Helper;
+using PvpAnalytics.Shared;
 using Xunit;
 
 namespace PvpAnalytics.Tests.Integration;
@@ -25,6 +25,7 @@ public class LogsControllerTests : IClassFixture<PvpAnalyticsApiFactory>, IDispo
     public void Dispose()
     {
         _state.Reset();
+        GC.SuppressFinalize(this);
     }
 
     [Fact]
@@ -32,7 +33,7 @@ public class LogsControllerTests : IClassFixture<PvpAnalyticsApiFactory>, IDispo
     {
         using var content = new MultipartFormDataContent();
 
-        var response = await _client.PostAsync("/api/logs/upload", content);
+        var response = await _client.PostAsync($"/{AppConstants.RouteConstants.LogsBase}/upload", content);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
@@ -78,7 +79,7 @@ public class LogsControllerTests : IClassFixture<PvpAnalyticsApiFactory>, IDispo
             }
         }, "file", "combatlog.txt");
 
-        var response = await _client.PostAsync("/api/logs/upload", content);
+        var response = await _client.PostAsync($"/{AppConstants.RouteConstants.LogsBase}/upload", content);
         var body = await response.Content.ReadAsStringAsync();
 
         response.StatusCode.Should().Be(HttpStatusCode.OK, $"body: {body}");

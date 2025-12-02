@@ -1,11 +1,12 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PvpAnalytics.Application.Services;
+using PvpAnalytics.Shared;
 
 namespace PvpAnalytics.Api.Controllers;
 
 [ApiController]
-[Route("api/team-synergy")]
+[Route(AppConstants.RouteConstants.TeamSynergyBase)]
 public class TeamSynergyController(ITeamSynergyService service) : ControllerBase
 {
     [AllowAnonymous]

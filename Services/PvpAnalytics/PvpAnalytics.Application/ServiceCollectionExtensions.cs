@@ -6,6 +6,7 @@ using PvpAnalytics.Application.Services;
 using PvpAnalytics.Core.Configuration;
 using PvpAnalytics.Core.Entities;
 using PvpAnalytics.Application.Logs;
+using PvpAnalytics.Shared;
 
 namespace PvpAnalytics.Application;
 
@@ -44,11 +45,11 @@ public static class ServiceCollectionExtensions
             {
                 if (string.IsNullOrWhiteSpace(options.ClientId))
                 {
-                    throw new ValidationException("WowApi:ClientId is required. Please configure it in appsettings.json or environment variables.");
+                    throw new ValidationException(AppConstants.ErrorMessages.WowApiClientIdRequired);
                 }
                 if (string.IsNullOrWhiteSpace(options.ClientSecret))
                 {
-                    throw new ValidationException("WowApi:ClientSecret is required. Please configure it in appsettings.json or environment variables.");
+                    throw new ValidationException(AppConstants.ErrorMessages.WowApiClientSecretRequired);
                 }
                 return true;
             }, "WowApi credentials must be configured.")

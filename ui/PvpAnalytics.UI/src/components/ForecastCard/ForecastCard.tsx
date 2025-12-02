@@ -92,7 +92,8 @@ const ForecastCard = ({
             {forecast.daysToTarget !== undefined && forecast.targetValue !== undefined && (
               <div className="mt-2 rounded-lg bg-accent/10 px-2 py-1 text-accent">
                 <span className="font-semibold">
-                  {forecast.daysToTarget} day{forecast.daysToTarget !== 1 ? 's' : ''} to reach{' '}
+                  {forecast.daysToTarget} day
+                  {forecast.daysToTarget === 1 ? '' : 's'} to reach{' '}
                   {forecast.targetValue}
                   {unit}
                 </span>
