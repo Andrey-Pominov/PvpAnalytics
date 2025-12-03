@@ -5,16 +5,13 @@ using Microsoft.IdentityModel.Tokens;
 using PaymentService.Application;
 using PaymentService.Infrastructure;
 using PvpAnalytics.Shared.Security;
-using PvpAnalytics.Shared.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddOpenApi();  // Built-in OpenAPI support
+builder.Services.AddOpenApi();  
 
-// Add health checks
 builder.Services.AddHealthChecks();
 
 builder.Services.AddInfrastructure(builder.Configuration);
@@ -34,18 +31,17 @@ builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptio
 
 var useInMemoryDatabase = IsInMemoryDatabaseEnabled(builder.Configuration);
 ValidateJwtOptions(jwtOptions, useInMemoryDatabase, builder.Environment);
-var corsOrigins = GetCorsOrigins(builder.Configuration, useInMemoryDatabase);
+GetCorsOrigins(builder.Configuration, useInMemoryDatabase);
 
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy(
-        name: CorsOptions.DefaultPolicyName,
-        policy => policy
-            .WithOrigins(corsOrigins)
-            .AllowCredentials()
-            .AllowAnyHeader()
-            .AllowAnyMethod()
-    );
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy.WithOrigins("http://localhost:3000", "https://localhost:3000")
+              .AllowAnyMethod()
+              .AllowAnyHeader()
+              .AllowCredentials();
+    });
 });
 
 builder.Services.AddAuthentication(options =>
@@ -104,52 +100,22 @@ if (!skipMigrations)
     await db.Database.MigrateAsync();
 }
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();  // Use built-in OpenAPI endpoint
+    app.MapOpenApi();  
 }
 
 app.UseHttpsRedirection();
 
-app.UseCors(CorsOptions.DefaultPolicyName);
+app.UseCors("AllowFrontend");
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
 
-// Add health checks endpoint
 app.MapHealthChecks("/health");
 
 await app.RunAsync();
-
-static string GetServiceEndpoint(IConfiguration configuration, string defaultEndpoint)
-{
-    var endpoint = configuration["ServiceEndpoints:LoggingService"] ?? defaultEndpoint;
-    return endpoint;
-}
-
-static string NormalizeEndpoint(string endpoint)
-{
-    // If endpoint contains a scheme (e.g., "http://localhost:8082"), extract host:port
-    if (Uri.TryCreate(endpoint, UriKind.Absolute, out var uri))
-    {
-        return uri.Authority;
-    }
-    
-    // If no scheme, assume it's already in host:port format
-    return endpoint;
-}
-
-static JwtOptions GetJwtOptions(IConfiguration configuration)
-{
-    var jwtOptions = configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>();
-    if (jwtOptions == null)
-    {
-        throw new InvalidOperationException("Jwt configuration section is missing.");
-    }
-    return jwtOptions;
-}
 
 static bool IsInMemoryDatabaseEnabled(IConfiguration configuration)
 {
@@ -188,17 +154,17 @@ static void ValidateJwtOptions(JwtOptions jwtOptions, bool useInMemoryDatabase, 
     }
 }
 
-static string[] GetCorsOrigins(IConfiguration configuration, bool useInMemoryDatabase)
+static void GetCorsOrigins(IConfiguration configuration, bool useInMemoryDatabase)
 {
     var corsOrigins = configuration.GetSection($"{CorsOptions.SectionName}:AllowedOrigins").Get<string[]>();
     if (corsOrigins is { Length: > 0 })
     {
-        return corsOrigins;
+        return;
     }
 
     if (useInMemoryDatabase)
     {
-        return ["http://localhost:3000"];
+        return;
     }
 
     throw new InvalidOperationException(
@@ -207,5 +173,5 @@ static string[] GetCorsOrigins(IConfiguration configuration, bool useInMemoryDat
 
 namespace PaymentService.Api
 {
-    public partial class Program;
+    public interface IProgram;
 }

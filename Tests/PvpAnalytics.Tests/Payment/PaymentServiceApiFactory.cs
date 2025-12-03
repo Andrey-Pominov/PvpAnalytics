@@ -10,7 +10,7 @@ using Xunit;
 
 namespace PvpAnalytics.Tests.Payment;
 
-public sealed class PaymentServiceApiFactory : WebApplicationFactory<PaymentService.Api.Program>, IAsyncLifetime
+public sealed class PaymentServiceApiFactory : WebApplicationFactory<PaymentService.Api.IProgram>, IAsyncLifetime
 {
     private readonly PostgreSqlContainer? _postgresContainer;
     private readonly string? _connectionString;

@@ -24,15 +24,14 @@ function escapeRegex(str: string): string {
 function hasDangerousPatterns(cleaned: string): boolean {
   const dangerousPatterns = [
     /eval\s*\(/i,
-    /function\s*\(/i,
-    /=>/,
-    /import\s+/i,
-    /require\s*\(/i,
-    /\.\s*constructor/i,
+    /Function\s*\(/i,
+    /new\s+Function\s*\(/i,
+    /setTimeout\s*\(/i,
+    /setInterval\s*\(/i,
     /__proto__/i,
     /prototype/i,
     /constructor/i,
-    /\[.*\\s*\(/, // Array access followed by function call
+    /\[.*\]\s*\(/, // Array access followed by function call
   ]
   return dangerousPatterns.some((pattern) => pattern.test(cleaned))
 }
@@ -134,11 +133,10 @@ function extractVariables(expression: string): string[] {
 }
 
 /**
- * Validates and parses a metric expression to extract variable names
  * Returns ParsedMetric for backward compatibility with existing code
  */
 export function parseMetric(expression: string): ParsedMetric {
-  if (!expression) {
+  if (!expression || typeof expression !== 'string') {
     return {
       expression: expression || '',
       variables: [],

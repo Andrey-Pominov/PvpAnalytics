@@ -13,7 +13,7 @@ using PvpAnalytics.Infrastructure;
 
 namespace PvpAnalytics.Tests.Integration;
 
-public sealed class PvpAnalyticsApiFactory : WebApplicationFactory<Api.Program>
+public sealed class PvpAnalyticsApiFactory : WebApplicationFactory<Api.IProgram>
 {
     public TestIngestionState IngestionState { get; } = new();
 

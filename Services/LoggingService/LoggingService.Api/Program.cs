@@ -5,20 +5,18 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
-// Add gRPC services (if using gRPC)
 builder.Services.AddGrpc();
 
-// Add health checks
 builder.Services.AddHealthChecks();
 
 builder.Services.AddInfrastructure(builder.Configuration);
 
 var app = builder.Build();
 
+// Database migration
 var skipMigrations = builder.Configuration.GetValue<bool?>("EfMigrations:Skip") ?? false;
 if (!skipMigrations)
 {
@@ -27,25 +25,23 @@ if (!skipMigrations)
     await db.Database.MigrateAsync();
 }
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();  // Use built-in OpenAPI endpoint
+    app.MapOpenApi(); 
 }
 
 app.UseHttpsRedirection();
 
-app.UseAuthorization();
+app.UseAuthentication();
 
 app.MapControllers();
 
 // Map gRPC services - add your actual gRPC service classes here
-// app.MapGrpcService<YourLoggingGrpcService>();
+// TODO: Map gRPC services once proto definitions and generated classes are available
+// app.MapGrpcService<LoggingGrpcService>();
 
-// Add health checks endpoint
 app.MapHealthChecks("/health");
 
-// Log startup
 app.Logger.LogInformation("Logging service started on configured endpoints");
 
 app.Run();

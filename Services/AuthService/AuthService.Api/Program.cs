@@ -9,12 +9,10 @@ using PvpAnalytics.Shared.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddOpenApi();  // Built-in OpenAPI support
+builder.Services.AddOpenApi();  
 
-// Add health checks
 builder.Services.AddHealthChecks();
 
 builder.Services.AddInfrastructure(builder.Configuration);
@@ -69,6 +67,17 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization();
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy.WithOrigins("http://localhost:3000", "https://localhost:3000")
+              .AllowAnyMethod()
+              .AllowAnyHeader()
+              .AllowCredentials();
+    });
+});
+
 var app = builder.Build();
 
 var skipMigrations = builder.Configuration.GetValue<bool?>("EfMigrations:Skip") ?? false;
@@ -79,19 +88,19 @@ if (!skipMigrations)
     await db.Database.MigrateAsync();
 }
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();  // Use built-in OpenAPI endpoint
+    app.MapOpenApi(); 
 }
 
 app.UseHttpsRedirection();
-app.UseCors(CorsOptions.DefaultPolicyName);
+
+app.UseCors("AllowFrontend");
+
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
-// Add health checks endpoint
 app.MapHealthChecks("/health");
 
 // TODO: Add logging client registration once the dependency is resolved
@@ -103,11 +112,6 @@ app.MapHealthChecks("/health");
 
 await app.RunAsync();
 
-static string GetServiceEndpoint(IConfiguration configuration, string defaultEndpoint)
-{
-    var endpoint = configuration["ServiceEndpoints:LoggingService"] ?? defaultEndpoint;
-    return endpoint;
-}
 
 namespace AuthService.Api
 {

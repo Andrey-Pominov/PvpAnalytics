@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using PvpAnalytics.Shared.Security;
-using PvpAnalytics.Shared.Services;
 using PvpAnalytics.Application;
 using PvpAnalytics.Infrastructure;
 
@@ -20,6 +19,30 @@ builder.Services.AddHealthChecks();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddApplication(builder.Configuration);
 
+// JWT Configuration and Security
+// 
+// IMPORTANT: The JWT signing key MUST be managed securely:
+// 
+// DEVELOPMENT:
+// - Set JWT__SigningKey via environment variable: 
+//   export JWT__SigningKey="your-very-long-random-key-at-least-32-chars-long-here"
+// - Or use User Secrets: dotnet user-secrets set "Jwt:SigningKey" "your-strong-key-here"
+// - NEVER commit the signing key to source control
+// 
+// PRODUCTION:
+// - Use a secure secret store:
+//   * Azure Key Vault: Configure via Azure App Configuration or Managed Identity
+//   * AWS Secrets Manager: Use AWS Systems Manager Parameter Store
+//   * HashiCorp Vault: Integrate via Vault provider
+//   * Docker Secrets: Mount as /run/secrets/jwt-signing-key
+// - The key must be at least 32 characters for HMAC-SHA256 security
+// - Rotate keys regularly and implement key versioning
+// 
+// The application will fail to start with a clear error if:
+// 1. The signing key is missing or empty
+// 2. The signing key is too short (< 32 characters)
+// 3. Required JWT configuration (Issuer, Audience) is missing
+
 var jwtSection = builder.Configuration.GetSection(JwtOptions.SectionName);
 var jwtOptions = jwtSection.Get<JwtOptions>() ?? 
                  throw new InvalidOperationException("Jwt configuration section is missing.");
@@ -27,10 +50,46 @@ var jwtOptions = jwtSection.Get<JwtOptions>() ??
 if (string.IsNullOrWhiteSpace(jwtOptions.SigningKey))
 {
     throw new InvalidOperationException(
-        "JWT signing key is not configured. Set the 'Jwt__SigningKey' environment variable or use a secure secret store.");
+        "JWT signing key is not configured. " +
+        "DEVELOPMENT: Set the 'JWT__SigningKey' environment variable with a strong key (32+ characters). " +
+        "Example: export JWT__SigningKey='your-very-long-random-key-at-least-32-chars-long-here' " +
+        "Or use User Secrets: dotnet user-secrets set \"Jwt:SigningKey\" \"your-strong-key-here\" " +
+        "PRODUCTION: Configure a secure secret store (Azure Key Vault, AWS Secrets Manager, HashiCorp Vault). " +
+        "The application cannot start without a valid signing key for security.");
+}
+
+if (jwtOptions.SigningKey.Length < 32)
+{
+    throw new InvalidOperationException(
+        $"JWT signing key is too weak for production use. " +
+        $"Minimum length: 32 characters (256 bits). Current length: {jwtOptions.SigningKey.Length} " +
+        $"DEVELOPMENT: Generate a strong key using: openssl rand -base64 32 " +
+        $"PRODUCTION: Use your secret management system to store a cryptographically secure key. " +
+        $"The application cannot start with an insufficiently secure signing key.");
+}
+
+if (string.IsNullOrWhiteSpace(jwtOptions.Issuer))
+{
+    throw new InvalidOperationException("JWT Issuer is not configured. Set 'Jwt__Issuer' in configuration.");
+}
+
+if (string.IsNullOrWhiteSpace(jwtOptions.Audience))
+{
+    throw new InvalidOperationException("JWT Audience is not configured. Set 'Jwt__Audience' in configuration.");
 }
 
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy.WithOrigins("http://localhost:3000", "https://localhost:3000")
+              .AllowAnyMethod()
+              .AllowAnyHeader()
+              .AllowCredentials();
+    });
+});
 
 builder.Services.AddAuthentication(options =>
 {
@@ -70,32 +129,25 @@ if (!skipMigrations)
     await db.Database.MigrateAsync();
 }
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();  // Use built-in OpenAPI endpoint
+    app.MapOpenApi();  
 }
 
 app.UseHttpsRedirection();
 
-app.UseCors(CorsOptions.DefaultPolicyName);
+app.UseCors("AllowFrontend");
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
 
-// Add health checks endpoint
 app.MapHealthChecks("/health");
 
 await app.RunAsync();
 
-static string GetServiceEndpoint(IConfiguration configuration, string defaultEndpoint)
-{
-    var endpoint = configuration["ServiceEndpoints:LoggingService"] ?? defaultEndpoint;
-    return endpoint;
-}
 
 namespace PvpAnalytics.Api
 {
-    public partial class Program;
+    public interface IProgram;
 }
