@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, type ReactNode } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import axios from 'axios'
 import Card from '../components/Card/Card'
@@ -103,6 +103,53 @@ const PlayersPage = () => {
     return `${count} player${suffix}`
   }, [filteredPlayers])
 
+  let playersContent: ReactNode
+  if (loading) {
+    playersContent = <div className="text-center py-12 text-text-muted">Loading players...</div>
+  } else if (filteredPlayers.length === 0) {
+    playersContent = (
+      <div className="text-center py-12 text-text-muted">
+        {searchTerm ? 'No players found matching your search.' : 'No players found.'}
+      </div>
+    )
+  } else {
+    playersContent = (
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+        {filteredPlayers.map((player) => (
+          <button
+            key={player.id}
+            type="button"
+            onClick={() => navigate(`/players/${player.id}`)}
+            aria-label={`View profile for ${player.name} from ${player.realm}`}
+            className="w-full text-left p-4 rounded-xl border border-accent-muted/30 bg-surface/50 hover:bg-surface/70 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-background"
+          >
+            <div className="flex items-start gap-3">
+              <div className="grid h-12 w-12 flex-shrink-0 place-items-center rounded-lg bg-gradient-to-br from-accent to-sky-400 text-lg font-bold text-white">
+                {player.name.substring(0, 1).toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold text-text truncate">{player.name}</h3>
+                <p className="text-sm text-text-muted truncate">{player.realm}</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {player.class && (
+                    <span className={`text-xs px-2 py-1 rounded ${getClassColor(player.class)}`}>
+                      {player.class}
+                    </span>
+                  )}
+                  {player.faction && (
+                    <span className={`text-xs px-2 py-1 rounded ${getFactionColor(player.faction)}`}>
+                      {player.faction}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </button>
+        ))}
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:items-center">
@@ -135,47 +182,7 @@ const PlayersPage = () => {
           ) : undefined
         }
       >
-        {loading ? (
-          <div className="text-center py-12 text-text-muted">Loading players...</div>
-        ) : filteredPlayers.length === 0 ? (
-          <div className="text-center py-12 text-text-muted">
-            {searchTerm ? 'No players found matching your search.' : 'No players found.'}
-          </div>
-        ) : (
-          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredPlayers.map((player) => (
-              <button
-                key={player.id}
-                type="button"
-                onClick={() => navigate(`/players/${player.id}`)}
-                aria-label={`View profile for ${player.name} from ${player.realm}`}
-                className="w-full text-left p-4 rounded-xl border border-accent-muted/30 bg-surface/50 hover:bg-surface/70 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-background"
-              >
-                <div className="flex items-start gap-3">
-                  <div className="grid h-12 w-12 flex-shrink-0 place-items-center rounded-lg bg-gradient-to-br from-accent to-sky-400 text-lg font-bold text-white">
-                    {player.name.substring(0, 1).toUpperCase()}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-text truncate">{player.name}</h3>
-                    <p className="text-sm text-text-muted truncate">{player.realm}</p>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {player.class && (
-                        <span className={`text-xs px-2 py-1 rounded ${getClassColor(player.class)}`}>
-                          {player.class}
-                        </span>
-                      )}
-                      {player.faction && (
-                        <span className={`text-xs px-2 py-1 rounded ${getFactionColor(player.faction)}`}>
-                          {player.faction}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
-        )}
+        {playersContent}
       </Card>
     </div>
   )

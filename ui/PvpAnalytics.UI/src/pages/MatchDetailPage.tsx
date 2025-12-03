@@ -353,7 +353,7 @@ const MatchDetailPage = () => {
       {/* Timeline Tab */}
       {activeTab === 'timeline' && (
         <Card title="Match Timeline">
-          <Timeline events={matchDetail.timelineEvents} matchDuration={basicInfo.duration} />
+          <Timeline events={matchDetail.timelineEvents} />
         </Card>
       )}
     </div>
