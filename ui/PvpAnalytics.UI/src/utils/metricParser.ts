@@ -112,7 +112,7 @@ function isValidMathExpression(expression: string): { valid: boolean; error?: st
   // Normalize both bare "ln(" and "Math.ln(" to "Math.log(" before validation
   // Use word boundaries to ensure we match "ln(" as a function call, not inside other identifiers
   let normalized = cleaned.replaceAll(/\bln\(/g, 'Math.log(')
-  normalized = normalized.replaceAll(/Math\.ln\(/g, 'Math.log(')
+  normalized = normalized.replaceAll('Math.ln(', 'Math.log(')
   return validateMathFunctions(normalized)
 }
 
@@ -232,7 +232,7 @@ export function evaluateMetric(
     // Normalize both bare "ln(" and "Math.ln(" to "Math.log(" before evaluation
     // Use word boundaries to ensure we match "ln(" as a function call, not inside other identifiers
     substituted = substituted.replaceAll(/\bln\(/g, 'Math.log(')
-    substituted = substituted.replaceAll(/Math\.ln\(/g, 'Math.log(')
+    substituted = substituted.replaceAll('Math.ln(', 'Math.log(')
 
     // Create a safe evaluation context with only Math functions
     // Use Function constructor in a controlled way with a whitelist
