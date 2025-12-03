@@ -49,6 +49,7 @@ const Tooltip = ({content, children, position = 'top'}: TooltipProps) => {
             <div
                 className="inline-block border-0 bg-transparent p-0 text-inherit cursor-inherit"
                 role="button"
+                tabIndex={0}
                 aria-describedby={isVisible ? tooltipId.current : undefined}
                 aria-expanded={isVisible}
                 onMouseEnter={() => setIsVisible(true)}

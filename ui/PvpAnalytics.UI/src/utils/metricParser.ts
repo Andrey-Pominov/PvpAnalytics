@@ -41,11 +41,14 @@ function hasDangerousPatterns(cleaned: string): boolean {
  * Checks if expression contains unsafe method calls (non-Math.*)
  */
 function hasUnsafeMethodCalls(cleaned: string): boolean {
-  const methodCallPattern = /\.\s*\w+\s*\(/g
+  // Check for method calls that are NOT Math.* (Math.* is allowed)
+  // Use regex to capture the identifier immediately before the dot
+  const methodCallPattern = /(\w+)\s*\.\s*\w+\s*\(/g
   let methodMatch
   while ((methodMatch = methodCallPattern.exec(cleaned)) !== null) {
-    const beforeDot = cleaned.substring(Math.max(0, methodMatch.index - 10), methodMatch.index)
-    if (!beforeDot.endsWith('Math')) {
+    const identifierBeforeDot = methodMatch[1]
+    // Allow Math.* but block other method calls - must be exactly "Math"
+    if (identifierBeforeDot !== 'Math') {
       return true
     }
   }
@@ -70,7 +73,7 @@ function areParenthesesBalanced(cleaned: string): boolean {
  */
 function validateMathFunctions(cleaned: string): { valid: boolean; error?: string } {
   const mathFunctionPattern = /Math\.(\w+)/g
-  const allowedMathFunctions = new Set(['abs', 'acos', 'asin', 'atan', 'ceil', 'cos', 'exp', 'floor', 'ln', 'log', 'max', 'min', 'pow', 'round', 'sin', 'sqrt', 'tan'])
+  const allowedMathFunctions = new Set(['abs', 'acos', 'asin', 'atan', 'ceil', 'cos', 'exp', 'floor', 'log', 'max', 'min', 'pow', 'round', 'sin', 'sqrt', 'tan'])
   let match
   while ((match = mathFunctionPattern.exec(cleaned)) !== null) {
     if (!allowedMathFunctions.has(match[1])) {
@@ -105,7 +108,9 @@ function isValidMathExpression(expression: string): { valid: boolean; error?: st
     return { valid: false, error: 'Expression contains invalid characters' }
   }
 
-  return validateMathFunctions(cleaned)
+  // Normalize Math.ln to Math.log before validation
+  const normalized = cleaned.replace(/Math\.ln\(/g, 'Math.log(')
+  return validateMathFunctions(normalized)
 }
 
 /**
@@ -221,6 +226,9 @@ export function evaluateMetric(
       }
     }
 
+    // Normalize Math.ln to Math.log before validation
+    substituted = substituted.replace(/Math\.ln\(/g, 'Math.log(')
+
     // Create a safe evaluation context with only Math functions
     // Use Function constructor in a controlled way with a whitelist
     const allowedFunctions = ['Math.abs', 'Math.floor', 'Math.ceil', 'Math.round', 'Math.max', 'Math.min', 'Math.sqrt', 'Math.pow', 'Math.sin', 'Math.cos', 'Math.tan', 'Math.asin', 'Math.acos', 'Math.atan', 'Math.exp', 'Math.log']
@@ -234,9 +242,6 @@ export function evaluateMetric(
           error: `Unsupported function: ${func}`,
         }
       }
-      // Replace Math.log with Math.log (natural log) - JavaScript's Math.log is natural log
-      // Replace Math.ln with Math.log if present (some expressions might use ln)
-      substituted = substituted.replaceAll(/\bMath\.ln\b/g, 'Math.log')
     }
 
     // Evaluate using Function constructor with strict validation

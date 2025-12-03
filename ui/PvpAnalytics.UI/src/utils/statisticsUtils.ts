@@ -128,12 +128,7 @@ function linearRegression(x: number[], y: number[]): { slope: number; intercept:
 
   const denominator = n * sumXX - sumX * sumX
   // Guard against division by zero
-  let slope = 0
-  if (denominator === 0) {
-    slope = 0
-  } else {
-    slope = (n * sumXY - sumX * sumY) / denominator
-  }
+  const slope = denominator !== 0 ? (n * sumXY - sumX * sumY) / denominator : 0
   const intercept = (sumY - slope * sumX) / n
 
   return { slope, intercept }
