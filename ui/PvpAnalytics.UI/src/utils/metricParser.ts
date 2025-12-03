@@ -43,7 +43,8 @@ function hasDangerousPatterns(cleaned: string): boolean {
 function hasUnsafeMethodCalls(cleaned: string): boolean {
   // Check for method calls that are NOT Math.* (Math.* is allowed)
   // Use regex to capture the identifier immediately before the dot
-  const methodCallPattern = /(\w+)\s*\.\s*\w+\s*\(/g
+  // Use bounded whitespace (\s{0,10}) instead of \s* to prevent ReDoS
+  const methodCallPattern = /(\w+)\s{0,10}\.\s{0,10}\w+\s{0,10}\(/g
   let methodMatch
   while ((methodMatch = methodCallPattern.exec(cleaned)) !== null) {
     const identifierBeforeDot = methodMatch[1]
@@ -108,8 +109,10 @@ function isValidMathExpression(expression: string): { valid: boolean; error?: st
     return { valid: false, error: 'Expression contains invalid characters' }
   }
 
-  // Normalize Math.ln to Math.log before validation
-  const normalized = cleaned.replace(/Math\.ln\(/g, 'Math.log(')
+  // Normalize both bare "ln(" and "Math.ln(" to "Math.log(" before validation
+  // Use word boundaries to ensure we match "ln(" as a function call, not inside other identifiers
+  let normalized = cleaned.replaceAll(/\bln\(/g, 'Math.log(')
+  normalized = normalized.replaceAll(/Math\.ln\(/g, 'Math.log(')
   return validateMathFunctions(normalized)
 }
 
@@ -214,7 +217,7 @@ export function evaluateMetric(
       const escapedName = escapeRegex(varName)
       // Replace with actual value (use word boundaries to avoid partial matches)
       const regex = new RegExp(String.raw`\b${escapedName}\b`, 'g')
-      substituted = substituted.replace(regex, String(variables[varName]))
+      substituted = substituted.replaceAll(regex, String(variables[varName]))
     }
 
     // Verify no variables remain (safety check)
@@ -226,8 +229,10 @@ export function evaluateMetric(
       }
     }
 
-    // Normalize Math.ln to Math.log before validation
-    substituted = substituted.replace(/Math\.ln\(/g, 'Math.log(')
+    // Normalize both bare "ln(" and "Math.ln(" to "Math.log(" before evaluation
+    // Use word boundaries to ensure we match "ln(" as a function call, not inside other identifiers
+    substituted = substituted.replaceAll(/\bln\(/g, 'Math.log(')
+    substituted = substituted.replaceAll(/Math\.ln\(/g, 'Math.log(')
 
     // Create a safe evaluation context with only Math functions
     // Use Function constructor in a controlled way with a whitelist

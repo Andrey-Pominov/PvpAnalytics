@@ -46,9 +46,8 @@ const Tooltip = ({content, children, position = 'top'}: TooltipProps) => {
 
     return (
         <div className="relative inline-block">
-            <div
+            <button
                 className="inline-block border-0 bg-transparent p-0 text-inherit cursor-inherit"
-                role="button"
                 tabIndex={0}
                 aria-describedby={isVisible ? tooltipId.current : undefined}
                 aria-expanded={isVisible}
@@ -61,7 +60,7 @@ const Tooltip = ({content, children, position = 'top'}: TooltipProps) => {
                 onKeyDown={handleKeyDown}
             >
                 {children}
-            </div>
+            </button>
             {isVisible && (() => {
                 let arrowClasses =
                     'right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-gray-900'
