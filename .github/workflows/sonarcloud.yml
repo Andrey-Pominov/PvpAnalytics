@@ -44,6 +44,11 @@ jobs:
         working-directory: ui/PvpAnalytics.UI
         run: npm run build
 
+      - name: Run Vitest tests with coverage
+        working-directory: ui/PvpAnalytics.UI
+        run: npx vitest run --coverage --reporter=lcov --coverage-report=lcovonly
+        continue-on-error: true
+
       - name: Cache SonarQube Cloud packages
         uses: actions/cache@v4
         with:
@@ -76,6 +81,7 @@ jobs:
             /o:"andrey-pominov" `
             /d:sonar.token="${{ env.TOKEN }}" `
             /d:sonar.cs.opencover.reportsPaths="coverage/opencover/*.xml" `
+            /d:sonar.typescript.lcov.reportPaths="ui/PvpAnalytics.UI/coverage/lcov.info" `
             /d:sonar.sources="Services,Shared,ui/PvpAnalytics.UI/src" `
             /d:sonar.exclusions="**/bin/**,**/obj/**,**/node_modules/**,**/dist/**,**/*.min.js,**/Migrations/**" `
             /d:sonar.sourceEncoding=UTF-8 `
