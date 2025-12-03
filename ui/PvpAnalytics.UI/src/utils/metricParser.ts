@@ -32,7 +32,7 @@ function hasDangerousPatterns(cleaned: string): boolean {
     /__proto__/i,
     /prototype/i,
     /constructor/i,
-    /\[.*\]\s*\(/, // Array access followed by function call
+    /\[.*\\s*\(/, // Array access followed by function call
   ]
   return dangerousPatterns.some((pattern) => pattern.test(cleaned))
 }
@@ -138,7 +138,7 @@ function extractVariables(expression: string): string[] {
  * Returns ParsedMetric for backward compatibility with existing code
  */
 export function parseMetric(expression: string): ParsedMetric {
-  if (!expression || typeof expression !== 'string') {
+  if (!expression) {
     return {
       expression: expression || '',
       variables: [],

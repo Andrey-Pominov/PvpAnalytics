@@ -9,127 +9,89 @@ using PvpAnalytics.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Add services to the container.
 builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddOpenApi();  // Built-in OpenAPI support
+
+// Add health checks
+builder.Services.AddHealthChecks();
+
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddApplication(builder.Configuration);
 
-builder.Services.AddOpenApi();
+var jwtSection = builder.Configuration.GetSection(JwtOptions.SectionName);
+var jwtOptions = jwtSection.Get<JwtOptions>() ?? 
+                 throw new InvalidOperationException("Jwt configuration section is missing.");
 
-builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
-var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>() ?? throw new InvalidOperationException("Jwt configuration section is missing.");
 if (string.IsNullOrWhiteSpace(jwtOptions.SigningKey))
 {
-    throw new InvalidOperationException("JWT signing key is not configured. Set 'Jwt__SigningKey' via environment variable or secret manager.");
+    throw new InvalidOperationException(
+        "JWT signing key is not configured. Set the 'Jwt__SigningKey' environment variable or use a secure secret store.");
 }
 
+builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
+
 builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
     {
-        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-    })
-    .AddJwtBearer(options =>
-    {
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateIssuerSigningKey = true,
-            ValidateLifetime = true,
-            ValidIssuer = jwtOptions.Issuer,
-            ValidAudience = jwtOptions.Audience,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SigningKey))
-        };
-    });
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateIssuerSigningKey = true,
+        ValidateLifetime = true,
+        ValidIssuer = jwtOptions.Issuer,
+        ValidAudience = jwtOptions.Audience,
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SigningKey))
+    };
+});
 
 builder.Services.AddAuthorization();
 
-builder.Services.AddSingleton<ILoggingClient>(sp =>
-{
-    var config = sp.GetRequiredService<IConfiguration>();
-    var logger = sp.GetRequiredService<ILogger<PvpAnalytics.Shared.Services.LoggingClient>>();
-    return new PvpAnalytics.Shared.Services.LoggingClient(config, logger);
-});
+// TODO: Add logging client registration once the dependency is resolved
+// builder.Services.AddSingleton<ILoggingClient>(sp => {
+//     var config = sp.GetRequiredService<IConfiguration>();
+//     var logger = sp.GetRequiredService<ILogger<LoggingClient>>();
+//     return new LoggingClient(config, logger);
+// });
 
 var app = builder.Build();
-
-var loggingClient = app.Services.GetRequiredService<ILoggingClient>();
-var serviceName = builder.Configuration["LoggingService:ServiceName"] ?? "PvpAnalytics";
-var serviceEndpoint = GetServiceEndpoint(builder.Configuration, "localhost:8080");
-var serviceVersion = "1.0.0";
-
-try
-{
-    await loggingClient.RegisterServiceAsync(serviceName, serviceEndpoint, serviceVersion);
-    var heartbeatInterval = TimeSpan.FromSeconds(
-        builder.Configuration.GetValue<int>("LoggingService:HeartbeatIntervalSeconds", 30));
-    loggingClient.StartHeartbeat(serviceName, heartbeatInterval);
-    app.Logger.LogInformation("Registered with LoggingService and started heartbeat");
-}
-catch (Exception ex)
-{
-    app.Logger.LogWarning(ex, "Failed to register with LoggingService, continuing without centralized logging");
-}
 
 var skipMigrations = builder.Configuration.GetValue<bool?>("EfMigrations:Skip") ?? false;
 if (!skipMigrations)
 {
-    await using var scope = app.Services.CreateAsyncScope();
+    using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<PvpAnalyticsDbContext>();
     await db.Database.MigrateAsync();
 }
 
+// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.MapOpenApi();  // Use built-in OpenAPI endpoint
 }
-
 
 app.UseHttpsRedirection();
 
+app.UseCors(CorsOptions.DefaultPolicyName);
 app.UseAuthentication();
 app.UseAuthorization();
 
-
 app.MapControllers();
+
+// Add health checks endpoint
+app.MapHealthChecks("/health");
 
 await app.RunAsync();
 
 static string GetServiceEndpoint(IConfiguration configuration, string defaultEndpoint)
 {
-    // Returns endpoint in host:port format (without scheme) for consistency
-    var urlsValue = configuration["ASPNETCORE_URLS"];
-    if (string.IsNullOrWhiteSpace(urlsValue))
-    {
-        // Ensure defaultEndpoint is in host:port format (strip scheme if present)
-        return NormalizeEndpoint(defaultEndpoint);
-    }
-
-    var urls = urlsValue.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-    foreach (var url in urls)
-    {
-        if (string.IsNullOrWhiteSpace(url))
-            continue;
-
-        if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
-        {
-            // Extract host:port (authority) without scheme for consistent format
-            return uri.Authority;
-        }
-    }
-
-    // Return defaultEndpoint in host:port format (strip scheme if present)
-    return NormalizeEndpoint(defaultEndpoint);
-}
-
-static string NormalizeEndpoint(string endpoint)
-{
-    // If endpoint contains a scheme (e.g., "http://localhost:8080"), extract host:port
-    if (Uri.TryCreate(endpoint, UriKind.Absolute, out var uri))
-    {
-        return uri.Authority;
-    }
-    
-    // If no scheme, assume it's already in host:port format
+    var endpoint = configuration["ServiceEndpoints:LoggingService"] ?? defaultEndpoint;
     return endpoint;
 }
 

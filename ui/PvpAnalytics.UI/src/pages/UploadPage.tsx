@@ -74,7 +74,7 @@ const UploadPage = () => {
       formData.append('file', file)
 
       const { data } = await axios.post<UploadResponse>(`${baseUrl}/logs/upload`, formData, {
-        timeout: 300000, // 5 minutes timeout for large files
+        timeout: 300000,
       })
 
       const matchCount = Array.isArray(data) ? data.length : 1
