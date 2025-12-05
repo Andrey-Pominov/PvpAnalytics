@@ -75,23 +75,23 @@ builder.Services.AddSingleton<ILoggingClient>(sp =>
 
 var app = builder.Build();
 
-// var loggingClient = app.Services.GetRequiredService<ILoggingClient>();
-// var serviceName = builder.Configuration["LoggingService:ServiceName"] ?? "PaymentService";
-// var serviceEndpoint = GetServiceEndpoint(builder.Configuration, "localhost:8082");
-// const string serviceVersion = "1.0.0";
+var loggingClient = app.Services.GetRequiredService<ILoggingClient>();
+var serviceName = builder.Configuration["LoggingService:ServiceName"] ?? "PaymentService";
+var serviceEndpoint = GetServiceEndpoint(builder.Configuration);
+const string serviceVersion = "1.0.0";
 
-// try
-// {
-//     await loggingClient.RegisterServiceAsync(serviceName, serviceEndpoint, serviceVersion);
-//     var heartbeatInterval = TimeSpan.FromSeconds(
-//         builder.Configuration.GetValue("LoggingService:HeartbeatIntervalSeconds", 30));
-//     loggingClient.StartHeartbeat(serviceName, heartbeatInterval);
-//     app.Logger.LogInformation("Registered with LoggingService and started heartbeat");
-// }
-// catch (Exception ex)
-// {
-//     app.Logger.LogWarning(ex, "Failed to register with LoggingService, continuing without centralized logging");
-// }
+try
+{
+    await loggingClient.RegisterServiceAsync(serviceName, serviceEndpoint, serviceVersion);
+    var heartbeatInterval = TimeSpan.FromSeconds(
+        builder.Configuration.GetValue("LoggingService:HeartbeatIntervalSeconds", 30));
+    loggingClient.StartHeartbeat(serviceName, heartbeatInterval);
+    app.Logger.LogInformation("Registered with LoggingService and started heartbeat");
+}
+catch (Exception ex)
+{
+    app.Logger.LogWarning(ex, "Failed to register with LoggingService, continuing without centralized logging");
+}
 
 var skipMigrations = builder.Configuration.GetValue<bool?>("EfMigrations:Skip") ?? false;
 if (!skipMigrations)
@@ -154,6 +154,29 @@ static void ValidateJwtOptions(JwtOptions jwtOptions, bool useInMemoryDatabase, 
             "You must replace 'DEV_PLACEHOLDER_KEY_MUST_BE_REPLACED' with a real signing key.\n" +
             errorMessage);
     }
+}
+
+static string GetServiceEndpoint(IConfiguration configuration)
+{
+    var urlsValue = configuration["ASPNETCORE_URLS"];
+    if (string.IsNullOrWhiteSpace(urlsValue))
+    {
+        return "localhost:8082";
+    }
+
+    var urls = urlsValue.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    foreach (var url in urls)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+            continue;
+
+
+        if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        {
+            return uri.Authority;
+        }
+    }
+    return "http://localhost:8082";
 }
 
 static string[] GetCorsOrigins(IConfiguration configuration, bool useInMemoryDatabase)

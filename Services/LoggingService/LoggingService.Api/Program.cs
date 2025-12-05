@@ -1,7 +1,6 @@
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using LoggingService.Infrastructure;
-using System.Text;
+using LoggingService.Infrastructure.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -32,13 +31,9 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.UseAuthentication();
-
 app.MapControllers();
 
-// Map gRPC services - add your actual gRPC service classes here
-// TODO: Map gRPC services once proto definitions and generated classes are available
-// app.MapGrpcService<LoggingGrpcService>();
+app.MapGrpcService<LoggingGrpcService>();
 
 app.MapHealthChecks("/health");
 
