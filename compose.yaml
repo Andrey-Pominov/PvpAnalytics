@@ -1,112 +1,4 @@
 ﻿services:
-  pvpanalytics:
-    image: pvpanalytics
-    build:
-      context: .
-      dockerfile: Services/PvpAnalytics/PvpAnalytics.Api/Dockerfile
-    ports:
-      - "8080:8080"
-    environment:
-      - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Username=${POSTGRES_USER?POSTGRES_USER not set};Password=${POSTGRES_PASSWORD?POSTGRES_PASSWORD not set};Database=${POSTGRES_DB?POSTGRES_DB not set}
-      - ASPNETCORE_ENVIRONMENT=Production
-      - ASPNETCORE_URLS=http://+:8080
-      - Jwt__Issuer=PvpAnalytics.Auth
-      - Jwt__Audience=PvpAnalytics.Api
-      - Jwt__SigningKey=${JWT_SIGNING_KEY?JWT_SIGNING_KEY not set}
-      - WowApi__ClientId=${WowApi__ClientId?WowApi__ClientId not set}
-      - WowApi__ClientSecret=${WowApi__ClientSecret?WowApi__ClientSecret not set}
-      - WowApi__BaseUrl=https://us.api.blizzard.com
-      - WowApi__OAuthUrl=https://us.battle.net/oauth/token
-      - LoggingService__GrpcEndpoint=http://logging:50051
-      - LoggingService__ServiceName=PvpAnalytics
-      - LoggingService__HeartbeatIntervalSeconds=30
-    depends_on:
-      - db
-      - logging
-
-  auth:
-    image: authservice
-    build:
-      context: .
-      dockerfile: Services/AuthService/AuthService.Api/Dockerfile
-    ports:
-      - "8081:8081"
-    environment:
-      - ASPNETCORE_ENVIRONMENT=Production
-      - ASPNETCORE_URLS=http://+:8081
-      - ConnectionStrings__DefaultConnection=Server=auth-sql,1433;Database=AuthService;User Id=sa;Password=${SA_PASSWORD?SA_PASSWORD not set};TrustServerCertificate=True;Encrypt=True
-      - Jwt__Issuer=PvpAnalytics.Auth
-      - Jwt__Audience=PvpAnalytics.Api
-      - Jwt__SigningKey=${JWT_SIGNING_KEY?JWT_SIGNING_KEY not set}
-      - Jwt__AccessTokenMinutes=60
-      - Jwt__RefreshTokenDays=7
-      - LoggingService__GrpcEndpoint=http://logging:50051
-      - LoggingService__ServiceName=AuthService
-      - LoggingService__HeartbeatIntervalSeconds=30
-    depends_on:
-      db:
-        condition: service_started
-      auth-sql:
-        condition: service_healthy
-      logging:
-        condition: service_started
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-
-  payment:
-    image: paymentservice
-    build:
-      context: .
-      dockerfile: Services/PaymentService/PaymentService.Api/Dockerfile
-    ports:
-      - "8082:8082"
-    environment:
-      - ASPNETCORE_ENVIRONMENT=Production
-      - ASPNETCORE_URLS=http://+:8082
-      - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Username=${POSTGRES_USER?POSTGRES_USER not set};Password=${POSTGRES_PASSWORD?POSTGRES_PASSWORD not set};Database=${POSTGRES_PAYMENT_DB?POSTGRES_PAYMENT_DB not set}
-      - Jwt__Issuer=PvpAnalytics.Auth
-      - Jwt__Audience=PvpAnalytics.Api
-      - Jwt__SigningKey=${JWT_SIGNING_KEY?JWT_SIGNING_KEY not set}
-      - Jwt__AccessTokenMinutes=60
-      - Jwt__RefreshTokenDays=7
-      - Cors__AllowedOrigins=http://localhost:3000,https://localhost:8080,http://localhost:3001
-      - EfMigrations__Skip=false
-      - LoggingService__GrpcEndpoint=http://logging:50051
-      - LoggingService__ServiceName=PaymentService
-      - LoggingService__HeartbeatIntervalSeconds=30
-    depends_on:
-      - db
-      - logging
-
-  logging:
-    image: loggingservice
-    build:
-      context: .
-      dockerfile: Services/LoggingService/LoggingService.Api/Dockerfile
-    ports:
-      - "8083:8083"
-      - "50051:50051"
-    environment:
-      - ASPNETCORE_ENVIRONMENT=Production
-      - ASPNETCORE_URLS=http://+:8083
-      - Kestrel__Endpoints__gRPC__Url=http://+:50051
-      - ConnectionStrings__DefaultConnection=Host=logging-postgres;Port=5432;Username=${POSTGRES_USER?POSTGRES_USER not set};Password=${POSTGRES_PASSWORD?POSTGRES_PASSWORD not set};Database=LoggingService
-      - Jwt__Issuer=PvpAnalytics.Auth
-      - Jwt__Audience=PvpAnalytics.Api
-      - Jwt__SigningKey=${JWT_SIGNING_KEY?JWT_SIGNING_KEY not set}
-      - EfMigrations__Skip=false
-    depends_on:
-      - logging-postgres
-
-  ui:
-    image: nginx:stable-alpine
-    ports:
-      - "3000:80"
-    volumes:
-      - ./ui/PvpAnalytics.UI/dist:/usr/share/nginx/html:ro
-    depends_on:
-      - pvpanalytics
-
   db:
     image: postgres:16
     restart: always
@@ -119,6 +11,12 @@
       - "5442:5432"
     volumes:
       - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   auth-sql:
     image: mcr.microsoft.com/mssql/server:2022-latest
@@ -149,6 +47,159 @@
       - "5443:5432"
     volumes:
       - logging-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d LoggingService"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  logging:
+    image: loggingservice
+    build:
+      context: .
+      dockerfile: Services/LoggingService/LoggingService.Api/Dockerfile
+    ports:
+      - "8083:8083"
+      - "50051:50051"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8083
+      - Kestrel__Endpoints__gRPC__Url=http://+:50051
+      - ConnectionStrings__DefaultConnection=Host=logging-postgres;Port=5432;Username=${POSTGRES_USER?POSTGRES_USER not set};Password=${POSTGRES_PASSWORD?POSTGRES_PASSWORD not set};Database=LoggingService
+      - JWT__Issuer=PvpAnalytics.Auth
+      - JWT__Audience=PvpAnalytics.Api
+      - JWT__SigningKey=${JWT_SIGNING_KEY?JWT_SIGNING_KEY not set}
+      - EfMigrations__Skip=false
+    depends_on:
+      logging-postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+  auth:
+    image: authservice
+    build:
+      context: .
+      dockerfile: Services/AuthService/AuthService.Api/Dockerfile
+    ports:
+      - "8081:8081"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8081
+      - ConnectionStrings__DefaultConnection=Server=auth-sql,1433;Database=AuthService;User Id=sa;Password=${SA_PASSWORD?SA_PASSWORD not set};TrustServerCertificate=True;Encrypt=True
+      - JWT__Issuer=PvpAnalytics.Auth
+      - JWT__Audience=PvpAnalytics.Api
+      - JWT__SigningKey=${JWT_SIGNING_KEY?JWT_SIGNING_KEY not set}
+      - JWT__AccessTokenMinutes=60
+      - JWT__RefreshTokenDays=7
+      - LoggingService__GrpcEndpoint=http://logging:50051
+      - LoggingService__ServiceName=AuthService
+      - LoggingService__HeartbeatIntervalSeconds=30
+      - EfMigrations__Skip=false
+    depends_on:
+      db:
+        condition: service_healthy
+      auth-sql:
+        condition: service_healthy
+      logging:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  payment:
+    image: paymentservice
+    build:
+      context: .
+      dockerfile: Services/PaymentService/PaymentService.Api/Dockerfile
+    ports:
+      - "8082:8082"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8082
+      - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Username=${POSTGRES_USER?POSTGRES_USER not set};Password=${POSTGRES_PASSWORD?POSTGRES_PASSWORD not set};Database=${POSTGRES_PAYMENT_DB?POSTGRES_PAYMENT_DB not set}
+      - JWT__Issuer=PvpAnalytics.Auth
+      - JWT__Audience=PvpAnalytics.Api
+      - JWT__SigningKey=${JWT_SIGNING_KEY?JWT_SIGNING_KEY not set}
+      - JWT__AccessTokenMinutes=60
+      - JWT__RefreshTokenDays=7
+      - Cors__AllowedOrigins=http://localhost:3000,https://localhost:8080,http://localhost:3001
+      - EfMigrations__Skip=false
+      - LoggingService__GrpcEndpoint=http://logging:50051
+      - LoggingService__ServiceName=PaymentService
+      - LoggingService__HeartbeatIntervalSeconds=30
+    depends_on:
+      db:
+        condition: service_healthy
+      logging:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+  pvpanalytics:
+    image: pvpanalytics
+    build:
+      context: .
+      dockerfile: Services/PvpAnalytics/PvpAnalytics.Api/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Username=${POSTGRES_USER?POSTGRES_USER not set};Password=${POSTGRES_PASSWORD?POSTGRES_PASSWORD not set};Database=${POSTGRES_DB?POSTGRES_DB not set}
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8080
+      - JWT__Issuer=PvpAnalytics.Auth
+      - JWT__Audience=PvpAnalytics.Api
+      - JWT__SigningKey=${JWT_SIGNING_KEY?JWT_SIGNING_KEY not set}
+      - WowApi__ClientId=${WowApi__ClientId?WowApi__ClientId not set}
+      - WowApi__ClientSecret=${WowApi__ClientSecret?WowApi__ClientSecret not set}
+      - WowApi__BaseUrl=https://us.api.blizzard.com
+      - WowApi__OAuthUrl=https://us.battle.net/oauth/token
+      - LoggingService__GrpcEndpoint=http://logging:50051
+      - LoggingService__ServiceName=PvpAnalytics
+      - LoggingService__HeartbeatIntervalSeconds=30
+      - EfMigrations__Skip=false
+    depends_on:
+      db:
+        condition: service_healthy
+      logging:
+        condition: service_healthy
+      auth:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+  ui:
+    image: nginx:stable-alpine
+    ports:
+      - "3000:80"
+    volumes:
+      - ./ui/PvpAnalytics.UI/dist:/usr/share/nginx/html:ro
+    depends_on:
+      pvpanalytics:
+        condition: service_healthy
+    restart: unless-stopped
 
 volumes:
   auth-sql-data:

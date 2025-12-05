@@ -34,7 +34,11 @@ const TeamsPage = () => {
   const [region, setRegion] = useState<string>('')
 
   useEffect(() => {
-    loadTeams()
+    loadTeams().then(() => {
+      // Promise resolved
+    }).catch((error) => {
+      console.error('Error in useEffect loadTeams:', error);
+    });
   }, [bracket, region])
 
   const loadTeams = async () => {

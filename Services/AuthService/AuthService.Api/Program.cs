@@ -10,14 +10,17 @@ using PvpAnalytics.Shared.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
-builder.Services.AddOpenApi();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddOpenApi();  
+
+builder.Services.AddHealthChecks();
 
 builder.Services.AddInfrastructure(builder.Configuration);
 
 var jwtSection = builder.Configuration.GetSection(JwtOptions.SectionName);
-_ = builder.Configuration.GetSection(JwtOptions.MyAllowSpecificOrigins).Value;
 var jwtOptions = jwtSection.Get<JwtOptions>() ??
                  throw new InvalidOperationException("Jwt configuration section is missing.");
+
 if (string.IsNullOrWhiteSpace(jwtOptions.SigningKey))
 {
     throw new InvalidOperationException(
@@ -64,8 +67,7 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization();
 
-builder.Services.AddSingleton<ILoggingClient>(sp =>
-{
+builder.Services.AddSingleton<ILoggingClient>(sp => {
     var config = sp.GetRequiredService<IConfiguration>();
     var logger = sp.GetRequiredService<ILogger<LoggingClient>>();
     return new LoggingClient(config, logger);
@@ -73,87 +75,33 @@ builder.Services.AddSingleton<ILoggingClient>(sp =>
 
 var app = builder.Build();
 
-var loggingClient = app.Services.GetRequiredService<ILoggingClient>();
-var serviceName = builder.Configuration["LoggingService:ServiceName"] ?? "AuthService";
-var serviceEndpoint = GetServiceEndpoint(builder.Configuration);
-var serviceVersion = "1.0.0";
-
-try
-{
-    await loggingClient.RegisterServiceAsync(serviceName, serviceEndpoint, serviceVersion);
-    var heartbeatInterval = TimeSpan.FromSeconds(
-        builder.Configuration.GetValue("LoggingService:HeartbeatIntervalSeconds", 30));
-    loggingClient.StartHeartbeat(serviceName, heartbeatInterval);
-    app.Logger.LogInformation("Registered with LoggingService and started heartbeat");
-}
-catch (Exception ex)
-{
-    app.Logger.LogWarning(ex, "Failed to register with LoggingService, continuing without centralized logging");
-}
-
 var skipMigrations = builder.Configuration.GetValue<bool?>("EfMigrations:Skip") ?? false;
 if (!skipMigrations)
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
-    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-    
-    var maxRetries = 10;
-    var delay = TimeSpan.FromSeconds(5);
-    for (var i = 0; i < maxRetries; i++)
-    {
-        try
-        {
-            logger.LogInformation("Attempting to apply database migrations (attempt {Attempt}/{MaxRetries})...", i + 1, maxRetries);
-            await db.Database.MigrateAsync();
-            logger.LogInformation("Database migrations applied successfully.");
-            break;
-        }
-        catch (Exception ex) when (i < maxRetries - 1)
-        {
-            logger.LogWarning(ex, "Failed to apply migrations. Retrying in {Delay} seconds...", delay.TotalSeconds);
-            Thread.Sleep(delay);
-        }
-    }
+    await db.Database.MigrateAsync();
 }
 
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.MapOpenApi(); 
 }
 
 app.UseHttpsRedirection();
 
 app.UseCors(CorsOptions.DefaultPolicyName);
+
 app.UseAuthentication();
 app.UseAuthorization();
-
 app.MapControllers();
+
+app.MapHealthChecks("/health");
+
+ 
 
 await app.RunAsync();
 
-static string GetServiceEndpoint(IConfiguration configuration)
-{
-    var urlsValue = configuration["ASPNETCORE_URLS"];
-    if (string.IsNullOrWhiteSpace(urlsValue))
-    {
-        return "localhost:8081";
-    }
-
-    var urls = urlsValue.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-    foreach (var url in urls)
-    {
-        if (string.IsNullOrWhiteSpace(url))
-            continue;
-
-        if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
-        {
-            return uri.Authority;
-        }
-    }
-
-    return "localhost:8081";
-}
 
 namespace AuthService.Api
 {

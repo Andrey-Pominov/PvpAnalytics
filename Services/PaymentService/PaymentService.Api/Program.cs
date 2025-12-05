@@ -10,28 +10,39 @@ using PvpAnalytics.Shared.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOpenApi();
+
+builder.Services.AddHealthChecks();
 
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddApplication(builder.Configuration);
 
+var jwtSection = builder.Configuration.GetSection(JwtOptions.SectionName);
+var jwtOptions = jwtSection.Get<JwtOptions>() ??
+                 throw new InvalidOperationException("Jwt configuration section is missing.");
+
+if (string.IsNullOrWhiteSpace(jwtOptions.SigningKey))
+{
+    throw new InvalidOperationException(
+        "JWT signing key is not configured. Set the 'Jwt__SigningKey' environment variable or use a secure secret store.");
+}
+
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
 
-var jwtOptions = GetJwtOptions(builder.Configuration);
 var useInMemoryDatabase = IsInMemoryDatabaseEnabled(builder.Configuration);
 ValidateJwtOptions(jwtOptions, useInMemoryDatabase, builder.Environment);
-var corsOrigins = GetCorsOrigins(builder.Configuration, useInMemoryDatabase);
+var corsOrigin = GetCorsOrigins(builder.Configuration, useInMemoryDatabase);
 
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy(
-        name: CorsOptions.DefaultPolicyName,
-        policy => policy
-            .WithOrigins(corsOrigins)
-            .AllowCredentials()
-            .AllowAnyHeader()
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy.WithOrigins(corsOrigin)
             .AllowAnyMethod()
-    );
+            .AllowAnyHeader()
+            .AllowCredentials();
+    });
 });
 
 builder.Services.AddAuthentication(options =>
@@ -66,7 +77,7 @@ var app = builder.Build();
 
 var loggingClient = app.Services.GetRequiredService<ILoggingClient>();
 var serviceName = builder.Configuration["LoggingService:ServiceName"] ?? "PaymentService";
-var serviceEndpoint = GetServiceEndpoint(builder.Configuration, "localhost:8082");
+var serviceEndpoint = GetServiceEndpoint(builder.Configuration);
 const string serviceVersion = "1.0.0";
 
 try
@@ -85,7 +96,7 @@ catch (Exception ex)
 var skipMigrations = builder.Configuration.GetValue<bool?>("EfMigrations:Skip") ?? false;
 if (!skipMigrations)
 {
-    await using var scope = app.Services.CreateAsyncScope();
+    using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<PaymentDbContext>();
     await db.Database.MigrateAsync();
 }
@@ -97,68 +108,20 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.UseCors(CorsOptions.DefaultPolicyName);
+app.UseCors("AllowFrontend");
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
 
+app.MapHealthChecks("/health");
+
 await app.RunAsync();
-
-static string GetServiceEndpoint(IConfiguration configuration, string defaultEndpoint)
-{
-    // Returns endpoint in host:port format (without scheme) for consistency
-    var urlsValue = configuration["ASPNETCORE_URLS"];
-    if (string.IsNullOrWhiteSpace(urlsValue))
-    {
-        // Ensure defaultEndpoint is in host:port format (strip scheme if present)
-        return NormalizeEndpoint(defaultEndpoint);
-    }
-
-    var urls = urlsValue.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-    foreach (var url in urls)
-    {
-        if (string.IsNullOrWhiteSpace(url))
-            continue;
-
-        if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
-        {
-            // Extract host:port (authority) without scheme for consistent format
-            // uri.Authority already handles default ports correctly
-            return uri.Authority;
-        }
-    }
-
-    // Return defaultEndpoint in host:port format (strip scheme if present)
-    return NormalizeEndpoint(defaultEndpoint);
-}
-
-static string NormalizeEndpoint(string endpoint)
-{
-    // If endpoint contains a scheme (e.g., "http://localhost:8082"), extract host:port
-    if (Uri.TryCreate(endpoint, UriKind.Absolute, out var uri))
-    {
-        return uri.Authority;
-    }
-    
-    // If no scheme, assume it's already in host:port format
-    return endpoint;
-}
-
-static JwtOptions GetJwtOptions(IConfiguration configuration)
-{
-    var jwtOptions = configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>();
-    if (jwtOptions == null)
-    {
-        throw new InvalidOperationException("Jwt configuration section is missing.");
-    }
-    return jwtOptions;
-}
 
 static bool IsInMemoryDatabaseEnabled(IConfiguration configuration)
 {
     var useInMemoryDatabaseValue = configuration["UseInMemoryDatabase"];
-    return !string.IsNullOrWhiteSpace(useInMemoryDatabaseValue) && 
+    return !string.IsNullOrWhiteSpace(useInMemoryDatabaseValue) &&
            (useInMemoryDatabaseValue.Equals("true", StringComparison.OrdinalIgnoreCase) ||
             useInMemoryDatabaseValue.Equals("1", StringComparison.OrdinalIgnoreCase));
 }
@@ -167,16 +130,17 @@ static void ValidateJwtOptions(JwtOptions jwtOptions, bool useInMemoryDatabase, 
 {
     // In tests we run with an in-memory database and known dummy signing keys.
     // Relax validation when running under the dedicated Testing environment.
-    if (useInMemoryDatabase || string.Equals(environment.EnvironmentName, "Testing", StringComparison.OrdinalIgnoreCase))
+    if (useInMemoryDatabase ||
+        string.Equals(environment.EnvironmentName, "Testing", StringComparison.OrdinalIgnoreCase))
     {
         return;
     }
 
     const string placeholderKey = "DEV_PLACEHOLDER_KEY_MUST_BE_REPLACED";
     const string errorMessage = "Please provide a valid signing key using one of the following methods:\n" +
-                                 "  1. User Secrets: dotnet user-secrets set \"Jwt:SigningKey\" \"your-secret-key-here\"\n" +
-                                 "  2. Environment Variable: set Jwt__SigningKey=your-secret-key-here\n" +
-                                 "  3. appsettings.Development.json (local only, never commit real keys to source control)";
+                                "  1. User Secrets: dotnet user-secrets set \"Jwt:SigningKey\" \"your-secret-key-here\"\n" +
+                                "  2. Environment Variable: set Jwt__SigningKey=your-secret-key-here\n" +
+                                "  3. appsettings.Development.json (local only, never commit real keys to source control)";
 
     if (string.IsNullOrWhiteSpace(jwtOptions.SigningKey))
     {
@@ -192,6 +156,29 @@ static void ValidateJwtOptions(JwtOptions jwtOptions, bool useInMemoryDatabase, 
     }
 }
 
+static string GetServiceEndpoint(IConfiguration configuration)
+{
+    var urlsValue = configuration["ASPNETCORE_URLS"];
+    if (string.IsNullOrWhiteSpace(urlsValue))
+    {
+        return "http://localhost:8082";
+    }
+
+    var urls = urlsValue.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    foreach (var url in urls)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+            continue;
+
+
+        if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        {
+            return uri.Authority;
+        }
+    }
+    return "http://localhost:8082";
+}
+
 static string[] GetCorsOrigins(IConfiguration configuration, bool useInMemoryDatabase)
 {
     var corsOrigins = configuration.GetSection($"{CorsOptions.SectionName}:AllowedOrigins").Get<string[]>();
@@ -202,7 +189,7 @@ static string[] GetCorsOrigins(IConfiguration configuration, bool useInMemoryDat
 
     if (useInMemoryDatabase)
     {
-        return ["http://localhost:3000"];
+        return new[] { "http://localhost:3000", "http://localhost:5173" };
     }
 
     throw new InvalidOperationException(
@@ -211,5 +198,5 @@ static string[] GetCorsOrigins(IConfiguration configuration, bool useInMemoryDat
 
 namespace PaymentService.Api
 {
-    public partial class Program;
+    public interface IProgram;
 }
