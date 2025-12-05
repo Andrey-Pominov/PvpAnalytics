@@ -161,7 +161,7 @@ static string GetServiceEndpoint(IConfiguration configuration)
     var urlsValue = configuration["ASPNETCORE_URLS"];
     if (string.IsNullOrWhiteSpace(urlsValue))
     {
-        return "localhost:8082";
+        return "http://localhost:8082";
     }
 
     var urls = urlsValue.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);

@@ -25,10 +25,6 @@ if (!skipMigrations)
     await db.Database.MigrateAsync();
 }
 
-if (app.Environment.IsDevelopment())
-{
-}
-
 app.UseHttpsRedirection();
 
 app.MapControllers();
