@@ -5,15 +5,14 @@ using Microsoft.IdentityModel.Tokens;
 using PvpAnalytics.Shared.Security;
 using PvpAnalytics.Application;
 using PvpAnalytics.Infrastructure;
+using PvpAnalytics.Shared.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddOpenApi();  // Built-in OpenAPI support
+builder.Services.AddOpenApi();
 
-// Add health checks
 builder.Services.AddHealthChecks();
 
 builder.Services.AddInfrastructure(builder.Configuration);
@@ -44,7 +43,7 @@ builder.Services.AddApplication(builder.Configuration);
 // 3. Required JWT configuration (Issuer, Audience) is missing
 
 var jwtSection = builder.Configuration.GetSection(JwtOptions.SectionName);
-var jwtOptions = jwtSection.Get<JwtOptions>() ?? 
+var jwtOptions = jwtSection.Get<JwtOptions>() ??
                  throw new InvalidOperationException("Jwt configuration section is missing.");
 
 if (string.IsNullOrWhiteSpace(jwtOptions.SigningKey))
@@ -85,39 +84,39 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowFrontend", policy =>
     {
         policy.WithOrigins("http://localhost:3000", "https://localhost:3000")
-              .AllowAnyMethod()
-              .AllowAnyHeader()
-              .AllowCredentials();
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .AllowCredentials();
     });
 });
 
 builder.Services.AddAuthentication(options =>
-{
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-})
-.AddJwtBearer(options =>
-{
-    options.TokenValidationParameters = new TokenValidationParameters
     {
-        ValidateIssuer = true,
-        ValidateAudience = true,
-        ValidateIssuerSigningKey = true,
-        ValidateLifetime = true,
-        ValidIssuer = jwtOptions.Issuer,
-        ValidAudience = jwtOptions.Audience,
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SigningKey))
-    };
-});
+        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    })
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateIssuerSigningKey = true,
+            ValidateLifetime = true,
+            ValidIssuer = jwtOptions.Issuer,
+            ValidAudience = jwtOptions.Audience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SigningKey))
+        };
+    });
 
 builder.Services.AddAuthorization();
 
-// TODO: Add logging client registration once the dependency is resolved
-// builder.Services.AddSingleton<ILoggingClient>(sp => {
-//     var config = sp.GetRequiredService<IConfiguration>();
-//     var logger = sp.GetRequiredService<ILogger<LoggingClient>>();
-//     return new LoggingClient(config, logger);
-// });
+builder.Services.AddSingleton<ILoggingClient>(sp =>
+{
+    var config = sp.GetRequiredService<IConfiguration>();
+    var logger = sp.GetRequiredService<ILogger<LoggingClient>>();
+    return new LoggingClient(config, logger);
+});
 
 var app = builder.Build();
 
@@ -131,7 +130,7 @@ if (!skipMigrations)
 
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();  
+    app.MapOpenApi();
 }
 
 app.UseHttpsRedirection();

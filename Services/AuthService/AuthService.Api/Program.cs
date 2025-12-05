@@ -78,6 +78,12 @@ builder.Services.AddCors(options =>
     });
 });
 
+builder.Services.AddSingleton<ILoggingClient>(sp => {
+    var config = sp.GetRequiredService<IConfiguration>();
+    var logger = sp.GetRequiredService<ILogger<LoggingClient>>();
+    return new LoggingClient(config, logger);
+});
+
 var app = builder.Build();
 
 var skipMigrations = builder.Configuration.GetValue<bool?>("EfMigrations:Skip") ?? false;
@@ -103,12 +109,7 @@ app.MapControllers();
 
 app.MapHealthChecks("/health");
 
-// TODO: Add logging client registration once the dependency is resolved
-// builder.Services.AddSingleton<ILoggingClient>(sp => {
-//     var config = sp.GetRequiredService<IConfiguration>();
-//     var logger = sp.GetRequiredService<ILogger<LoggingClient>>();
-//     return new LoggingClient(config, logger);
-// });
+ 
 
 await app.RunAsync();
 

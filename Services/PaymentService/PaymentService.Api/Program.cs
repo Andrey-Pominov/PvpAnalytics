@@ -5,12 +5,13 @@ using Microsoft.IdentityModel.Tokens;
 using PaymentService.Application;
 using PaymentService.Infrastructure;
 using PvpAnalytics.Shared.Security;
+using PvpAnalytics.Shared.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddOpenApi();  
+builder.Services.AddOpenApi();
 
 builder.Services.AddHealthChecks();
 
@@ -18,7 +19,7 @@ builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddApplication(builder.Configuration);
 
 var jwtSection = builder.Configuration.GetSection(JwtOptions.SectionName);
-var jwtOptions = jwtSection.Get<JwtOptions>() ?? 
+var jwtOptions = jwtSection.Get<JwtOptions>() ??
                  throw new InvalidOperationException("Jwt configuration section is missing.");
 
 if (string.IsNullOrWhiteSpace(jwtOptions.SigningKey))
@@ -31,16 +32,16 @@ builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptio
 
 var useInMemoryDatabase = IsInMemoryDatabaseEnabled(builder.Configuration);
 ValidateJwtOptions(jwtOptions, useInMemoryDatabase, builder.Environment);
-GetCorsOrigins(builder.Configuration, useInMemoryDatabase);
+var corsOrigin = GetCorsOrigins(builder.Configuration, useInMemoryDatabase);
 
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins("http://localhost:3000", "https://localhost:3000")
-              .AllowAnyMethod()
-              .AllowAnyHeader()
-              .AllowCredentials();
+        policy.WithOrigins(corsOrigin)
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .AllowCredentials();
     });
 });
 
@@ -65,12 +66,12 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization();
 
-// TODO: Add logging client registration once the dependency is resolved
-// builder.Services.AddSingleton<ILoggingClient>(sp => {
-//     var config = sp.GetRequiredService<IConfiguration>();
-//     var logger = sp.GetRequiredService<ILogger<LoggingClient>>();
-//     return new LoggingClient(config, logger);
-// });
+builder.Services.AddSingleton<ILoggingClient>(sp =>
+{
+    var config = sp.GetRequiredService<IConfiguration>();
+    var logger = sp.GetRequiredService<ILogger<LoggingClient>>();
+    return new LoggingClient(config, logger);
+});
 
 var app = builder.Build();
 
@@ -102,7 +103,7 @@ if (!skipMigrations)
 
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();  
+    app.MapOpenApi();
 }
 
 app.UseHttpsRedirection();
@@ -120,7 +121,7 @@ await app.RunAsync();
 static bool IsInMemoryDatabaseEnabled(IConfiguration configuration)
 {
     var useInMemoryDatabaseValue = configuration["UseInMemoryDatabase"];
-    return !string.IsNullOrWhiteSpace(useInMemoryDatabaseValue) && 
+    return !string.IsNullOrWhiteSpace(useInMemoryDatabaseValue) &&
            (useInMemoryDatabaseValue.Equals("true", StringComparison.OrdinalIgnoreCase) ||
             useInMemoryDatabaseValue.Equals("1", StringComparison.OrdinalIgnoreCase));
 }
@@ -129,16 +130,17 @@ static void ValidateJwtOptions(JwtOptions jwtOptions, bool useInMemoryDatabase, 
 {
     // In tests we run with an in-memory database and known dummy signing keys.
     // Relax validation when running under the dedicated Testing environment.
-    if (useInMemoryDatabase || string.Equals(environment.EnvironmentName, "Testing", StringComparison.OrdinalIgnoreCase))
+    if (useInMemoryDatabase ||
+        string.Equals(environment.EnvironmentName, "Testing", StringComparison.OrdinalIgnoreCase))
     {
         return;
     }
 
     const string placeholderKey = "DEV_PLACEHOLDER_KEY_MUST_BE_REPLACED";
     const string errorMessage = "Please provide a valid signing key using one of the following methods:\n" +
-                                 "  1. User Secrets: dotnet user-secrets set \"Jwt:SigningKey\" \"your-secret-key-here\"\n" +
-                                 "  2. Environment Variable: set Jwt__SigningKey=your-secret-key-here\n" +
-                                 "  3. appsettings.Development.json (local only, never commit real keys to source control)";
+                                "  1. User Secrets: dotnet user-secrets set \"Jwt:SigningKey\" \"your-secret-key-here\"\n" +
+                                "  2. Environment Variable: set Jwt__SigningKey=your-secret-key-here\n" +
+                                "  3. appsettings.Development.json (local only, never commit real keys to source control)";
 
     if (string.IsNullOrWhiteSpace(jwtOptions.SigningKey))
     {
@@ -154,17 +156,17 @@ static void ValidateJwtOptions(JwtOptions jwtOptions, bool useInMemoryDatabase, 
     }
 }
 
-static void GetCorsOrigins(IConfiguration configuration, bool useInMemoryDatabase)
+static string[] GetCorsOrigins(IConfiguration configuration, bool useInMemoryDatabase)
 {
     var corsOrigins = configuration.GetSection($"{CorsOptions.SectionName}:AllowedOrigins").Get<string[]>();
     if (corsOrigins is { Length: > 0 })
     {
-        return;
+        return corsOrigins;
     }
 
     if (useInMemoryDatabase)
     {
-        return;
+        return new[] { "http://localhost:3000", "http://localhost:5173" };
     }
 
     throw new InvalidOperationException(
