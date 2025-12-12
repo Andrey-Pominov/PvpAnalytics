@@ -355,13 +355,15 @@ public static partial class LuaTableParser
         {
             var trimmed = line.Trim();
 
-            if (!inPlayers && trimmed.StartsWith("[\"players\"]"))
+            switch (inPlayers)
             {
-                inPlayers = true;
-                playersDepth = CalculateBraceDelta(trimmed);
+                case false when trimmed.StartsWith("[\"players\"]"):
+                    inPlayers = true;
+                    playersDepth = CalculateBraceDelta(trimmed);
+                    continue;
+                case false:
+                    continue;
             }
-
-            if (!inPlayers) continue;
 
             playersDepth += CalculateBraceDelta(trimmed);
             if (playersDepth <= 0)
