@@ -1,4 +1,3 @@
-using System.ComponentModel.DataAnnotations;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -6,7 +5,6 @@ using PvpAnalytics.Application.Services;
 using PvpAnalytics.Core.Configuration;
 using PvpAnalytics.Core.Entities;
 using PvpAnalytics.Application.Logs;
-using PvpAnalytics.Shared;
 
 namespace PvpAnalytics.Application;
 
@@ -38,21 +36,10 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IDiscussionService, DiscussionService>();
         
         // Configure WoW API with validation
+        // The [Required] attributes on WowApiOptions handle validation via ValidateDataAnnotations()
         services.AddOptions<WowApiOptions>()
             .Bind(configuration.GetSection(WowApiOptions.SectionName))
             .ValidateDataAnnotations()
-            .Validate(options =>
-            {
-                if (string.IsNullOrWhiteSpace(options.ClientId))
-                {
-                    throw new ValidationException(AppConstants.ErrorMessages.WowApiClientIdRequired);
-                }
-                if (string.IsNullOrWhiteSpace(options.ClientSecret))
-                {
-                    throw new ValidationException(AppConstants.ErrorMessages.WowApiClientSecretRequired);
-                }
-                return true;
-            }, "WowApi credentials must be configured.")
             .ValidateOnStart(); // Fail fast on startup
         
         services.AddHttpClient<WowApiService>();
