@@ -1,5 +1,3 @@
-using System;
-using System.IO;
 using System.Reflection;
 using System.Text;
 using FluentAssertions;
@@ -43,36 +41,36 @@ public class LuaTableParserTests
     public void Parse_NewFormat_ParsesMetadataEventsAndFaction()
     {
         // Arrange
-        var content = """
-                      PvPAnalyticsDB = {
-                      ["players"] = {
-                      ["Player-1"] = { ["faction"] = "Alliance", },
-                      },
-                      ["matches"] = {
-                      {
-                      ["players"] = {
-                      ["Player-1"] = { ["name"] = "Tester" },
-                      },
-                      ["events"] = {
-                      {
-                      ["type"] = "BIG_BUTTON",
-                      ["time"] = 1700000000,
-                      ["spellName"] = "Test Spell",
-                      ["source"] = "Alice",
-                      ["dest"] = "Bob",
-                      },
-                      },
-                      ["metadata"] = {
-                      ["map"] = "Test Map",
-                      ["duration"] = 10,
-                      ["mode"] = "2v2",
-                      ["endTime"] = "2025-01-01 00:01:00",
-                      ["date"] = "2025-01-01 00:00:00",
-                      },
-                      },
-                      },
-                      }
-                      """;
+        const string content = """
+                               PvPAnalyticsDB = {
+                               ["players"] = {
+                               ["Player-1"] = { ["faction"] = "Alliance", },
+                               },
+                               ["matches"] = {
+                               {
+                               ["players"] = {
+                               ["Player-1"] = { ["name"] = "Tester" },
+                               },
+                               ["events"] = {
+                               {
+                               ["type"] = "BIG_BUTTON",
+                               ["time"] = 1700000000,
+                               ["spellName"] = "Test Spell",
+                               ["source"] = "Alice",
+                               ["dest"] = "Bob",
+                               },
+                               },
+                               ["metadata"] = {
+                               ["map"] = "Test Map",
+                               ["duration"] = 10,
+                               ["mode"] = "2v2",
+                               ["endTime"] = "2025-01-01 00:01:00",
+                               ["date"] = "2025-01-01 00:00:00",
+                               },
+                               },
+                               },
+                               }
+                               """;
 
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(content));
 

@@ -103,7 +103,7 @@ public static partial class LuaTableParser
 
             // If we've closed the current match block (brace depth back to 0),
             // finalize this match and allow a new one to start later.
-            if (parserState.BraceDepth <= 0 && parserState.CurrentMatch is { Logs.Count: > 0 })
+            if (parserState is { BraceDepth: <= 0, CurrentMatch.Logs.Count: > 0 })
             {
                 matches.Add(parserState.CurrentMatch);
                 parserState.CurrentMatch = null;
@@ -301,9 +301,8 @@ public static partial class LuaTableParser
 
         var inMatchesSection = false;
 
-        for (var i = 0; i < lines.Length; i++)
+        foreach (var line in lines)
         {
-            var line = lines[i];
             var trimmed = line.Trim();
 
             if (!inMatchesSection)
@@ -327,7 +326,7 @@ public static partial class LuaTableParser
             ProcessEvents(line, trimmed, state);
             ProcessMetadata(line, trimmed, state);
 
-            if (state.MatchBraceDepth <= 0 && state.CurrentMatch is { Logs.Count: > 0 })
+            if (state is { MatchBraceDepth: <= 0, CurrentMatch.Logs.Count: > 0 })
             {
                 FinalizeNewMatch(state);
                 matches.Add(state.CurrentMatch!);
@@ -355,11 +354,7 @@ public static partial class LuaTableParser
         {
             var trimmed = line.Trim();
 
-            if (!inPlayers && trimmed.StartsWith("[\"players\"]"))
-            {
-                inPlayers = true;
-            }
-
+            inPlayers = inPlayers || trimmed.StartsWith("[\"players\"]");
             if (!inPlayers)
                 continue;
 
@@ -371,20 +366,15 @@ public static partial class LuaTableParser
                 // Don't continue - check for faction on same line (single-line format)
             }
 
-            if (currentPlayerId != null)
-            {
-                var factionMatch = FactionRegex().Match(trimmed);
-                if (factionMatch.Success)
-                {
-                    lookup[currentPlayerId] = factionMatch.Groups[1].Value.Trim();
-                }
+            if (currentPlayerId == null)
+                continue;
 
-                playerBraceDepth += CalculateBraceDelta(trimmed);
-                if (playerBraceDepth <= 0)
-                {
-                    currentPlayerId = null;
-                }
-            }
+            if (FactionRegex().Match(trimmed) is { Success: true } factionMatch)
+                lookup[currentPlayerId] = factionMatch.Groups[1].Value.Trim();
+
+            playerBraceDepth += CalculateBraceDelta(trimmed);
+            if (playerBraceDepth <= 0)
+                currentPlayerId = null;
         }
 
         return lookup;
@@ -565,11 +555,11 @@ public static partial class LuaTableParser
         var time = data.TryGetValue("time", out var timeVal) ? FormatTime(timeVal) : "00:00:00";
         var type = data.TryGetValue("type", out var typeVal)
             ? typeVal
-            : data.TryGetValue("action", out var actionVal) ? actionVal : "EVENT";
-        var spell = data.TryGetValue("spellName", out var spellVal) ? spellVal : "Unknown";
+            : data.GetValueOrDefault("action", "EVENT");
+        var spell = data.GetValueOrDefault("spellName", "Unknown");
         var source = data.TryGetValue("source", out var sourceVal)
             ? sourceVal
-            : data.TryGetValue("sourceGUID", out var guidVal) ? guidVal : "Unknown";
+            : data.GetValueOrDefault("sourceGUID", "Unknown");
         var dest = data.TryGetValue("dest", out var destVal) ? destVal : string.Empty;
 
         var log = $"{time} - {type.ToUpperInvariant()}: {spell} from {source}";
@@ -583,7 +573,7 @@ public static partial class LuaTableParser
 
     private static string UnwrapValue(string value)
     {
-        if (value.StartsWith("\"") && value.EndsWith("\"") && value.Length >= 2)
+        if (value.StartsWith('\"') && value.EndsWith('\"') && value.Length >= 2)
         {
             return value.Substring(1, value.Length - 2);
         }
