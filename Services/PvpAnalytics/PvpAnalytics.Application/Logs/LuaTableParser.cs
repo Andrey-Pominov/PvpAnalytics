@@ -347,6 +347,7 @@ public static partial class LuaTableParser
     {
         var lookup = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var inPlayers = false;
+        var playersDepth = 0;
         string? currentPlayerId = null;
         var playerBraceDepth = 0;
 
@@ -354,9 +355,20 @@ public static partial class LuaTableParser
         {
             var trimmed = line.Trim();
 
-            inPlayers = inPlayers || trimmed.StartsWith("[\"players\"]");
-            if (!inPlayers)
+            if (!inPlayers && trimmed.StartsWith("[\"players\"]"))
+            {
+                inPlayers = true;
+                playersDepth = CalculateBraceDelta(trimmed);
+            }
+
+            if (!inPlayers) continue;
+
+            playersDepth += CalculateBraceDelta(trimmed);
+            if (playersDepth <= 0)
+            {
+                inPlayers = false;
                 continue;
+            }
 
             var playerMatch = PlayerIdRegex().Match(trimmed);
             if (playerMatch.Success)
@@ -444,17 +456,6 @@ public static partial class LuaTableParser
         {
             state.CurrentEventLines.Add(line);
             state.EventObjectDepth += delta;
-
-            if (state.EventObjectDepth <= 0)
-            {
-                var logLine = ConvertEventToLogLine(state.CurrentEventLines);
-                if (!string.IsNullOrWhiteSpace(logLine))
-                {
-                    state.CurrentMatch.Logs.Add(logLine);
-                }
-
-                state.CurrentEventLines.Clear();
-            }
         }
         else if (trimmedLine == "{")
         {
@@ -466,7 +467,7 @@ public static partial class LuaTableParser
         if (state.EventObjectDepth <= 0)
         {
             var logline = ConvertEventToLogLine(state.CurrentEventLines);
-            if(!string.IsNullOrWhiteSpace(logline))
+            if (!string.IsNullOrWhiteSpace(logline))
                 state.CurrentMatch.Logs.Add(logline);
             state.EventObjectDepth = 0;
             state.CurrentEventLines.Clear();
