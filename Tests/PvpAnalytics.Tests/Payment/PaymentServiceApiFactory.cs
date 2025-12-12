@@ -113,16 +113,9 @@ public sealed class PaymentServiceApiFactory : WebApplicationFactory<PaymentServ
         using var scope = Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<PaymentDbContext>();
         
-        if (_postgresContainer is not null)
-        {
-            // Real Postgres via Testcontainers: apply migrations
-            await dbContext.Database.MigrateAsync();
-        }
-        else
-        {
-            // In-memory provider: ensure schema exists
-            await dbContext.Database.EnsureCreatedAsync();
-        }
+        // Use EnsureCreatedAsync for both providers since PaymentService has no migrations.
+        // This creates the schema based on the DbContext model.
+        await dbContext.Database.EnsureCreatedAsync();
     }
 
     public new async Task DisposeAsync()

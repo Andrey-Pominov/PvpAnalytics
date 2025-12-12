@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -25,6 +26,11 @@ public static partial class LuaTableParser
     /// </summary>
     private static List<LuaMatchData> ParseContent(string content)
     {
+        if (IsNewFormat(content))
+        {
+            return ParseNewFormat(content);
+        }
+
         // Pattern to match a match block: { ["Logs"] = { ... }, ["StartTime"] = "...", etc. }
         // We'll use a simpler approach: find all match blocks using a compiled, source-generated regex.
         var regexMatches = MatchBlockRegex().Matches(content);
@@ -92,12 +98,12 @@ public static partial class LuaTableParser
                 continue;
 
             UpdateBraceDepth(line, parserState);
-            ProcessLogsArray(line, trimmedLine, parserState);
+            ProcessEventsArray(line, trimmedLine, parserState);
             ExtractMetadataFields(line, parserState);
 
             // If we've closed the current match block (brace depth back to 0),
             // finalize this match and allow a new one to start later.
-            if (parserState.BraceDepth <= 0 && parserState.CurrentMatch is { Logs.Count: > 0 })
+            if (parserState is { BraceDepth: <= 0, CurrentMatch.Logs.Count: > 0 })
             {
                 matches.Add(parserState.CurrentMatch);
                 parserState.CurrentMatch = null;
@@ -117,6 +123,7 @@ public static partial class LuaTableParser
 
         var prevLine = lines[index - 1].Trim();
         if (prevLine != "PvPAnalyticsDB = {" &&
+            prevLine != "[\"matches\"] = {" &&
             prevLine != "{" &&
             prevLine != "}," &&
             !prevLine.EndsWith('{'))
@@ -212,7 +219,7 @@ public static partial class LuaTableParser
         public char StringChar { get; set; }
     }
 
-    private static void ProcessLogsArray(string line, string trimmedLine, ManualParserState state)
+    private static void ProcessEventsArray(string line, string trimmedLine, ManualParserState state)
     {
         if (trimmedLine.Contains("[\"Logs\"]") || trimmedLine.Contains("['Logs']"))
         {
@@ -277,6 +284,331 @@ public static partial class LuaTableParser
         }
     }
 
+    private static bool IsNewFormat(string content)
+    {
+        return content.Contains("[\"matches\"]") && content.Contains("[\"metadata\"]");
+    }
+
+    private static List<LuaMatchData> ParseNewFormat(string content)
+    {
+        var matches = new List<LuaMatchData>();
+        var lines = content.Split('\n');
+        var factionLookup = ExtractFactionMap(lines);
+        var state = new NewFormatParserState
+        {
+            PlayerFactions = factionLookup
+        };
+
+        var inMatchesSection = false;
+
+        foreach (var line in lines)
+        {
+            var trimmed = line.Trim();
+
+            if (!inMatchesSection)
+            {
+                if (trimmed.StartsWith("[\"matches\"]"))
+                {
+                    inMatchesSection = true;
+                }
+
+                continue;
+            }
+
+            if (TryStartNewMatchNew(trimmed, state))
+                continue;
+
+            if (state.CurrentMatch == null)
+                continue;
+
+            UpdateMatchBraceDepth(line, state);
+            ProcessMatchPlayers(trimmed, line, state);
+            ProcessEvents(line, trimmed, state);
+            ProcessMetadata(line, trimmed, state);
+
+            if (state is { MatchBraceDepth: <= 0, CurrentMatch.Logs.Count: > 0 })
+            {
+                FinalizeNewMatch(state);
+                matches.Add(state.CurrentMatch!);
+                state.Reset();
+            }
+        }
+
+        if (state.CurrentMatch is { Logs.Count: > 0 })
+        {
+            FinalizeNewMatch(state);
+            matches.Add(state.CurrentMatch);
+        }
+
+        return matches;
+    }
+
+    private static Dictionary<string, string> ExtractFactionMap(string[] lines)
+    {
+        var lookup = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var inPlayers = false;
+        var playersDepth = 0;
+        string? currentPlayerId = null;
+        var playerBraceDepth = 0;
+
+        foreach (var line in lines)
+        {
+            var trimmed = line.Trim();
+
+            switch (inPlayers)
+            {
+                case false when trimmed.StartsWith("[\"players\"]"):
+                    inPlayers = true;
+                    playersDepth = CalculateBraceDelta(trimmed);
+                    continue;
+                case false:
+                    continue;
+            }
+
+            playersDepth += CalculateBraceDelta(trimmed);
+            if (playersDepth <= 0)
+            {
+                inPlayers = false;
+                continue;
+            }
+
+            var playerMatch = PlayerIdRegex().Match(trimmed);
+            if (playerMatch.Success)
+            {
+                currentPlayerId = playerMatch.Groups[1].Value;
+                playerBraceDepth = Math.Max(1, CalculateBraceDelta(trimmed));
+            }
+
+            if (currentPlayerId == null)
+                continue;
+
+            if (FactionRegex().Match(trimmed) is { Success: true } factionMatch)
+                lookup[currentPlayerId] = factionMatch.Groups[1].Value.Trim();
+
+            if (!playerMatch.Success)
+                playerBraceDepth += CalculateBraceDelta(trimmed);
+            if (playerBraceDepth <= 0)
+                currentPlayerId = null;
+        }
+
+        return lookup;
+    }
+
+    private static bool TryStartNewMatchNew(string trimmedLine, NewFormatParserState state)
+    {
+        if (trimmedLine != "{" || state.CurrentMatch != null)
+            return false;
+
+        state.CurrentMatch = new LuaMatchData();
+        state.MatchBraceDepth = 1;
+        state.CurrentMatchPlayerIds.Clear();
+        state.InEventsArray = false;
+        state.InMetadata = false;
+        state.InMatchPlayers = false;
+        return true;
+    }
+
+    private static void UpdateMatchBraceDepth(string line, NewFormatParserState state)
+    {
+        state.MatchBraceDepth += CalculateBraceDelta(line);
+    }
+
+    private static void ProcessMatchPlayers(string trimmedLine, string rawLine, NewFormatParserState state)
+    {
+        if (trimmedLine.Contains("[\"players\"]"))
+        {
+            state.InMatchPlayers = true;
+            state.MatchPlayersDepth = CalculateBraceDelta(rawLine);
+            return;
+        }
+
+        if (!state.InMatchPlayers)
+            return;
+
+        state.MatchPlayersDepth += CalculateBraceDelta(rawLine);
+
+        var playerMatch = PlayerIdRegex().Match(trimmedLine);
+        if (playerMatch.Success)
+        {
+            var playerId = playerMatch.Groups[1].Value;
+            state.CurrentMatchPlayerIds.Add(playerId);
+        }
+
+        if (state.MatchPlayersDepth <= 0)
+        {
+            state.InMatchPlayers = false;
+        }
+    }
+
+    private static void ProcessEvents(string line, string trimmedLine, NewFormatParserState state)
+    {
+        if (trimmedLine.Contains("[\"events\"]"))
+        {
+            state.InEventsArray = true;
+            state.EventsArrayDepth = CalculateBraceDelta(line);
+            return;
+        }
+
+        if (!state.InEventsArray || state.CurrentMatch == null)
+            return;
+
+        var delta = CalculateBraceDelta(line);
+
+        if (state.EventObjectDepth > 0)
+        {
+            state.CurrentEventLines.Add(line);
+            state.EventObjectDepth += delta;
+        }
+        else if (trimmedLine == "{")
+        {
+            state.CurrentEventLines.Clear();
+            state.CurrentEventLines.Add(line);
+            state.EventObjectDepth = Math.Max(1, CalculateBraceDelta(line));
+        }
+
+        if (state.EventObjectDepth <= 0)
+        {
+            var logline = ConvertEventToLogLine(state.CurrentEventLines);
+            if (!string.IsNullOrWhiteSpace(logline))
+                state.CurrentMatch.Logs.Add(logline);
+            state.EventObjectDepth = 0;
+            state.CurrentEventLines.Clear();
+        }
+
+        state.EventsArrayDepth += delta;
+        if (state.EventsArrayDepth <= 0)
+        {
+            state.InEventsArray = false;
+            state.EventObjectDepth = 0;
+            state.CurrentEventLines.Clear();
+        }
+    }
+
+    private static void ProcessMetadata(string line, string trimmedLine, NewFormatParserState state)
+    {
+        if (trimmedLine.Contains("[\"metadata\"]"))
+        {
+            state.InMetadata = true;
+            state.MetadataDepth = CalculateBraceDelta(line);
+            return;
+        }
+
+        if (!state.InMetadata || state.CurrentMatch == null)
+            return;
+
+        ExtractField(line, DateRegex(), value => state.CurrentMatch.StartTime = value.Trim());
+        ExtractField(line, EndTimeLowerRegex(), value => state.CurrentMatch.EndTime = value.Trim());
+        ExtractField(line, MapRegex(), value => state.CurrentMatch.Zone = value.Trim());
+        ExtractField(line, ModeLowerRegex(), value => state.CurrentMatch.Mode = value.Trim());
+
+        state.MetadataDepth += CalculateBraceDelta(line);
+        if (state.MetadataDepth <= 0)
+        {
+            state.InMetadata = false;
+        }
+    }
+
+    private static void FinalizeNewMatch(NewFormatParserState state)
+    {
+        if (state.CurrentMatch == null)
+            return;
+
+        foreach (var playerId in state.CurrentMatchPlayerIds)
+        {
+            if (state.PlayerFactions.TryGetValue(playerId, out var faction))
+            {
+                state.CurrentMatch.Faction = faction;
+                break;
+            }
+        }
+    }
+
+    private static int CalculateBraceDelta(string line)
+    {
+        var delta = 0;
+        var stringState = new StringState();
+
+        for (var i = 0; i < line.Length; i++)
+        {
+            var c = line[i];
+
+            if (IsQuote(c) && ProcessQuote(line, i, c, ref stringState)) continue;
+
+            if (stringState.InsideString)
+                continue;
+
+            if (c == '{')
+                delta++;
+            else if (c == '}')
+                delta--;
+        }
+
+        return delta;
+    }
+
+    private static string ConvertEventToLogLine(List<string> eventLines)
+    {
+        if (eventLines.Count == 0)
+            return string.Empty;
+
+        var data = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var line in eventLines)
+        {
+            var match = EventFieldRegex().Match(line.Trim());
+            if (!match.Success)
+                continue;
+
+            var key = match.Groups[1].Value;
+            var rawValue = match.Groups[2].Value.Trim().TrimEnd(',');
+            data[key] = UnwrapValue(rawValue);
+        }
+
+        var time = data.TryGetValue("time", out var timeVal) ? FormatTime(timeVal) : "00:00:00";
+        var type = data.TryGetValue("type", out var typeVal)
+            ? typeVal
+            : data.GetValueOrDefault("action", "EVENT");
+        var spell = data.GetValueOrDefault("spellName", "Unknown");
+        var source = data.TryGetValue("source", out var sourceVal)
+            ? sourceVal
+            : data.GetValueOrDefault("sourceGUID", "Unknown");
+        var dest = data.TryGetValue("dest", out var destVal) ? destVal : string.Empty;
+
+        var log = $"{time} - {type.ToUpperInvariant()}: {spell} from {source}";
+        if (!string.IsNullOrWhiteSpace(dest))
+        {
+            log += $" to {dest}";
+        }
+
+        return log;
+    }
+
+    private static string UnwrapValue(string value)
+    {
+        if (value.StartsWith('\"') && value.EndsWith('\"') && value.Length >= 2)
+        {
+            return value.Substring(1, value.Length - 2);
+        }
+
+        return value;
+    }
+
+    private static string FormatTime(string value)
+    {
+        if (!double.TryParse(value, NumberStyles.Any, CultureInfo.InvariantCulture, out var timeSeconds))
+            return value;
+
+        try
+        {
+            var dto = DateTimeOffset.FromUnixTimeSeconds((long)Math.Floor(timeSeconds)).ToUniversalTime();
+            return dto.ToString("HH:mm:ss");
+        }
+        catch
+        {
+            return timeSeconds.ToString("F0", CultureInfo.InvariantCulture);
+        }
+    }
+
     private sealed class ManualParserState
     {
         public LuaMatchData? CurrentMatch { get; set; }
@@ -284,10 +616,56 @@ public static partial class LuaTableParser
         public int BraceDepth { get; set; }
     }
 
+    private sealed class NewFormatParserState
+    {
+        public LuaMatchData? CurrentMatch { get; set; }
+        public bool InEventsArray { get; set; }
+        public int EventsArrayDepth { get; set; }
+        public int EventObjectDepth { get; set; }
+        public List<string> CurrentEventLines { get; } = new();
+        public bool InMetadata { get; set; }
+        public int MetadataDepth { get; set; }
+        public bool InMatchPlayers { get; set; }
+        public int MatchPlayersDepth { get; set; }
+        public int MatchBraceDepth { get; set; }
+        public List<string> CurrentMatchPlayerIds { get; } = new();
+        public Dictionary<string, string> PlayerFactions { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+        public void Reset()
+        {
+            CurrentMatch = null;
+            InEventsArray = false;
+            EventsArrayDepth = 0;
+            EventObjectDepth = 0;
+            CurrentEventLines.Clear();
+            InMetadata = false;
+            MetadataDepth = 0;
+            InMatchPlayers = false;
+            MatchPlayersDepth = 0;
+            MatchBraceDepth = 0;
+            CurrentMatchPlayerIds.Clear();
+        }
+    }
+
     [GeneratedRegex("""
                     \{[\s\S]*?\["Logs"\]\s*=\s*\{([\s\S]*?)\},[\s\S]*?\["StartTime"\]\s*=\s*"([^"]+)",[\s\S]*?\["EndTime"\]\s*=\s*"([^"]+)",[\s\S]*?\["Zone"\]\s*=\s*"([^"]+)",[\s\S]*?\["Faction"\]\s*=\s*"([^"]+)",[\s\S]*?\["Mode"\]\s*=\s*"([^"]+)",[\s\S]*?\}
                     """, RegexOptions.Multiline)]
     private static partial Regex MatchBlockRegex();
+
+    [GeneratedRegex("""
+                    \["([^\"]+)"\]\s*=\s*(.+)
+                    """)]
+    private static partial Regex EventFieldRegex();
+
+    [GeneratedRegex("""
+                    \["(Player-[^"]+)"\]\s*=\s*\{
+                    """)]
+    private static partial Regex PlayerIdRegex();
+
+    [GeneratedRegex("""
+                    \["faction"\]\s*=\s*"([^"]+)"
+                    """)]
+    private static partial Regex FactionRegex();
 
     [GeneratedRegex("""
                     "([^"\\]*(\\.[^"\\]*)*)"
@@ -323,4 +701,24 @@ public static partial class LuaTableParser
                     \["Mode"\]\s*=\s*"([^"]+)"
                     """)]
     private static partial Regex MyRegex5();
+
+    [GeneratedRegex("""
+                    \["date"\]\s*=\s*"([^"]+)"
+                    """)]
+    private static partial Regex DateRegex();
+
+    [GeneratedRegex("""
+                    \["endTime"\]\s*=\s*"([^"]+)"
+                    """)]
+    private static partial Regex EndTimeLowerRegex();
+
+    [GeneratedRegex("""
+                    \["map"\]\s*=\s*"([^"]+)"
+                    """)]
+    private static partial Regex MapRegex();
+
+    [GeneratedRegex("""
+                    \["mode"\]\s*=\s*"([^"]+)"
+                    """)]
+    private static partial Regex ModeLowerRegex();
 }
