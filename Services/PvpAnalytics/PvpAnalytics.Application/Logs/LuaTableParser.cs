@@ -362,8 +362,7 @@ public static partial class LuaTableParser
             if (playerMatch.Success)
             {
                 currentPlayerId = playerMatch.Groups[1].Value;
-                playerBraceDepth = 1;
-                // Don't continue - check for faction on same line (single-line format)
+                playerBraceDepth = Math.Max(1, CalculateBraceDelta(trimmed));
             }
 
             if (currentPlayerId == null)
@@ -372,7 +371,8 @@ public static partial class LuaTableParser
             if (FactionRegex().Match(trimmed) is { Success: true } factionMatch)
                 lookup[currentPlayerId] = factionMatch.Groups[1].Value.Trim();
 
-            playerBraceDepth += CalculateBraceDelta(trimmed);
+            if (!playerMatch.Success)
+                playerBraceDepth += CalculateBraceDelta(trimmed);
             if (playerBraceDepth <= 0)
                 currentPlayerId = null;
         }
@@ -458,9 +458,18 @@ public static partial class LuaTableParser
         }
         else if (trimmedLine == "{")
         {
-            state.EventObjectDepth = 1;
             state.CurrentEventLines.Clear();
             state.CurrentEventLines.Add(line);
+            state.EventObjectDepth = Math.Max(1, CalculateBraceDelta(line));
+        }
+
+        if (state.EventObjectDepth <= 0)
+        {
+            var logline = ConvertEventToLogLine(state.CurrentEventLines);
+            if(!string.IsNullOrWhiteSpace(logline))
+                state.CurrentMatch.Logs.Add(logline);
+            state.EventObjectDepth = 0;
+            state.CurrentEventLines.Clear();
         }
 
         state.EventsArrayDepth += delta;
