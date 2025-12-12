@@ -404,7 +404,7 @@ public static partial class LuaTableParser
         if (trimmedLine.Contains("[\"players\"]"))
         {
             state.InMatchPlayers = true;
-            state.MatchPlayersDepth = 1;
+            state.MatchPlayersDepth = CalculateBraceDelta(rawLine);
             return;
         }
 
@@ -431,7 +431,7 @@ public static partial class LuaTableParser
         if (trimmedLine.Contains("[\"events\"]"))
         {
             state.InEventsArray = true;
-            state.EventsArrayDepth = 1;
+            state.EventsArrayDepth = CalculateBraceDelta(line);
             return;
         }
 
@@ -477,7 +477,7 @@ public static partial class LuaTableParser
         if (trimmedLine.Contains("[\"metadata\"]"))
         {
             state.InMetadata = true;
-            state.MetadataDepth = 1;
+            state.MetadataDepth = CalculateBraceDelta(line);
             return;
         }
 
