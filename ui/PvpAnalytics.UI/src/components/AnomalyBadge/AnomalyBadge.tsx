@@ -21,8 +21,8 @@ const AnomalyBadge = ({ anomaly, label, className = '' }: AnomalyBadgeProps) => 
       <span
         className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold ${
           anomaly.zScore > 0
-            ? 'bg-amber-500/20 text-amber-200'
-            : 'bg-blue-500/20 text-blue-200'
+            ? 'bg-[var(--color-warning-bg)] text-[var(--color-warning-text)]'
+            : 'bg-[var(--color-info-bg)] text-[var(--color-info-text)]'
         } ${className}`}
       >
         <svg

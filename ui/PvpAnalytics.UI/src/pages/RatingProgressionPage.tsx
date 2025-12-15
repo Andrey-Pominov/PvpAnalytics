@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import axios from 'axios'
 import Card from '../components/Card/Card'
-import { mockRatingProgression } from '../mocks/ratingProgression'
 
 const RatingProgressionPage = () => {
   const { playerId } = useParams<{ playerId: string }>()
@@ -14,20 +13,11 @@ const RatingProgressionPage = () => {
     
     setLoading(true)
     const baseUrl = import.meta.env.VITE_ANALYTICS_API_BASE_URL || 'http://localhost:8080/api'
-    
-    if (baseUrl === 'mock') {
-      setTimeout(() => {
-        setData(mockRatingProgression)
-        setLoading(false)
-      }, 500)
-      return
-    }
 
     axios.get(`${baseUrl}/rating-progression/${playerId}`)
-      .then(response => setData(response.data || mockRatingProgression))
+      .then(response => setData(response.data))
       .catch(error => {
         console.error('Error loading rating progression, using mock data:', error)
-        setData(mockRatingProgression)
       })
       .finally(() => setLoading(false))
   }, [playerId])
@@ -48,8 +38,8 @@ const RatingProgressionPage = () => {
           </div>
           <div>
             <p>Net Change: <span className="font-bold">{data.summary.netRatingChange}</span></p>
-            <p>Total Gain: <span className="font-bold text-green-600">{data.summary.totalRatingGain}</span></p>
-            <p>Total Loss: <span className="font-bold text-red-600">{data.summary.totalRatingLoss}</span></p>
+            <p>Total Gain: <span className="font-bold text-[var(--color-success-text)]">{data.summary.totalRatingGain}</span></p>
+            <p>Total Loss: <span className="font-bold text-[var(--color-error-text)]">{data.summary.totalRatingLoss}</span></p>
           </div>
         </div>
         <div className="mt-6">
@@ -57,9 +47,9 @@ const RatingProgressionPage = () => {
           <div className="space-y-2">
             {data.dataPoints.slice(-10).map((point: any) => {
               const getRatingChangeColor = () => {
-                if (point.ratingChange > 0) return 'text-green-600'
-                if (point.ratingChange < 0) return 'text-red-600'
-                return 'text-gray-600'
+                if (point.ratingChange > 0) return 'text-[var(--color-success-text)]'
+                if (point.ratingChange < 0) return 'text-[var(--color-error-text)]'
+                return 'text-text-muted'
               }
               
               return (

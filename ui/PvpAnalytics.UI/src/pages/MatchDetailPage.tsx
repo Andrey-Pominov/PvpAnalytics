@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import Card from '../components/Card/Card'
 import Timeline from '../components/Timeline/Timeline'
+import { getWoWClassColors, getErrorStyles, getVictoryColors, getDefeatColors, getRatingChangeColor } from '../utils/themeColors'
 import type { MatchDetailDto } from '../types/api'
 
 const MatchDetailPage = () => {
@@ -133,22 +134,8 @@ const MatchDetailPage = () => {
   }
 
   const getClassColor = (className: string) => {
-    const colors: Record<string, string> = {
-      warrior: 'bg-red-500/20 text-red-300',
-      paladin: 'bg-pink-500/20 text-pink-300',
-      hunter: 'bg-green-500/20 text-green-300',
-      rogue: 'bg-yellow-500/20 text-yellow-300',
-      priest: 'bg-white/20 text-white',
-      shaman: 'bg-blue-500/20 text-blue-300',
-      mage: 'bg-cyan-500/20 text-cyan-300',
-      warlock: 'bg-purple-500/20 text-purple-300',
-      monk: 'bg-teal-500/20 text-teal-300',
-      druid: 'bg-orange-500/20 text-orange-300',
-      'death knight': 'bg-red-600/20 text-red-400',
-      'demon hunter': 'bg-purple-600/20 text-purple-400',
-      evoker: 'bg-emerald-500/20 text-emerald-300',
-    }
-    return colors[className.toLowerCase()] || 'bg-accent/20 text-accent'
+    const colors = getWoWClassColors(className)
+    return `${colors.bg} ${colors.text}`
   }
 
   if (loading) {
@@ -162,7 +149,7 @@ const MatchDetailPage = () => {
   if (error || !matchDetail) {
     return (
       <div className="flex flex-col gap-6">
-        <div className="rounded-2xl border border-rose-400/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+        <div className={`rounded-2xl border px-4 py-3 text-sm ${getErrorStyles()}`}>
           {error || 'Match not found'}
         </div>
         <button
@@ -221,9 +208,9 @@ const MatchDetailPage = () => {
             </div>
           </div>
           {winningTeam && (
-            <div className="rounded-lg bg-emerald-500/20 px-4 py-2">
-              <div className="text-xs font-semibold uppercase text-emerald-200">Winner</div>
-              <div className="text-lg font-bold text-emerald-100">{winningTeam.teamName}</div>
+            <div className={`rounded-lg px-4 py-2 ${getVictoryColors().bg}`}>
+              <div className={`text-xs font-semibold uppercase ${getVictoryColors().text}`}>Winner</div>
+              <div className={`text-lg font-bold ${getVictoryColors().text}`}>{winningTeam.teamName}</div>
             </div>
           )}
         </div>
@@ -265,11 +252,11 @@ const MatchDetailPage = () => {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-lg bg-surface/50 p-4">
                     <div>
                       <div className="text-xs text-text-muted">Total Damage</div>
-                      <div className="text-lg font-bold text-red-300">{team.totalDamage.toLocaleString()}</div>
+                      <div className={`text-lg font-bold text-[var(--color-error-text)]`}>{team.totalDamage.toLocaleString()}</div>
                     </div>
                     <div>
                       <div className="text-xs text-text-muted">Total Healing</div>
-                      <div className="text-lg font-bold text-green-300">{team.totalHealing.toLocaleString()}</div>
+                      <div className={`text-lg font-bold text-[var(--color-success-text)]`}>{team.totalHealing.toLocaleString()}</div>
                     </div>
                   </div>
 
@@ -286,7 +273,7 @@ const MatchDetailPage = () => {
                               <h3 className="font-semibold text-text">{participant.playerName}</h3>
                               <span className="text-sm text-text-muted">{participant.realm}</span>
                               {participant.isWinner && (
-                                <span className="rounded-full bg-emerald-500/20 px-2 py-1 text-xs font-semibold text-emerald-200">
+                                <span className={`rounded-full px-2 py-1 text-xs font-semibold ${getVictoryColors().bg} ${getVictoryColors().text}`}>
                                   Winner
                                 </span>
                               )}
@@ -306,20 +293,9 @@ const MatchDetailPage = () => {
                             <div className="text-xs text-text-muted">Rating</div>
                             <div className="flex items-center gap-1 text-sm">
                               <span className="text-text-muted">{participant.ratingBefore}</span>
-                              {(() => {
-                                let ratingColor = 'text-text-muted'
-                                if (participant.ratingAfter > participant.ratingBefore) {
-                                  ratingColor = 'text-emerald-300'
-                                } else if (participant.ratingAfter < participant.ratingBefore) {
-                                  ratingColor = 'text-rose-300'
-                                }
-
-                                return (
-                                  <span className={ratingColor}>
-                                    →
-                                  </span>
-                                )
-                              })()}
+                              <span className={getRatingChangeColor(participant.ratingAfter - participant.ratingBefore)}>
+                                →
+                              </span>
                               <span className="font-semibold text-text">{participant.ratingAfter}</span>
                             </div>
                           </div>
@@ -327,17 +303,17 @@ const MatchDetailPage = () => {
                         <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
                           <div>
                             <div className="text-text-muted">Damage</div>
-                            <div className="font-semibold text-red-300">{participant.totalDamage.toLocaleString()}</div>
+                            <div className={`font-semibold text-[var(--color-error-text)]`}>{participant.totalDamage.toLocaleString()}</div>
                           </div>
                           <div>
                             <div className="text-text-muted">Healing</div>
-                            <div className="font-semibold text-green-300">
+                            <div className={`font-semibold text-[var(--color-success-text)]`}>
                               {participant.totalHealing.toLocaleString()}
                             </div>
                           </div>
                           <div>
                             <div className="text-text-muted">CC</div>
-                            <div className="font-semibold text-purple-300">{participant.totalCC}</div>
+                            <div className={`font-semibold text-[var(--class-warlock)]`}>{participant.totalCC}</div>
                           </div>
                         </div>
                       </div>

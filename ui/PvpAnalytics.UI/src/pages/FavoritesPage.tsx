@@ -70,7 +70,7 @@ const FavoritesPage = () => {
               <h3 className="text-base sm:text-lg font-semibold">{favorite.playerName}</h3>
               <button
                 onClick={() => handleRemove(favorite.targetPlayerId)}
-                className="text-red-600 hover:text-red-700 text-sm"
+                className="text-[var(--color-error-text)] hover:opacity-80 text-sm"
               >
                 Remove
               </button>

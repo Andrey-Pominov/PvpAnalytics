@@ -11,10 +11,13 @@ interface SparklineProps {
 const Sparkline = ({
   values,
   comparisonValues,
-  stroke = '#6c8bff',
-  comparisonStroke = '#94a3b8',
+  stroke,
+  comparisonStroke,
   showComparison = false,
 }: SparklineProps) => {
+  // Use CSS variables if stroke colors not provided
+  const mainStroke = stroke || 'var(--sparkline-stroke)'
+  const compStroke = comparisonStroke || 'var(--sparkline-comparison)'
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
 
   if (values.length === 0) {
@@ -56,7 +59,7 @@ const Sparkline = ({
         {showComparison && comparisonPoints && (
           <polyline
             points={comparisonPoints}
-            stroke={comparisonStroke}
+            stroke={compStroke}
             strokeWidth={2}
             strokeDasharray="4 4"
             strokeLinecap="round"
@@ -68,7 +71,7 @@ const Sparkline = ({
         {/* Main line */}
         <polyline
           points={points}
-          stroke={stroke}
+          stroke={mainStroke}
           strokeWidth={3}
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -85,7 +88,7 @@ const Sparkline = ({
               cx={x}
               cy={y}
               r={hoveredIndex === index ? 4 : 0}
-              fill={stroke}
+              fill={mainStroke}
               className="transition-all"
               onMouseEnter={() => setHoveredIndex(index)}
               style={{ cursor: 'pointer' }}
@@ -94,7 +97,7 @@ const Sparkline = ({
         })}
       </svg>
       {hoveredIndex !== null && (
-        <div className="absolute bottom-full left-1/2 mb-2 -translate-x-1/2 rounded bg-gray-900 px-2 py-1 text-xs text-white">
+        <div className="absolute bottom-full left-1/2 mb-2 -translate-x-1/2 rounded px-2 py-1 text-xs" style={{ backgroundColor: 'var(--sparkline-tooltip-bg)', color: 'var(--sparkline-tooltip-text)' }}>
           {values[hoveredIndex]}
         </div>
       )}

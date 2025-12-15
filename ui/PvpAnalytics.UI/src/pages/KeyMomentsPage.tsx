@@ -44,8 +44,8 @@ const KeyMomentsPage = () => {
               </div>
               <div className="text-left sm:text-right flex-shrink-0">
                 <p className="text-xs sm:text-sm font-semibold">{moment.timestamp}s</p>
-                {moment.damageDone && <p className="text-xs sm:text-sm text-red-600">{moment.damageDone.toLocaleString()} damage</p>}
-                {moment.healingDone && <p className="text-xs sm:text-sm text-green-600">{moment.healingDone.toLocaleString()} healing</p>}
+                {moment.damageDone && <p className="text-xs sm:text-sm text-[var(--color-error-text)]">{moment.damageDone.toLocaleString()} damage</p>}
+                {moment.healingDone && <p className="text-xs sm:text-sm text-[var(--color-success-text)]">{moment.healingDone.toLocaleString()} healing</p>}
               </div>
             </div>
           </Card>

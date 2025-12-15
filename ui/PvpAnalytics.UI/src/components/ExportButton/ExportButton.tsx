@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { exportToCSV, exportToJSON } from '../../utils/exportUtils'
 import { getSecureRandomId } from '../../utils/secureRandom'
 
@@ -20,7 +20,7 @@ const ExportButton = <T extends Record<string, unknown>>({
   const [showMenu, setShowMenu] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
-  const menuId = getSecureRandomId('export-menu')
+  const menuId = useMemo(() => getSecureRandomId('export-menu'), [])
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -120,13 +120,13 @@ const ExportButton = <T extends Record<string, unknown>>({
           id={menuId}
           role="menu"
           aria-label="Export options"
-          className="absolute right-0 top-full z-20 mt-2 w-40 rounded-lg border border-accent-muted/40 bg-surface/95 shadow-lg backdrop-blur-lg"
+          className="dropdown-menu absolute right-0 top-full z-20 mt-2 w-40 rounded-lg border backdrop-blur-lg"
         >
           <button
             type="button"
             role="menuitem"
             onClick={handleExportCSV}
-            className="w-full rounded-t-lg px-4 py-2 text-left text-sm text-text transition-colors hover:bg-surface/70"
+            className="menu-item w-full rounded-t-lg px-4 py-2 text-left text-sm text-text"
             tabIndex={0}
           >
             Export as CSV

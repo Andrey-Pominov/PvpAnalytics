@@ -1,5 +1,6 @@
 import Card from '../Card/Card'
 import Tooltip from '../Tooltip/Tooltip'
+import { getSuccessColors, getWarningColors, getErrorColors } from '../../utils/themeColors'
 import type { ForecastResult } from '../../utils/statisticsUtils'
 
 interface ForecastCardProps {
@@ -18,15 +19,15 @@ const ForecastCard = ({
   className = '',
 }: ForecastCardProps) => {
   const confidenceColors = {
-    high: 'text-emerald-300',
-    medium: 'text-amber-300',
-    low: 'text-rose-300',
+    high: getSuccessColors().text,
+    medium: getWarningColors().text,
+    low: getErrorColors().text,
   }
 
   const confidenceBgColors = {
-    high: 'bg-emerald-500/20',
-    medium: 'bg-amber-500/20',
-    low: 'bg-rose-500/20',
+    high: getSuccessColors().bg,
+    medium: getWarningColors().bg,
+    low: getErrorColors().bg,
   }
 
   const trendIcons = {
@@ -36,8 +37,8 @@ const ForecastCard = ({
   }
 
   const trendColors = {
-    increasing: 'text-emerald-300',
-    decreasing: 'text-rose-300',
+    increasing: getSuccessColors().text,
+    decreasing: getErrorColors().text,
     stable: 'text-text-muted',
   }
 

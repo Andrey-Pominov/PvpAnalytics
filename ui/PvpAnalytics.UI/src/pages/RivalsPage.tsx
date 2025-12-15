@@ -79,7 +79,7 @@ const RivalsPage = () => {
               </div>
               <button
                 onClick={() => handleRemove(rival.id)}
-                className="text-red-600 hover:text-red-700 text-sm"
+                className="text-[var(--color-error-text)] hover:opacity-80 text-sm"
               >
                 Remove
               </button>
@@ -93,7 +93,7 @@ const RivalsPage = () => {
                 <>
                   <p>Wins: <span className="font-semibold">{rival.wins ?? 0}</span></p>
                   <p>Losses: <span className="font-semibold">{rival.losses ?? 0}</span></p>
-                  <p>Win Rate: <span className={`font-semibold ${rival.winRate > 50 ? 'text-green-600' : 'text-red-600'}`}>{rival.winRate.toFixed(1)}%</span></p>
+                  <p>Win Rate: <span className={`font-semibold ${rival.winRate > 50 ? 'text-[var(--color-success-text)]' : 'text-[var(--color-error-text)]'}`}>{rival.winRate.toFixed(1)}%</span></p>
                 </>
               ) : (
                 <p className="col-span-2 text-text-muted text-xs">Stats unavailable - add favorite players to track your performance</p>

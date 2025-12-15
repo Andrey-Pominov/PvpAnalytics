@@ -10,13 +10,248 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  color: theme('colors.text.DEFAULT');
-  background-color: theme('colors.background');
+}
+
+/* Dark theme (default) */
+:root,
+:root.dark {
+  /* Base colors */
+  --color-background: #070d1f;
+  --color-accent: #4076ff;
+  --color-accent-muted: #20355c;
+  --color-surface: #101933;
+  --color-text: #f5f7ff;
+  --color-text-muted: #94a3c8;
+  --shadow-card: 0 16px 40px rgba(16, 25, 51, 0.35);
+  
+  /* Layout gradients */
+  --bg-gradient-from: rgba(14, 31, 61, 0.85);
+  --bg-gradient-to: rgba(8, 14, 29, 0.92);
+  
+  /* Glow effects */
+  --bg-glow-1: rgba(84, 117, 255, 0.2);
+  --bg-glow-2: rgba(99, 201, 255, 0.2);
+  --bg-glow-3: rgba(40, 63, 122, 0.3);
+  --bg-glow-opacity: 0.85;
+  
+  /* Component-specific styles */
+  --dropdown-bg: rgba(16, 25, 51, 0.95);
+  --dropdown-border: rgba(32, 53, 92, 0.3);
+  --dropdown-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+  --sidebar-bg: rgba(16, 25, 51, 0.95);
+  --sidebar-border: rgba(32, 53, 92, 0.3);
+  --search-input-bg: rgba(7, 13, 31, 0.8);
+  --search-input-border: rgba(32, 53, 92, 0.5);
+  --menu-item-hover: rgba(64, 118, 255, 0.2);
+  --menu-item-active: rgba(64, 118, 255, 0.3);
+  
+  /* Semantic colors */
+  --color-success: #10b981;
+  --color-success-text: #6ee7b7;
+  --color-success-bg: rgba(16, 185, 129, 0.2);
+  --color-success-border: rgba(16, 185, 129, 0.4);
+  
+  --color-error: #ef4444;
+  --color-error-text: #fca5a5;
+  --color-error-bg: rgba(239, 68, 68, 0.2);
+  --color-error-border: rgba(239, 68, 68, 0.4);
+  
+  --color-warning: #f59e0b;
+  --color-warning-text: #fcd34d;
+  --color-warning-bg: rgba(245, 158, 11, 0.2);
+  --color-warning-border: rgba(245, 158, 11, 0.4);
+  
+  --color-info: #3b82f6;
+  --color-info-text: #93c5fd;
+  --color-info-bg: rgba(59, 130, 246, 0.2);
+  --color-info-border: rgba(59, 130, 246, 0.4);
+  
+  /* Status colors */
+  --color-victory: var(--color-success);
+  --color-victory-text: var(--color-success-text);
+  --color-victory-bg: var(--color-success-bg);
+  --color-victory-border: var(--color-success-border);
+  
+  --color-defeat: var(--color-error);
+  --color-defeat-text: var(--color-error-text);
+  --color-defeat-bg: var(--color-error-bg);
+  --color-defeat-border: var(--color-error-border);
+  
+  /* WoW Class Colors */
+  --class-warrior: #c69b6d;
+  --class-paladin: #f48cba;
+  --class-hunter: #aad372;
+  --class-rogue: #fff468;
+  --class-priest: #ffffff;
+  --class-shaman: #0070dd;
+  --class-mage: #3fc7eb;
+  --class-warlock: #8788ee;
+  --class-monk: #00ff96;
+  --class-druid: #ff7c0a;
+  --class-death-knight: #c41e3a;
+  --class-demon-hunter: #a330c9;
+  --class-evoker: #33937f;
+  
+  /* WoW Class Background Colors */
+  --class-warrior-bg: rgba(198, 155, 109, 0.2);
+  --class-paladin-bg: rgba(244, 140, 186, 0.2);
+  --class-hunter-bg: rgba(170, 211, 114, 0.2);
+  --class-rogue-bg: rgba(255, 244, 104, 0.2);
+  --class-priest-bg: rgba(255, 255, 255, 0.2);
+  --class-shaman-bg: rgba(0, 112, 221, 0.2);
+  --class-mage-bg: rgba(63, 199, 235, 0.2);
+  --class-warlock-bg: rgba(135, 136, 238, 0.2);
+  --class-monk-bg: rgba(0, 255, 150, 0.2);
+  --class-druid-bg: rgba(255, 124, 10, 0.2);
+  --class-death-knight-bg: rgba(196, 30, 58, 0.2);
+  --class-demon-hunter-bg: rgba(163, 48, 201, 0.2);
+  --class-evoker-bg: rgba(51, 147, 127, 0.2);
+  
+  /* Faction colors */
+  --faction-alliance: #0078d4;
+  --faction-alliance-text: #60a5fa;
+  --faction-alliance-bg: rgba(0, 120, 212, 0.2);
+  --faction-horde: #c41e3a;
+  --faction-horde-text: #f87171;
+  --faction-horde-bg: rgba(196, 30, 58, 0.2);
+  
+  /* Sparkline colors */
+  --sparkline-stroke: #6c8bff;
+  --sparkline-comparison: #94a3c8;
+  --sparkline-tooltip-bg: rgba(17, 24, 39, 0.95);
+  --sparkline-tooltip-text: #ffffff;
+  
+  /* Player card background */
+  --player-card-bg: rgba(255, 255, 255, 0.05);
+}
+
+/* Light theme */
+:root.light {
+  /* Base colors */
+  --color-background: #f8fafc;
+  --color-accent: #4076ff;
+  --color-accent-muted: #cbd5e1;
+  --color-surface: #ffffff;
+  --color-text: #0f172a;
+  --color-text-muted: #64748b;
+  --shadow-card: 0 16px 40px rgba(0, 0, 0, 0.1);
+  
+  /* Layout gradients */
+  --bg-gradient-from: rgba(239, 246, 255, 0.9);
+  --bg-gradient-to: rgba(248, 250, 252, 0.95);
+  
+  /* Glow effects */
+  --bg-glow-1: rgba(99, 201, 255, 0.15);
+  --bg-glow-2: rgba(147, 197, 253, 0.15);
+  --bg-glow-3: rgba(191, 219, 254, 0.2);
+  --bg-glow-opacity: 0.4;
+  
+  /* Component-specific styles - Light theme */
+  --dropdown-bg: rgba(255, 255, 255, 0.98);
+  --dropdown-border: rgba(203, 213, 225, 0.5);
+  --dropdown-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.05);
+  --sidebar-bg: rgba(255, 255, 255, 0.98);
+  --sidebar-border: rgba(203, 213, 225, 0.5);
+  --search-input-bg: rgba(255, 255, 255, 0.9);
+  --search-input-border: rgba(203, 213, 225, 0.6);
+  --menu-item-hover: rgba(64, 118, 255, 0.1);
+  --menu-item-active: rgba(64, 118, 255, 0.15);
+  
+  /* Semantic colors - Light theme */
+  --color-success: #059669;
+  --color-success-text: #047857;
+  --color-success-bg: rgba(5, 150, 105, 0.15);
+  --color-success-border: rgba(5, 150, 105, 0.3);
+  
+  --color-error: #dc2626;
+  --color-error-text: #b91c1c;
+  --color-error-bg: rgba(220, 38, 38, 0.15);
+  --color-error-border: rgba(220, 38, 38, 0.3);
+  
+  --color-warning: #d97706;
+  --color-warning-text: #b45309;
+  --color-warning-bg: rgba(217, 119, 6, 0.15);
+  --color-warning-border: rgba(217, 119, 6, 0.3);
+  
+  --color-info: #2563eb;
+  --color-info-text: #1e40af;
+  --color-info-bg: rgba(37, 99, 235, 0.15);
+  --color-info-border: rgba(37, 99, 235, 0.3);
+  
+  /* Status colors */
+  --color-victory: var(--color-success);
+  --color-victory-text: var(--color-success-text);
+  --color-victory-bg: var(--color-success-bg);
+  --color-victory-border: var(--color-success-border);
+  
+  --color-defeat: var(--color-error);
+  --color-defeat-text: var(--color-error-text);
+  --color-defeat-bg: var(--color-error-bg);
+  --color-defeat-border: var(--color-error-border);
+  
+  /* WoW Class Colors - Light theme (darker for contrast) */
+  --class-warrior: #8b6914;
+  --class-paladin: #c2185b;
+  --class-hunter: #6b8e23;
+  --class-rogue: #b8860b;
+  --class-priest: #4a5568;
+  --class-shaman: #0052a3;
+  --class-mage: #0284c7;
+  --class-warlock: #5b5bc7;
+  --class-monk: #009966;
+  --class-druid: #cc6600;
+  --class-death-knight: #8b1538;
+  --class-demon-hunter: #7a2499;
+  --class-evoker: #1e6b5e;
+  
+  /* WoW Class Background Colors - Light theme */
+  --class-warrior-bg: rgba(139, 105, 20, 0.15);
+  --class-paladin-bg: rgba(194, 24, 91, 0.15);
+  --class-hunter-bg: rgba(107, 142, 35, 0.15);
+  --class-rogue-bg: rgba(184, 134, 11, 0.15);
+  --class-priest-bg: rgba(74, 85, 104, 0.15);
+  --class-shaman-bg: rgba(0, 82, 163, 0.15);
+  --class-mage-bg: rgba(2, 132, 199, 0.15);
+  --class-warlock-bg: rgba(91, 91, 199, 0.15);
+  --class-monk-bg: rgba(0, 153, 102, 0.15);
+  --class-druid-bg: rgba(204, 102, 0, 0.15);
+  --class-death-knight-bg: rgba(139, 21, 56, 0.15);
+  --class-demon-hunter-bg: rgba(122, 36, 153, 0.15);
+  --class-evoker-bg: rgba(30, 107, 94, 0.15);
+  
+  /* Faction colors - Light theme */
+  --faction-alliance: #005a9e;
+  --faction-alliance-text: #1e40af;
+  --faction-alliance-bg: rgba(0, 90, 158, 0.15);
+  --faction-horde: #8b1538;
+  --faction-horde-text: #991b1b;
+  --faction-horde-bg: rgba(139, 21, 56, 0.15);
+  
+  /* Sparkline colors - Light theme */
+  --sparkline-stroke: #4076ff;
+  --sparkline-comparison: #64748b;
+  --sparkline-tooltip-bg: rgba(15, 23, 42, 0.95);
+  --sparkline-tooltip-text: #ffffff;
+  
+  /* Player card background - Light theme */
+  --player-card-bg: rgba(0, 0, 0, 0.03);
+}
+
+:root {
+  color: var(--color-text);
+  background-color: var(--color-background);
 }
 
 body {
-  @apply min-h-screen m-0 text-text bg-background;
+  @apply min-h-screen m-0;
+  color: var(--color-text);
+  background-color: var(--color-background);
   background-image: radial-gradient(circle at top, rgba(32, 53, 92, 0.35), rgba(7, 13, 31, 0.95));
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+:root.light body {
+  background-image: radial-gradient(circle at top, rgba(203, 213, 225, 0.5), rgba(248, 250, 252, 0.95));
 }
 
 #root {
@@ -29,4 +264,82 @@ a {
 
 button {
   font-family: inherit;
+}
+
+/* Main layout background - uses theme CSS variables */
+.main-layout-bg {
+  background: linear-gradient(to bottom right, var(--bg-gradient-from), var(--bg-gradient-to));
+}
+
+.main-layout-glow {
+  opacity: var(--bg-glow-opacity);
+  background: 
+    radial-gradient(circle at 20% 20%, var(--bg-glow-1), transparent 55%),
+    radial-gradient(circle at 80% 0%, var(--bg-glow-2), transparent 40%),
+    radial-gradient(circle at 50% 75%, var(--bg-glow-3), transparent 50%);
+}
+
+/* Theme-specific visibility utilities */
+/* Hide by default, show only when theme matches */
+.dark-only {
+  display: none;
+}
+
+.light-only {
+  display: none;
+}
+
+/* Show dark-only when dark theme is active */
+:root.dark .dark-only {
+  display: block;
+}
+
+:root.dark .dark-only.dark-only-inline {
+  display: inline-block;
+}
+
+:root.dark .dark-only.dark-only-flex {
+  display: flex;
+}
+
+/* Show light-only when light theme is active */
+:root.light .light-only {
+  display: block;
+}
+
+:root.light .light-only.light-only-inline {
+  display: inline-block;
+}
+
+:root.light .light-only.light-only-flex {
+  display: flex;
+}
+
+/* Theme-aware component classes */
+.dropdown-menu {
+  background-color: var(--dropdown-bg);
+  border-color: var(--dropdown-border);
+  box-shadow: var(--dropdown-shadow);
+}
+
+.sidebar {
+  background-color: var(--sidebar-bg);
+  border-color: var(--sidebar-border);
+}
+
+.search-input {
+  background-color: var(--search-input-bg);
+  border-color: var(--search-input-border);
+}
+
+.menu-item {
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.menu-item:hover {
+  background-color: var(--menu-item-hover);
+}
+
+.menu-item.active {
+  background-color: var(--menu-item-active);
 }

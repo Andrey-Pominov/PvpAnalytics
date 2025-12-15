@@ -11,6 +11,7 @@ import Tooltip from '../components/Tooltip/Tooltip'
 import ComparisonToggle from '../components/ComparisonToggle/ComparisonToggle'
 import AnomalyBadge from '../components/AnomalyBadge/AnomalyBadge'
 import ForecastCard from '../components/ForecastCard/ForecastCard'
+import { getErrorStyles } from '../utils/themeColors'
 import { useStatsStore } from '../store/statsStore'
 import { detectWinRateAnomaly, generateForecast } from '../utils/statisticsUtils'
 
@@ -184,7 +185,7 @@ const StatsPage = () => {
       </div>
 
       {error && (
-        <div className="rounded-2xl border border-rose-400/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+        <div className={`rounded-2xl border px-4 py-3 text-sm ${getErrorStyles()}`}>
           {error}
         </div>
       )}
@@ -258,7 +259,7 @@ const StatsPage = () => {
   ) : (
     <div className="flex flex-col gap-6">
       {error && (
-        <div className="rounded-2xl border border-rose-400/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+        <div className={`rounded-2xl border px-4 py-3 text-sm ${getErrorStyles()}`}>
           {error}
         </div>
       )}

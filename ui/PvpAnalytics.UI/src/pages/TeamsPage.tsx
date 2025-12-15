@@ -108,7 +108,7 @@ const TeamsPage = () => {
             </div>
             <div className="grid grid-cols-2 gap-2 text-sm mb-3">
               <p>Matches: <span className="font-semibold">{team.totalMatches}</span></p>
-              <p>Win Rate: <span className={`font-semibold ${team.winRate > 50 ? 'text-green-600' : 'text-red-600'}`}>{team.winRate.toFixed(1)}%</span></p>
+              <p>Win Rate: <span className={`font-semibold ${team.winRate > 50 ? 'text-[var(--color-success-text)]' : 'text-[var(--color-error-text)]'}`}>{team.winRate.toFixed(1)}%</span></p>
               {team.bracket && <p>Bracket: <span className="font-semibold">{team.bracket}</span></p>}
               {team.region && <p>Region: <span className="font-semibold">{team.region}</span></p>}
             </div>

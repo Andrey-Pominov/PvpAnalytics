@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import Card from '../components/Card/Card'
+import { getErrorColors } from '../utils/themeColors'
 import { useCustomMetricsStore } from '../store/customMetricsStore'
 import { parseMetric, metricTemplates, evaluateMetric } from '../utils/metricParser'
 
@@ -127,7 +128,7 @@ const CustomMetricsPage = () => {
                 </p>
               )}
               {parsedExpression.error && (
-                <p className="mt-1 text-xs text-rose-300">{parsedExpression.error}</p>
+                <p className={`mt-1 text-xs ${getErrorColors().text}`}>{parsedExpression.error}</p>
               )}
             </div>
 
@@ -171,7 +172,7 @@ const CustomMetricsPage = () => {
                   <div className="mt-3 rounded-lg bg-accent/10 px-3 py-2">
                     <div className="text-sm font-semibold text-text">
                       Result: {testResult.error ? (
-                        <span className="text-rose-300">{testResult.error}</span>
+                        <span className={getErrorColors().text}>{testResult.error}</span>
                       ) : (
                         <span className="text-accent">{testResult.result.toFixed(2)}</span>
                       )}
@@ -243,7 +244,7 @@ const CustomMetricsPage = () => {
                     <div className="flex items-center gap-2">
                       <h3 className="font-semibold text-text">{metric.name}</h3>
                       {metric.parsed?.isValid === false && (
-                        <span className="rounded-full bg-rose-500/20 px-2 py-1 text-xs text-rose-300">
+                        <span className={`rounded-full ${getErrorColors().bg} px-2 py-1 text-xs ${getErrorColors().text}`}>
                           Invalid
                         </span>
                       )}
@@ -258,7 +259,7 @@ const CustomMetricsPage = () => {
                       </p>
                     )}
                     {metric.parsed?.error && (
-                      <p className="mt-1 text-xs text-rose-300">{metric.parsed.error}</p>
+                      <p className={`mt-1 text-xs ${getErrorColors().text}`}>{metric.parsed.error}</p>
                     )}
                   </div>
                   <div className="flex gap-2">
@@ -270,7 +271,7 @@ const CustomMetricsPage = () => {
                     </button>
                     <button
                       onClick={() => handleDelete(metric.id)}
-                      className="rounded-lg px-3 py-1 text-sm text-rose-300 hover:bg-rose-500/20 transition-colors"
+                      className={`rounded-lg px-3 py-1 text-sm ${getErrorColors().text} hover:${getErrorColors().bg} transition-colors`}
                     >
                       Delete
                     </button>
