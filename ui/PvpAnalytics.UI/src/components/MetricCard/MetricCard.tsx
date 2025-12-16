@@ -22,14 +22,14 @@ const MetricCard = ({
   className = '',
 }: MetricCardProps) => {
   const trendColors = {
-    up: 'text-emerald-300',
-    down: 'text-rose-300',
+    up: 'text-[var(--color-success-text)]',
+    down: 'text-[var(--color-error-text)]',
     neutral: 'text-text-muted',
   }
 
   const trendBgColors = {
-    up: 'bg-emerald-500/20',
-    down: 'bg-rose-500/20',
+    up: 'bg-[var(--color-success-bg)]',
+    down: 'bg-[var(--color-error-bg)]',
     neutral: 'bg-surface/50',
   }
 

@@ -19,8 +19,8 @@ const MatchHighlight = ({ match }: MatchHighlightProps) => (
       <span
         className={`inline-flex rounded-full px-4 py-2 text-sm font-semibold ${
           match.result === 'Victory'
-            ? 'bg-emerald-500/20 text-emerald-200'
-            : 'bg-rose-500/20 text-rose-200'
+            ? 'bg-[var(--color-victory-bg)] text-[var(--color-victory-text)]'
+            : 'bg-[var(--color-defeat-bg)] text-[var(--color-defeat-text)]'
         }`}
       >
         {match.result}
@@ -40,7 +40,7 @@ const MatchHighlight = ({ match }: MatchHighlightProps) => (
             {team.players.map((player) => (
               <div
                 key={`${team.name}-${player.name}`}
-                className="flex items-start justify-between gap-3 rounded-xl bg-white/5 p-3"
+                className="flex items-start justify-between gap-3 rounded-xl bg-[var(--player-card-bg)] p-3"
               >
                 <div>
                   <span className="block text-sm font-semibold text-text">{player.name}</span>

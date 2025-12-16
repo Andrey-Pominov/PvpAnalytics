@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react'
-import { useReportBuilderStore, type WidgetType, type DashboardWidget } from '../store/reportBuilderStore'
+import {useState, useEffect} from 'react'
+import {useReportBuilderStore, type WidgetType, type DashboardWidget} from '../store/reportBuilderStore'
 import Card from '../components/Card/Card'
 import MetricCard from '../components/MetricCard/MetricCard'
 import Sparkline from '../components/Sparkline/Sparkline'
 import WinRateList from '../components/WinRateList/WinRateList'
 import MatchesTable from '../components/MatchesTable/MatchesTable'
-import { useStatsStore } from '../store/statsStore'
+import {getErrorColors} from '../utils/themeColors'
+import {useStatsStore} from '../store/statsStore'
 
 const WIDGET_TYPES: Array<{ type: WidgetType; label: string; icon: string }> = [
     {type: 'metric-card', label: 'Metric Card', icon: '📊'},
@@ -26,7 +27,7 @@ const ReportBuilderPage = () => {
         deleteWidget,
         loadLayouts,
     } = useReportBuilderStore()
-    const { data: stats } = useStatsStore()
+    const {data: stats} = useStatsStore()
 
     const [draggedWidget, setDraggedWidget] = useState<WidgetType | null>(null)
     const [newLayoutName, setNewLayoutName] = useState('')
@@ -195,7 +196,7 @@ const ReportBuilderPage = () => {
                                         setCurrentLayout(null)
                                     }
                                 }}
-                                className="rounded-lg px-4 py-2 text-sm text-rose-300 hover:bg-rose-500/20 transition-colors"
+                                className={`rounded-lg px-4 py-2 text-sm ${getErrorColors().text}  transition-colors hover:bg-[--color-error-bg)]`}
                             >
                                 Delete Layout
                             </button>
@@ -220,7 +221,7 @@ const ReportBuilderPage = () => {
                                         >
                                             <button
                                                 onClick={() => deleteWidget(widget.id)}
-                                                className="absolute right-2 top-2 opacity-0 transition-opacity group-hover:opacity-100 rounded-full bg-rose-500/20 p-1 text-rose-300 hover:bg-rose-500/40"
+                                                className={`absolute right-2 top-2 opacity-0 transition-opacity group-hover:opacity-100 rounded-full  p-1 ${getErrorColors().bg} ${getErrorColors().text} hover:bg-[var(--color-error-bg)]/80`}
                                                 aria-label="Delete widget"
                                             >
                                                 <svg

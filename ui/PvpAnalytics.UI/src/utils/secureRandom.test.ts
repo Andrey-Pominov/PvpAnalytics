@@ -1,16 +1,13 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { getSecureRandomFloat, getSecureRandomInt, getSecureRandomId } from './secureRandom'
 
 describe('secureRandom helpers', () => {
-  const originalCrypto = globalThis.crypto
-
   beforeEach(() => {
     const values = [0, 0xffffffff]
     let index = 0
 
     // Minimal crypto mock for getRandomValues / randomUUID
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const mockCrypto: any = {
+    const mockCrypto = {
       getRandomValues: (array: Uint32Array) => {
         array[0] = values[index % values.length]!
         index++
@@ -19,13 +16,12 @@ describe('secureRandom helpers', () => {
       randomUUID: () => '00000000-0000-0000-0000-000000000000',
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ;(globalThis as any).crypto = mockCrypto
+    // Mock window.crypto since the implementation uses globalThis.window?.crypto
+    vi.stubGlobal('window', { crypto: mockCrypto })
   })
 
   afterEach(() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ;(globalThis as any).crypto = originalCrypto
+    vi.unstubAllGlobals()
   })
 
   it('getSecureRandomFloat returns value in [0,1)', () => {

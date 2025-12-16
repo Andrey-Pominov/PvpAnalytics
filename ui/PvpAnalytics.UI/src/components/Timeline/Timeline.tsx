@@ -39,10 +39,10 @@ const Timeline = ({ events }: TimelineProps) => {
   }
 
   const getEventColor = (event: TimelineEvent): string => {
-    if (event.isCooldown) return 'border-blue-500/40 bg-blue-500/10'
-    if (event.isCC) return 'border-purple-500/40 bg-purple-500/10'
-    if (event.damageDone && event.damageDone > 50000) return 'border-red-500/40 bg-red-500/10'
-    if (event.healingDone && event.healingDone > 30000) return 'border-green-500/40 bg-green-500/10'
+    if (event.isCooldown) return 'border-[var(--color-info-border)] bg-[var(--color-info-bg)]'
+    if (event.isCC) return 'border-[var(--class-warlock-border)] bg-[var(--class-warlock-bg)]'
+    if (event.damageDone && event.damageDone > 50000) return 'border-[var(--color-error-border)] bg-[var(--color-error-bg)]'
+    if (event.healingDone && event.healingDone > 30000) return 'border-[var(--color-success-border)] bg-[var(--color-success-bg)]'
     return 'border-accent-muted/40 bg-surface/50'
   }
 
@@ -110,11 +110,11 @@ const Timeline = ({ events }: TimelineProps) => {
                       <span className="text-lg">{getEventIcon(event)}</span>
                       <span className="font-semibold text-text">{event.ability}</span>
                       {getEventBadge(event) && (() => {
-                        let badgeClasses = 'bg-red-500/20 text-red-200'
+                        let badgeClasses = 'bg-[var(--color-error-bg)] text-[var(--color-error-text)]'
                         if (event.isCooldown) {
-                          badgeClasses = 'bg-blue-500/20 text-blue-200'
+                          badgeClasses = 'bg-[var(--color-info-bg)] text-[var(--color-info-text)]'
                         } else if (event.isCC) {
-                          badgeClasses = 'bg-purple-500/20 text-purple-200'
+                          badgeClasses = 'bg-[var(--class-warlock-bg)] text-[var(--class-warlock)]'
                         }
 
                         return (
@@ -143,19 +143,19 @@ const Timeline = ({ events }: TimelineProps) => {
                     <div className="mt-2 flex flex-wrap gap-4 text-xs text-text-muted">
                       {event.damageDone !== null && (
                         <span>
-                          <span className="font-semibold text-red-300">{event.damageDone.toLocaleString()}</span>{' '}
+                          <span className="font-semibold text-[var(--color-error-text)]">{event.damageDone.toLocaleString()}</span>{' '}
                           damage
                         </span>
                       )}
                       {event.healingDone !== null && (
                         <span>
-                          <span className="font-semibold text-green-300">{event.healingDone.toLocaleString()}</span>{' '}
+                          <span className="font-semibold text-[var(--color-success-text)]">{event.healingDone.toLocaleString()}</span>{' '}
                           healing
                         </span>
                       )}
                       {event.crowdControl && (
                         <span>
-                          <span className="font-semibold text-purple-300">{event.crowdControl}</span>
+                          <span className="font-semibold text-[var(--class-warlock)]">{event.crowdControl}</span>
                         </span>
                       )}
                     </div>

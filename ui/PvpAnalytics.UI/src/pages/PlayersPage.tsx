@@ -4,6 +4,7 @@ import axios from 'axios'
 import Card from '../components/Card/Card'
 import SearchBar from '../components/SearchBar/SearchBar'
 import ExportButton from '../components/ExportButton/ExportButton'
+import { getWoWClassColors, getFactionColors, getErrorStyles } from '../utils/themeColors'
 import type { Player } from '../types/api'
 
 const PlayersPage = () => {
@@ -69,32 +70,13 @@ const PlayersPage = () => {
   }, [players, searchTerm])
 
   const getClassColor = (className: string) => {
-    const colors: Record<string, string> = {
-      warrior: 'bg-red-500/20 text-red-300',
-      paladin: 'bg-pink-500/20 text-pink-300',
-      hunter: 'bg-green-500/20 text-green-300',
-      rogue: 'bg-yellow-500/20 text-yellow-300',
-      priest: 'bg-white/20 text-white',
-      shaman: 'bg-blue-500/20 text-blue-300',
-      mage: 'bg-cyan-500/20 text-cyan-300',
-      warlock: 'bg-purple-500/20 text-purple-300',
-      monk: 'bg-teal-500/20 text-teal-300',
-      druid: 'bg-orange-500/20 text-orange-300',
-      'death knight': 'bg-red-600/20 text-red-400',
-      'demon hunter': 'bg-purple-600/20 text-purple-400',
-      evoker: 'bg-emerald-500/20 text-emerald-300',
-    }
-    return colors[className.toLowerCase()] || 'bg-accent/20 text-accent'
+    const colors = getWoWClassColors(className)
+    return `${colors.bg} ${colors.text}`
   }
 
   const getFactionColor = (faction: string) => {
-    if (faction.toLowerCase().includes('alliance')) {
-      return 'bg-blue-500/20 text-blue-300'
-    }
-    if (faction.toLowerCase().includes('horde')) {
-      return 'bg-red-500/20 text-red-300'
-    }
-    return 'bg-gray-500/20 text-gray-300'
+    const colors = getFactionColors(faction)
+    return `${colors.bg} ${colors.text}`
   }
 
   const playerCountLabel = useMemo(() => {
@@ -165,7 +147,7 @@ const PlayersPage = () => {
       </div>
 
       {error && (
-        <div className="rounded-2xl border border-rose-400/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+        <div className={`rounded-2xl border px-4 py-3 text-sm ${getErrorStyles()}`}>
           {error}
         </div>
       )}

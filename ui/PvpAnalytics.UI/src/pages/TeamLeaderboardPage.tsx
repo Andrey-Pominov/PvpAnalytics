@@ -110,7 +110,7 @@ const TeamLeaderboardPage = () => {
                     <td className="p-2 sm:p-4 text-sm sm:text-base">{entry.teamName}</td>
                     <td className="p-2 sm:p-4 text-sm sm:text-base">{entry.rating ?? 'N/A'}</td>
                     <td className="p-2 sm:p-4 text-sm sm:text-base">{entry.totalMatches}</td>
-                    <td className={`p-2 sm:p-4 text-sm sm:text-base font-semibold ${entry.winRate > 50 ? 'text-green-600' : 'text-red-600'}`}>
+                    <td className={`p-2 sm:p-4 text-sm sm:text-base font-semibold ${entry.winRate > 50 ? 'text-[var(--color-success-text)]' : 'text-[var(--color-error-text)]'}`}>
                       {entry.winRate.toFixed(1)}%
                     </td>
                     <td className="p-2 sm:p-4 text-sm sm:text-base">

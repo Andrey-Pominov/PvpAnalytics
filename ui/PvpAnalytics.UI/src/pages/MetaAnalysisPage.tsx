@@ -32,7 +32,7 @@ const MetaAnalysisPage = () => {
             <h3 className="text-base sm:text-lg font-semibold mb-2 truncate">#{comp.rank} {comp.composition}</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
               <p>Matches: <span className="font-semibold">{comp.totalMatches}</span></p>
-              <p>Win Rate: <span className={`font-semibold ${comp.winRate > 50 ? 'text-green-600' : 'text-red-600'}`}>{comp.winRate}%</span></p>
+              <p>Win Rate: <span className={`font-semibold ${comp.winRate > 50 ? 'text-[var(--color-success-text)]' : 'text-[var(--color-error-text)]'}`}>{comp.winRate}%</span></p>
               <p>Popularity: <span className="font-semibold">{comp.popularity}%</span></p>
               <p>Avg Rating: <span className="font-semibold">{comp.averageRating}</span></p>
             </div>

@@ -3,6 +3,7 @@ import axios from 'axios'
 import Card from '../components/Card/Card'
 import MatchesTable from '../components/MatchesTable/MatchesTable'
 import ExportButton from '../components/ExportButton/ExportButton'
+import { getErrorStyles } from '../utils/themeColors'
 import type { Match } from '../types/api'
 import type { MatchSummary } from '../types/stats'
 
@@ -172,7 +173,7 @@ const MatchesPage = () => {
       </div>
 
       {error && (
-        <div className="rounded-2xl border border-rose-400/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+        <div className={`rounded-2xl border px-4 py-3 text-sm ${getErrorStyles()}`}>
           {error}
         </div>
       )}

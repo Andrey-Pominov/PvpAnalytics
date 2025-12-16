@@ -1,17 +1,91 @@
-import type { PropsWithChildren } from 'react'
+import type {PropsWithChildren} from 'react'
+import {useState, useEffect} from 'react'
 import Navigation from '../components/Navigation/Navigation'
+import RightSidebar from '../components/RightSidebar/RightSidebar'
+import {useThemeStore} from '../store/themeStore'
+import {applyThemeClass} from '../config/themeConfig'
 
-const MainLayout = ({ children }: PropsWithChildren) => (
-  <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-[#0e1f3d]/85 to-[#080e1d]/92">
-    <div className="pointer-events-none absolute inset-0 opacity-85 blur-[120px]" aria-hidden="true">
-      <div className="absolute inset-0 -z-10 scale-105 bg-[radial-gradient(circle_at_20%_20%,rgba(84,117,255,0.2),transparent_55%),radial-gradient(circle_at_80%_0%,rgba(99,201,255,0.2),transparent_40%),radial-gradient(circle_at_50%_75%,rgba(40,63,122,0.3),transparent_50%)]" />
-    </div>
-    <main className="relative z-10 mx-auto flex max-w-6xl flex-col px-4 py-8 sm:px-6 lg:px-8">
-      <Navigation />
-      <div className="mt-8">{children}</div>
-    </main>
-  </div>
-)
+const MainLayout = ({children}: PropsWithChildren) => {
+    const {theme} = useThemeStore()
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+        try {
+            const saved = localStorage.getItem('sidebarCollapsed')
+            return saved ? JSON.parse(saved) : false
+        } catch {
+            return false
+        }
+    })
+
+    const [rightSidebarOpen, setRightSidebarOpen] = useState(() => {
+        try {
+            const saved = localStorage.getItem('rightSidebarOpen')
+            return saved ? JSON.parse(saved) : true
+        } catch {
+            return true
+        }
+    })
+
+    // Initialize theme on mount (safety measure - themeStore also handles this)
+    useEffect(() => {
+        applyThemeClass(theme)
+    }, [theme])
+
+    useEffect(() => {
+        const handleStorageChange = (e: StorageEvent) => {
+            if (e.key === 'sidebarCollapsed') {
+                try {
+
+                    setSidebarCollapsed(e.newValue ? JSON.parse(e.newValue) : false)
+                } catch {
+                    setSidebarCollapsed(false)
+                }
+            }
+
+        }
+
+        const handleCustomEvent = () => {
+            try {
+                const saved = localStorage.getItem('sidebarCollapsed')
+                setSidebarCollapsed(saved ? JSON.parse(saved) : false)
+            } catch {
+                setSidebarCollapsed(false)
+            }
+        }
+
+        globalThis.addEventListener('storage', handleStorageChange)
+        globalThis.addEventListener('sidebarToggle', handleCustomEvent)
+
+        return () => {
+            globalThis.removeEventListener('storage', handleStorageChange)
+            globalThis.removeEventListener('sidebarToggle', handleCustomEvent)
+        }
+    }, [])
+
+    const toggleRightSidebar = () => {
+        const newValue = !rightSidebarOpen
+        setRightSidebarOpen(newValue)
+        localStorage.setItem('rightSidebarOpen', JSON.stringify(newValue))
+    }
+
+    return (
+        <div className="main-layout-bg relative min-h-screen overflow-hidden transition-colors duration-300">
+            <div
+                className="main-layout-glow pointer-events-none absolute inset-0 blur-[120px] transition-opacity duration-300"
+                aria-hidden="true">
+                <div className="absolute inset-0 -z-10 scale-105"/>
+            </div>
+            <Navigation/>
+            <RightSidebar isOpen={rightSidebarOpen} onToggle={toggleRightSidebar}/>
+            <main className={`relative z-10 flex flex-col transition-all duration-300 ${
+                sidebarCollapsed ? 'lg:ml-20' : 'lg:ml-64'
+            } ${rightSidebarOpen ? 'xl:mr-80' : ''} lg:pt-[73px]`}>
+                <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+                    <div className="mt-8 lg:mt-0 w-full">{children}</div>
+                </div>
+            </main>
+        </div>
+    )
+}
 
 export default MainLayout
 

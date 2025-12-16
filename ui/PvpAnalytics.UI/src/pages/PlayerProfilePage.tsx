@@ -5,8 +5,10 @@ import Card from '../components/Card/Card'
 import ExportButton from '../components/ExportButton/ExportButton'
 import AnomalyBadge from '../components/AnomalyBadge/AnomalyBadge'
 import ForecastCard from '../components/ForecastCard/ForecastCard'
+import { getWoWClassColors, getFactionColors, getErrorStyles, getVictoryColors, getDefeatColors, getRatingChangeColor } from '../utils/themeColors'
 import type { Player, PlayerStats, PlayerMatch } from '../types/api'
 import { detectWinRateAnomaly, detectAnomaliesInData, generateForecast } from '../utils/statisticsUtils'
+import { useRecentlyViewedStore } from '../store/recentlyViewedStore'
 
 const PlayerProfilePage = () => {
   const { id } = useParams<{ id: string }>()
@@ -16,6 +18,20 @@ const PlayerProfilePage = () => {
   const [matches, setMatches] = useState<PlayerMatch[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const addRecentlyViewed = useRecentlyViewedStore((state) => state.addItem)
+
+  // Track player view when player data is loaded
+  useEffect(() => {
+    if (player) {
+      addRecentlyViewed({
+        id: player.id,
+        name: player.name,
+        realm: player.realm,
+        class: player.class,
+        faction: player.faction,
+      })
+    }
+  }, [player, addRecentlyViewed])
 
   useEffect(() => {
     if (!id) return
@@ -168,32 +184,13 @@ const PlayerProfilePage = () => {
   }, [id])
 
   const getClassColor = (className: string) => {
-    const colors: Record<string, string> = {
-      warrior: 'bg-red-500/20 text-red-300',
-      paladin: 'bg-pink-500/20 text-pink-300',
-      hunter: 'bg-green-500/20 text-green-300',
-      rogue: 'bg-yellow-500/20 text-yellow-300',
-      priest: 'bg-white/20 text-white',
-      shaman: 'bg-blue-500/20 text-blue-300',
-      mage: 'bg-cyan-500/20 text-cyan-300',
-      warlock: 'bg-purple-500/20 text-purple-300',
-      monk: 'bg-teal-500/20 text-teal-300',
-      druid: 'bg-orange-500/20 text-orange-300',
-      'death knight': 'bg-red-600/20 text-red-400',
-      'demon hunter': 'bg-purple-600/20 text-purple-400',
-      evoker: 'bg-emerald-500/20 text-emerald-300',
-    }
-    return colors[className.toLowerCase()] || 'bg-accent/20 text-accent'
+    const colors = getWoWClassColors(className)
+    return `${colors.bg} ${colors.text}`
   }
 
   const getFactionColor = (faction: string) => {
-    if (faction.toLowerCase().includes('alliance')) {
-      return 'bg-blue-500/20 text-blue-300'
-    }
-    if (faction.toLowerCase().includes('horde')) {
-      return 'bg-red-500/20 text-red-300'
-    }
-    return 'bg-gray-500/20 text-gray-300'
+    const colors = getFactionColors(faction)
+    return `${colors.bg} ${colors.text}`
   }
 
   const gameModeNames: Record<string, string> = {
@@ -248,7 +245,7 @@ const PlayerProfilePage = () => {
   if (error || !player) {
     return (
       <div className="flex flex-col gap-6">
-        <div className="rounded-2xl border border-rose-400/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+        <div className={`rounded-2xl border px-4 py-3 text-sm ${getErrorStyles()}`}>
           {error || 'Player not found'}
         </div>
         <button
@@ -405,8 +402,8 @@ const PlayerProfilePage = () => {
                       <span
                         className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
                           match.isWinner
-                            ? 'bg-emerald-500/20 text-emerald-200'
-                            : 'bg-rose-500/20 text-rose-200'
+                            ? `${getVictoryColors().bg} ${getVictoryColors().text}`
+                            : `${getDefeatColors().bg} ${getDefeatColors().text}`
                         }`}
                       >
                         {match.isWinner ? 'Victory' : 'Defeat'}
@@ -415,7 +412,7 @@ const PlayerProfilePage = () => {
                     <td className="px-3 py-3">
                       <div className="flex items-center gap-2">
                         <span className="text-text-muted">{match.ratingBefore}</span>
-                        <span className={match.ratingAfter > match.ratingBefore ? 'text-emerald-300' : 'text-rose-300'}>
+                        <span className={getRatingChangeColor(match.ratingAfter - match.ratingBefore)}>
                           →
                         </span>
                         <span>{match.ratingAfter}</span>

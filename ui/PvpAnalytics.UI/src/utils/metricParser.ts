@@ -56,6 +56,28 @@ function hasUnsafeMethodCalls(cleaned: string): boolean {
 }
 
 /**
+ * Checks if expression contains bare function calls (not prefixed by Math.)
+ */
+function hasBareFunctionCalls(cleaned: string): boolean {
+  // Match function calls: identifier followed by (
+  // But exclude Math.something( patterns
+  // First, remove all Math.function( patterns to avoid false positives
+  const withoutMathCalls = cleaned.replaceAll(/Math\.\w+\s{0,10}\(/g, '')
+  // Now check for any remaining function calls (identifier followed by parenthesis)
+  // Only match identifiers that are not numbers and not keywords
+  const bareFunctionPattern = /\b([a-zA-Z_]\w*)\s{0,10}\(/g
+  let match
+  while ((match = bareFunctionPattern.exec(withoutMathCalls)) !== null) {
+    const funcName = match[1]
+    // Allow 'ln' as it gets normalized to Math.log
+    if (funcName !== 'ln') {
+      return true
+    }
+  }
+  return false
+}
+
+/**
  * Validates that parentheses are balanced
  */
 function areParenthesesBalanced(cleaned: string): boolean {
@@ -96,6 +118,10 @@ function isValidMathExpression(expression: string): { valid: boolean; error?: st
 
   if (hasUnsafeMethodCalls(cleaned)) {
     return { valid: false, error: 'Expression contains unsafe method calls (only Math.* functions are allowed)' }
+  }
+
+  if (hasBareFunctionCalls(cleaned)) {
+    return { valid: false, error: 'Expression contains unsupported function calls (only Math.* functions are allowed)' }
   }
 
   if (!areParenthesesBalanced(cleaned)) {

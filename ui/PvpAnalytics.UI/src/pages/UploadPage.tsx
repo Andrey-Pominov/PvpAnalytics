@@ -1,6 +1,7 @@
 import { useState, useRef, type DragEvent } from 'react'
 import axios from 'axios'
 import Card from '../components/Card/Card'
+import { getVictoryColors, getDefeatColors } from '../utils/themeColors'
 import type { UploadResponse } from '../types/api'
 
 const UploadPage = () => {
@@ -222,15 +223,15 @@ const UploadPage = () => {
             <div
               className={`rounded-xl border p-4 ${
                 result.success
-                  ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200'
-                  : 'border-rose-500/40 bg-rose-500/10 text-rose-200'
+                  ? `${getVictoryColors().border} ${getVictoryColors().bg} ${getVictoryColors().text}`
+                  : `${getDefeatColors().border} ${getDefeatColors().bg} ${getDefeatColors().text}`
               }`}
             >
               <div className="flex items-start gap-3">
                 <div className="flex-shrink-0">
                   {result.success ? (
                     <svg
-                      className="h-5 w-5 text-emerald-300"
+                      className={`h-5 w-5 ${getVictoryColors().text}`}
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -245,7 +246,7 @@ const UploadPage = () => {
                     </svg>
                   ) : (
                     <svg
-                      className="h-5 w-5 text-rose-300"
+                      className={`h-5 w-5 ${getDefeatColors().text}`}
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"

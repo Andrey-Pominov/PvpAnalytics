@@ -4,25 +4,30 @@ export default {
     './index.html',
     './src/**/*.{js,ts,jsx,tsx}',
   ],
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
-        background: '#070d1f',
-        accent: {
-          DEFAULT: '#4076ff',
-          muted: '#20355c',
+        background: {
+          DEFAULT: 'var(--color-background)',
         },
-        surface: '#101933',
+        accent: {
+          DEFAULT: 'var(--color-accent)',
+          muted: 'var(--color-accent-muted)',
+        },
+        surface: {
+          DEFAULT: 'var(--color-surface)',
+        },
         text: {
-          DEFAULT: '#f5f7ff',
-          muted: '#94a3c8',
+          DEFAULT: 'var(--color-text)',
+          muted: 'var(--color-text-muted)',
         },
       },
       fontFamily: {
         sans: ['Inter', 'Segoe UI', 'system-ui', '-apple-system', 'BlinkMacSystemFont', '"Helvetica Neue"', 'sans-serif'],
       },
       boxShadow: {
-        card: '0 16px 40px rgba(16, 25, 51, 0.35)',
+        card: 'var(--shadow-card)',
       },
     },
   },

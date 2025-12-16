@@ -93,7 +93,7 @@ const TeamSynergyPage = () => {
               </div>
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <p>Matches: <span className="font-semibold">{partner.matchesTogether}</span></p>
-                <p>Win Rate: <span className={`font-semibold ${partner.winRateTogether > 50 ? 'text-green-600' : 'text-red-600'}`}>{partner.winRateTogether.toFixed(1)}%</span></p>
+                <p>Win Rate: <span className={`font-semibold ${partner.winRateTogether > 50 ? 'text-[var(--color-success-text)]' : 'text-[var(--color-error-text)]'}`}>{partner.winRateTogether.toFixed(1)}%</span></p>
                 <p>Wins: <span className="font-semibold">{partner.winsTogether}</span></p>
                 <p>Avg Rating: <span className="font-semibold">{partner.averageRatingTogether.toFixed(0)}</span></p>
               </div>
@@ -123,7 +123,7 @@ const TeamSynergyPage = () => {
             {Object.entries(synergy.mapWinRates).map(([map, winRate]) => (
               <Card key={map}>
                 <p className="font-semibold mb-2">{map}</p>
-                <p className={`text-2xl font-bold ${winRate > 50 ? 'text-green-600' : 'text-red-600'}`}>
+                <p className={`text-2xl font-bold ${winRate > 50 ? 'text-[var(--color-success-text)]' : 'text-[var(--color-error-text)]'}`}>
                   {winRate.toFixed(1)}%
                 </p>
               </Card>
