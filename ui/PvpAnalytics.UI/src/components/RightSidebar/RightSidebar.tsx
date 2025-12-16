@@ -60,7 +60,7 @@ const RecentlyViewedItemCard = ({ item, onRemove }: RecentlyViewedItemProps) => 
             <span className="text-text-muted truncate">{item.realm}</span>
             {item.faction && (
               <span className={getFactionColor(item.faction)}>
-                {item.faction === 'Alliance' ? '⚔️' : '🔥'}
+                {item.faction.toLowerCase().includes('alliance') ? '⚔️' : '🔥'}
               </span>
             )}
           </div>

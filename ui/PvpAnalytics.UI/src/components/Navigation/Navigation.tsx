@@ -7,8 +7,12 @@ const Navigation = () => {
     const location = useLocation()
     const [isMobileMenuOpen, setMobileMenuOpen] = useState(false)
     const [isSidebarCollapsed, setSidebarCollapsed] = useState(() => {
-        const saved = localStorage.getItem('sidebarCollapsed')
-        return saved ? JSON.parse(saved) : false
+        try {
+            const saved = localStorage.getItem('sidebarCollapsed')
+            return saved ? JSON.parse(saved) : false
+        } catch {
+            return false
+        }
     })
     const menuRef = useRef<HTMLDivElement>(null)
     const hamburgerRef = useRef<HTMLButtonElement>(null)
@@ -86,9 +90,13 @@ const Navigation = () => {
         {path: '/upload', label: 'Upload', icon: '📤'},
     ]
 
-    const renderNavItem = (item: {path: string, label: string, icon: string}, onClick?: () => void, collapsed?: boolean) => {
-        const isActive = item.path === '/' 
-            ? location.pathname === '/' 
+    const renderNavItem = (item: {
+        path: string,
+        label: string,
+        icon: string
+    }, onClick?: () => void, collapsed?: boolean) => {
+        const isActive = item.path === '/'
+            ? location.pathname === '/'
             : location.pathname.startsWith(item.path)
         return (
             <Link
@@ -116,10 +124,10 @@ const Navigation = () => {
             <div className="sticky top-0 z-50 border-b border-accent-muted/30 bg-background/95 backdrop-blur-sm">
                 <div className="container mx-auto px-4 py-3 flex items-center gap-3">
                     <div className="flex-1">
-                        <GlobalSearch />
+                        <GlobalSearch/>
                     </div>
                     <div className="hidden lg:block">
-                        <ThemeToggle />
+                        <ThemeToggle/>
                     </div>
                 </div>
             </div>
@@ -127,7 +135,8 @@ const Navigation = () => {
             {/* Mobile Layout */}
             <div className="lg:hidden">
                 {/* Hamburger Button Row */}
-                <div className="sticky top-[73px] z-40 border-b border-accent-muted/30 bg-background/95 backdrop-blur-sm">
+                <div
+                    className="sticky top-[73px] z-40 border-b border-accent-muted/30 bg-background/95 backdrop-blur-sm">
                     <div className="flex items-center justify-center px-4 py-3">
                         <button
                             ref={hamburgerRef}
@@ -182,7 +191,7 @@ const Navigation = () => {
                         >
                             <div className="flex flex-col h-full px-4 py-4 gap-2 overflow-y-auto">
                                 <div className="flex justify-end pb-2 border-b border-accent-muted/30 mb-2">
-                                    <ThemeToggle />
+                                    <ThemeToggle/>
                                 </div>
                                 {navItems.map((item) => renderNavItem(item, closeMobileMenu))}
                             </div>
@@ -192,14 +201,15 @@ const Navigation = () => {
             </div>
 
             {/* Desktop Left Sidebar */}
-            <aside className={`hidden lg:flex fixed left-0 top-[73px] bottom-0 z-40 border-r border-accent-muted/30 bg-background/95 backdrop-blur-sm flex-col transition-all duration-300 ${
-                isSidebarCollapsed ? 'w-20' : 'w-64'
-            }`}>
+            <aside
+                className={`hidden lg:flex fixed left-0 top-[73px] bottom-0 z-40 border-r border-accent-muted/30 bg-background/95 backdrop-blur-sm flex-col transition-all duration-300 ${
+                    isSidebarCollapsed ? 'w-20' : 'w-64'
+                }`}>
                 {/* Toggle Button */}
                 <div className={`flex items-center border-b border-accent-muted/30 p-4 gap-2 ${
                     isSidebarCollapsed ? 'justify-center' : 'justify-end'
                 }`}>
-                    <ThemeToggle />
+                    <ThemeToggle/>
                     <button
                         type="button"
                         onClick={toggleSidebar}

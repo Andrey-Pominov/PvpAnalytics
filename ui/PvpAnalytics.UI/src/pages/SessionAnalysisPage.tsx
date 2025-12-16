@@ -35,7 +35,7 @@ const SessionAnalysisPage = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <p>Total Sessions: {data.summary.totalSessions}</p>
           <p>Avg Win Rate: {data.summary.averageWinRate}%</p>
-          <p>Net Rating Change: <span className={data.summary.netRatingChange > 0 ? 'text-[var(--color-success-text)]' : 'text-[var(--color-error-text)]'}>{data.summary.netRatingChange}</span></p>
+          <p>Net Rating Change: <span className={data.summary.netRatingChange >= 0 ? 'text-[var(--color-success-text)]' : 'text-[var(--color-error-text)]'}>{data.summary.netRatingChange}</span></p>
           <p>Avg Matches/Session: {data.summary.averageMatchesPerSession}</p>
         </div>
       </Card>

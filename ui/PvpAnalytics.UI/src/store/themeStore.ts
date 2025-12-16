@@ -30,14 +30,14 @@ export const useThemeStore = create<ThemeState>()(
     {
       name: 'theme-preference',
       onRehydrateStorage: () => (state) => {
-        // Apply theme on rehydration, validate it first
-        if (state?.theme && isValidTheme(state.theme)) {
+        if (state && isValidTheme(state.theme)) {
           applyThemeClass(state.theme)
         } else {
-          // If invalid or missing theme, apply default theme
-          // Note: The state will be corrected on next store access via the initial state
           const defaultTheme = getDefaultTheme()
           applyThemeClass(defaultTheme)
+            if(state) {
+                state.theme = defaultTheme
+            }
         }
       },
     }

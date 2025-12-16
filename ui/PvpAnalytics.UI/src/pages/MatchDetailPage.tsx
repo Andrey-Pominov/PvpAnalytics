@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import Card from '../components/Card/Card'
 import Timeline from '../components/Timeline/Timeline'
-import { getWoWClassColors, getErrorStyles, getVictoryColors, getDefeatColors, getRatingChangeColor } from '../utils/themeColors'
+import { getWoWClassColors, getErrorStyles, getVictoryColors, getRatingChangeColor } from '../utils/themeColors'
 import type { MatchDetailDto } from '../types/api'
 
 const MatchDetailPage = () => {

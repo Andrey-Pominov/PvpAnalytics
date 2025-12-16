@@ -271,7 +271,7 @@ const CustomMetricsPage = () => {
                     </button>
                     <button
                       onClick={() => handleDelete(metric.id)}
-                      className={`rounded-lg px-3 py-1 text-sm ${getErrorColors().text} hover:${getErrorColors().bg} transition-colors`}
+                      className={`rounded-lg px-3 py-1 text-sm transition-colors ${getErrorColors().text} hover:bg-[var(--color-error-bg)]`}
                     >
                       Delete
                     </button>

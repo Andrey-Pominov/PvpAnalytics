@@ -4,7 +4,6 @@ import { debouncedSearch, type SearchResponse } from '../../services/searchServi
 import { useSearchStore } from '../../store/searchStore'
 import { useRecentlyViewedStore } from '../../store/recentlyViewedStore'
 import { getWoWClassColor } from '../../utils/themeColors'
-import type { Player } from '../../types/api'
 
 interface GlobalSearchProps {
   className?: string
@@ -236,7 +235,7 @@ const GlobalSearch = ({ className = '' }: GlobalSearchProps) => {
                 <div>
                   <div className="px-3 py-2 text-xs font-semibold text-text-muted">Recently Viewed</div>
                   {recentlyViewed.slice(0, 5).map((player, idx) => {
-                    const itemIndex = recentSearches.length + idx
+                    const itemIndex = Math.min(recentSearches.length, 5) + idx
                     return (
                       <button
                         key={player.id}

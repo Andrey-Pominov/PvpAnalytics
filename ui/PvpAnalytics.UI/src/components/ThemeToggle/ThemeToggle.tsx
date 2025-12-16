@@ -1,5 +1,5 @@
 import { useThemeStore } from '../../store/themeStore'
-import { getNextTheme, THEMES } from '../../config/themeConfig'
+import { getNextTheme } from '../../config/themeConfig'
 
 const ThemeToggle = () => {
   const { theme, toggleTheme } = useThemeStore()
@@ -13,8 +13,7 @@ const ThemeToggle = () => {
       className="flex items-center justify-center p-2 rounded-lg text-text-muted hover:text-text hover:bg-surface/50 transition-colors"
       title={`Switch to ${nextTheme} theme`}
     >
-      {theme === THEMES[0] ? (
-        // Sun icon for light mode
+      {theme === 'light' ? (
         <svg
           className="h-5 w-5"
           fill="none"
@@ -30,7 +29,6 @@ const ThemeToggle = () => {
           />
         </svg>
       ) : (
-        // Moon icon for dark mode
         <svg
           className="h-5 w-5"
           fill="none"
