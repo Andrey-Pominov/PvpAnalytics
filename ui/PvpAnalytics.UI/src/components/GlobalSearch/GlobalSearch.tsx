@@ -155,10 +155,163 @@ const GlobalSearch = ({ className = '' }: GlobalSearchProps) => {
     }
   }
 
-
+  // Helper functions to determine dropdown state
   const hasResults = results.players.length > 0 || results.matches.length > 0
   const hasRecentItems = recentSearches.length > 0 || recentlyViewed.length > 0
-  const showDropdown = isOpen && (value.trim().length >= 2 ? hasResults || loading : hasRecentItems || value.trim().length === 0)
+  
+  const shouldShowDropdown = (): boolean => {
+    if (!isOpen) return false
+    
+    const hasSearchQuery = value.trim().length >= 2
+    if (hasSearchQuery) {
+      return hasResults || loading
+    }
+    
+    return hasRecentItems || value.trim().length === 0
+  }
+
+  const showDropdown = shouldShowDropdown()
+
+  // Helper function to get menu item className
+  const getMenuItemClassName = (index: number): string => {
+    const baseClasses = 'menu-item w-full rounded px-3 py-2 text-left text-sm'
+    const isSelected = selectedIndex === index
+    const selectedClasses = isSelected ? 'active text-accent' : 'text-text-muted hover:text-text'
+    return `${baseClasses} ${selectedClasses}`
+  }
+
+  // Helper function to render dropdown content
+  const renderDropdownContent = () => {
+    const hasSearchQuery = value.trim().length >= 2
+
+    if (!hasSearchQuery) {
+      return renderRecentItems()
+    }
+
+    if (loading) {
+      return <div className="px-3 py-4 text-center text-sm text-text-muted">Searching...</div>
+    }
+
+    if (hasResults) {
+      return renderSearchResults()
+    }
+
+    return <div className="px-3 py-4 text-center text-sm text-text-muted">No results found</div>
+  }
+
+  // Helper function to render recent items section
+  const renderRecentItems = () => {
+    return (
+      <div className="p-2">
+        {recentSearches.length > 0 && (
+          <div className="mb-2">
+            <div className="px-3 py-2 text-xs font-semibold text-text-muted">Recent Searches</div>
+            {recentSearches.slice(0, 5).map((search, idx) => (
+              <button
+                key={`${search.term}-${search.timestamp}`}
+                type="button"
+                onClick={() => handleSelectItem({ type: 'recent', id: search.term, term: search.term })}
+                className={getMenuItemClassName(idx)}
+              >
+                <div className="flex items-center gap-2">
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>{search.term}</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+        {recentlyViewed.length > 0 && (
+          <div>
+            <div className="px-3 py-2 text-xs font-semibold text-text-muted">Recently Viewed</div>
+            {recentlyViewed.slice(0, 5).map((player, idx) => {
+              const itemIndex = Math.min(recentSearches.length, 5) + idx
+              return (
+                <button
+                  key={player.id}
+                  type="button"
+                  onClick={() => handleSelectItem({ type: 'recent-player', id: player.id, name: player.name })}
+                  className={getMenuItemClassName(itemIndex)}
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="grid h-6 w-6 place-items-center rounded bg-gradient-to-br from-accent to-sky-400 text-xs font-bold text-white">
+                      {player.name.substring(0, 1).toUpperCase()}
+                    </div>
+                    <span className={getWoWClassColor(player.class)}>{player.name}</span>
+                    <span className="text-xs text-text-muted">{player.realm}</span>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        )}
+        {!hasRecentItems && (
+          <div className="px-3 py-4 text-center text-sm text-text-muted">
+            Start typing to search players and matches
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // Helper function to render search results
+  const renderSearchResults = () => {
+    return (
+      <div className="p-2">
+        {results.players.length > 0 && (
+          <div className="mb-2">
+            <div className="px-3 py-2 text-xs font-semibold text-text-muted">Players</div>
+            {results.players.map((player, idx) => (
+              <button
+                key={player.id}
+                type="button"
+                onClick={() => handleSelectItem({ type: 'player', id: player.id, name: player.name })}
+                className={getMenuItemClassName(idx)}
+              >
+                <div className="flex items-center gap-2">
+                  <div className="grid h-6 w-6 place-items-center rounded bg-gradient-to-br from-accent to-sky-400 text-xs font-bold text-white">
+                    {player.name.substring(0, 1).toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className={`truncate ${getWoWClassColor(player.class)}`}>{player.name}</div>
+                    <div className="text-xs text-text-muted">{player.realm}</div>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+        {results.matches.length > 0 && (
+          <div>
+            <div className="px-3 py-2 text-xs font-semibold text-text-muted">Matches</div>
+            {results.matches.map((match, idx) => {
+              const itemIndex = results.players.length + idx
+              return (
+                <button
+                  key={match.id}
+                  type="button"
+                  onClick={() => handleSelectItem({ type: 'match', id: match.id })}
+                  className={getMenuItemClassName(itemIndex)}
+                >
+                  <div className="flex items-center gap-2">
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <div className="flex-1 min-w-0">
+                      <div className="truncate">Match #{match.id}</div>
+                      <div className="text-xs text-text-muted">{match.gameMode}</div>
+                    </div>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div ref={containerRef} className={`relative w-full ${className}`}>
@@ -204,136 +357,7 @@ const GlobalSearch = ({ className = '' }: GlobalSearchProps) => {
           ref={dropdownRef}
           className="dropdown-menu absolute left-0 right-0 top-full z-50 mt-2 max-h-96 overflow-y-auto rounded-lg border backdrop-blur-sm"
         >
-          {value.trim().length < 2 ? (
-            /* Recent/Popular Items */
-            <div className="p-2">
-                  {recentSearches.length > 0 && (
-                <div className="mb-2">
-                  <div className="px-3 py-2 text-xs font-semibold text-text-muted">Recent Searches</div>
-                  {recentSearches.slice(0, 5).map((search, idx) => (
-                    <button
-                      key={`${search.term}-${search.timestamp}`}
-                      type="button"
-                      onClick={() => handleSelectItem({ type: 'recent', id: search.term, term: search.term })}
-                      className={`menu-item w-full rounded px-3 py-2 text-left text-sm ${
-                        selectedIndex === idx
-                          ? 'active text-accent'
-                          : 'text-text-muted hover:text-text'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <span>{search.term}</span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-              {recentlyViewed.length > 0 && (
-                <div>
-                  <div className="px-3 py-2 text-xs font-semibold text-text-muted">Recently Viewed</div>
-                  {recentlyViewed.slice(0, 5).map((player, idx) => {
-                    const itemIndex = Math.min(recentSearches.length, 5) + idx
-                    return (
-                      <button
-                        key={player.id}
-                        type="button"
-                        onClick={() => handleSelectItem({ type: 'recent-player', id: player.id, name: player.name })}
-                        className={`menu-item w-full rounded px-3 py-2 text-left text-sm ${
-                          selectedIndex === itemIndex
-                            ? 'active text-accent'
-                            : 'text-text-muted hover:text-text'
-                        }`}
-                      >
-                      <div className="flex items-center gap-2">
-                        <div className="grid h-6 w-6 place-items-center rounded bg-gradient-to-br from-accent to-sky-400 text-xs font-bold text-white">
-                          {player.name.substring(0, 1).toUpperCase()}
-                        </div>
-                        <span className={getWoWClassColor(player.class)}>{player.name}</span>
-                        <span className="text-xs text-text-muted">{player.realm}</span>
-                      </div>
-                    </button>
-                    )
-                  })}
-                </div>
-              )}
-              {!hasRecentItems && (
-                <div className="px-3 py-4 text-center text-sm text-text-muted">
-                  Start typing to search players and matches
-                </div>
-              )}
-            </div>
-          ) : loading ? (
-            <div className="px-3 py-4 text-center text-sm text-text-muted">Searching...</div>
-          ) : hasResults ? (
-            /* Search Results */
-            <div className="p-2">
-              {results.players.length > 0 && (
-                <div className="mb-2">
-                  <div className="px-3 py-2 text-xs font-semibold text-text-muted">Players</div>
-                  {results.players.map((player, idx) => {
-                    const itemIndex = idx
-                    return (
-                      <button
-                        key={player.id}
-                        type="button"
-                        onClick={() => handleSelectItem({ type: 'player', id: player.id, name: player.name })}
-                        className={`menu-item w-full rounded px-3 py-2 text-left text-sm ${
-                          selectedIndex === itemIndex
-                            ? 'active text-accent'
-                            : 'text-text-muted hover:text-text'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <div className="grid h-6 w-6 place-items-center rounded bg-gradient-to-br from-accent to-sky-400 text-xs font-bold text-white">
-                            {player.name.substring(0, 1).toUpperCase()}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className={`truncate ${getWoWClassColor(player.class)}`}>{player.name}</div>
-                            <div className="text-xs text-text-muted">{player.realm}</div>
-                          </div>
-                        </div>
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
-              {results.matches.length > 0 && (
-                <div>
-                  <div className="px-3 py-2 text-xs font-semibold text-text-muted">Matches</div>
-                  {results.matches.map((match, idx) => {
-                    const itemIndex = results.players.length + idx
-                    return (
-                      <button
-                        key={match.id}
-                        type="button"
-                        onClick={() => handleSelectItem({ type: 'match', id: match.id })}
-                        className={`menu-item w-full rounded px-3 py-2 text-left text-sm ${
-                          selectedIndex === itemIndex
-                            ? 'active text-accent'
-                            : 'text-text-muted hover:text-text'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                          </svg>
-                          <div className="flex-1 min-w-0">
-                            <div className="truncate">Match #{match.id}</div>
-                            <div className="text-xs text-text-muted">{match.gameMode}</div>
-                          </div>
-                        </div>
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="px-3 py-4 text-center text-sm text-text-muted">No results found</div>
-          )}
+          {renderDropdownContent()}
         </div>
       )}
     </div>

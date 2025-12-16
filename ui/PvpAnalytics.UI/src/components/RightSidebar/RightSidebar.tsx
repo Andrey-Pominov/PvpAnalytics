@@ -173,7 +173,7 @@ const RightSidebar = ({ isOpen, onToggle }: RightSidebarProps) => {
         {items.length > 0 && (
           <div className="p-4 border-t border-accent-muted/30">
             <p className="text-xs text-text-muted text-center">
-              {items.length} character{items.length !== 1 ? 's' : ''} in history
+              {items.length} character{items.length == 1 ? '' : 's'} in history
             </p>
           </div>
         )}

@@ -5,8 +5,8 @@ import ThemeToggle from '../ThemeToggle/ThemeToggle'
 
 const Navigation = () => {
     const location = useLocation()
-    const [isMobileMenuOpen, setMobileMenuOpen] = useState(false)
-    const [isSidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
         try {
             const saved = localStorage.getItem('sidebarCollapsed')
             return saved ? JSON.parse(saved) : false
@@ -19,12 +19,12 @@ const Navigation = () => {
 
     // Save sidebar collapsed state to localStorage and dispatch event
     useEffect(() => {
-        localStorage.setItem('sidebarCollapsed', JSON.stringify(isSidebarCollapsed))
-        window.dispatchEvent(new Event('sidebarToggle'))
-    }, [isSidebarCollapsed])
+        localStorage.setItem('sidebarCollapsed', JSON.stringify(sidebarCollapsed))
+        globalThis.dispatchEvent(new Event('sidebarToggle'))
+    }, [sidebarCollapsed])
 
     const toggleSidebar = () => {
-        setSidebarCollapsed(!isSidebarCollapsed)
+        setSidebarCollapsed(!sidebarCollapsed)
     }
 
 
@@ -37,7 +37,7 @@ const Navigation = () => {
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (
-                isMobileMenuOpen &&
+                mobileMenuOpen &&
                 menuRef.current &&
                 !menuRef.current.contains(event.target as Node) &&
                 hamburgerRef.current &&
@@ -47,29 +47,29 @@ const Navigation = () => {
             }
         }
 
-        if (isMobileMenuOpen) {
+        if (mobileMenuOpen) {
             document.addEventListener('mousedown', handleClickOutside)
             return () => document.removeEventListener('mousedown', handleClickOutside)
         }
-    }, [isMobileMenuOpen])
+    }, [mobileMenuOpen])
 
     // Close mobile menu on Escape key
     useEffect(() => {
         const handleEscape = (event: KeyboardEvent) => {
-            if (event.key === 'Escape' && isMobileMenuOpen) {
+            if (event.key === 'Escape' && mobileMenuOpen) {
                 setMobileMenuOpen(false)
                 hamburgerRef.current?.focus()
             }
         }
 
-        if (isMobileMenuOpen) {
+        if (mobileMenuOpen) {
             document.addEventListener('keydown', handleEscape)
             return () => document.removeEventListener('keydown', handleEscape)
         }
-    }, [isMobileMenuOpen])
+    }, [mobileMenuOpen])
 
     const toggleMobileMenu = () => {
-        setMobileMenuOpen(!isMobileMenuOpen)
+        setMobileMenuOpen(!mobileMenuOpen)
     }
 
     const closeMobileMenu = () => {
@@ -142,19 +142,19 @@ const Navigation = () => {
                             ref={hamburgerRef}
                             type="button"
                             onClick={toggleMobileMenu}
-                            aria-expanded={isMobileMenuOpen}
+                            aria-expanded={mobileMenuOpen}
                             aria-controls="mobile-menu"
                             aria-label="Toggle navigation menu"
                             className="flex items-center justify-center p-2 rounded-lg text-text-muted hover:text-text hover:bg-surface/50 transition-colors"
                         >
                             <svg
-                                className={`h-6 w-6 transition-transform duration-300 ${isMobileMenuOpen ? 'rotate-90' : ''}`}
+                                className={`h-6 w-6 transition-transform duration-300 ${mobileMenuOpen ? 'rotate-90' : ''}`}
                                 fill="none"
                                 stroke="currentColor"
                                 viewBox="0 0 24 24"
                                 xmlns="http://www.w3.org/2000/svg"
                             >
-                                {isMobileMenuOpen ? (
+                                {mobileMenuOpen ? (
                                     <path
                                         strokeLinecap="round"
                                         strokeLinejoin="round"
@@ -175,7 +175,7 @@ const Navigation = () => {
                 </div>
 
                 {/* Slide-in Sidebar Menu */}
-                {isMobileMenuOpen && (
+                {mobileMenuOpen && (
                     <>
                         {/* Backdrop */}
                         <div
@@ -203,23 +203,21 @@ const Navigation = () => {
             {/* Desktop Left Sidebar */}
             <aside
                 className={`hidden lg:flex fixed left-0 top-[73px] bottom-0 z-40 border-r border-accent-muted/30 bg-background/95 backdrop-blur-sm flex-col transition-all duration-300 ${
-                    isSidebarCollapsed ? 'w-20' : 'w-64'
+                    sidebarCollapsed ? 'w-20' : 'w-64'
                 }`}>
                 {/* Toggle Button */}
                 <div className={`flex items-center border-b border-accent-muted/30 p-4 gap-2 ${
-                    isSidebarCollapsed ? 'justify-center' : 'justify-end'
+                    sidebarCollapsed ? 'justify-center' : 'justify-end'
                 }`}>
                     <ThemeToggle/>
                     <button
                         type="button"
                         onClick={toggleSidebar}
-                        aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-                        className={`p-2 rounded-lg text-text-muted hover:text-text hover:bg-surface/50 transition-colors ${
-                            isSidebarCollapsed ? '' : ''
-                        }`}
+                        aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                        className={`p-2 rounded-lg text-text-muted hover:text-text hover:bg-surface/50 transition-colors`}
                     >
                         <svg
-                            className={`h-5 w-5 transition-transform duration-300 ${isSidebarCollapsed ? '' : 'rotate-180'}`}
+                            className={`h-5 w-5 transition-transform duration-300 ${sidebarCollapsed ? '' : 'rotate-180'}`}
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
@@ -238,7 +236,7 @@ const Navigation = () => {
                 {/* Navigation Items */}
                 <nav className="flex-1 overflow-y-auto px-2 py-4">
                     <div className="flex flex-col gap-2">
-                        {navItems.map((item) => renderNavItem(item, undefined, isSidebarCollapsed))}
+                        {navItems.map((item) => renderNavItem(item, undefined, sidebarCollapsed))}
                     </div>
                 </nav>
             </aside>

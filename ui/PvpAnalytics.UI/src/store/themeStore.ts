@@ -9,7 +9,7 @@ interface ThemeState {
   toggleTheme: () => void
 }
 
-export type { Theme }
+export type { Theme } from '../config/themeConfig'
 
 export const useThemeStore = create<ThemeState>()(
   persist(

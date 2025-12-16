@@ -10,6 +10,8 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+    color: var(--color-text);
+    background-color: var(--color-background);
 }
 
 /* Dark theme (default) */
@@ -237,10 +239,6 @@
   --player-card-bg: rgba(0, 0, 0, 0.03);
 }
 
-:root {
-  color: var(--color-text);
-  background-color: var(--color-background);
-}
 
 body {
   @apply min-h-screen m-0;
