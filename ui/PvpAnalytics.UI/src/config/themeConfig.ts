@@ -27,7 +27,7 @@ const FALLBACK_THEME: Theme = 'dark'
  * @returns 'dark' if prefers-color-scheme is dark, 'light' otherwise
  */
 export function getSystemThemePreference(): Theme {
-  if (typeof globalThis.window === 'undefined') {
+  if (globalThis.window === undefined) {
     return FALLBACK_THEME
   }
 

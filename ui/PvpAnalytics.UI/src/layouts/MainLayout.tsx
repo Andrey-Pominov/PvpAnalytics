@@ -21,7 +21,7 @@ const MainLayout = ({children}: PropsWithChildren) => {
             const saved = localStorage.getItem('rightSidebarOpen')
             return saved ? JSON.parse(saved) : true
         } catch {
-            return false
+            return true
         }
     })
 

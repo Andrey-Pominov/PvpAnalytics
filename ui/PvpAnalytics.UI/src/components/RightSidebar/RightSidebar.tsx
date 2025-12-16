@@ -102,24 +102,24 @@ const RightSidebar = ({ isOpen, onToggle }: RightSidebarProps) => {
 
   return (
     <>
-      {/* Toggle button - always visible on xl screens */}
-      <button
-        type="button"
-        onClick={onToggle}
-        className={`hidden xl:flex fixed top-[77px] z-50 items-center justify-center p-2 rounded-lg border border-accent-muted/30 bg-background/95 backdrop-blur-sm text-text-muted hover:text-text hover:bg-surface/50 transition-all duration-300 ${
-          isOpen ? 'right-[21rem]' : 'right-4'
-        }`}
-        aria-label={isOpen ? 'Close recently viewed sidebar' : 'Open recently viewed sidebar'}
-      >
-        <svg
-          className={`h-5 w-5 transition-transform duration-300 ${isOpen ? '' : 'rotate-180'}`}
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
+      {/* Toggle button - only visible when sidebar is closed */}
+      {!isOpen && (
+        <button
+          type="button"
+          onClick={onToggle}
+          className="hidden xl:flex fixed top-[77px] right-4 z-50 items-center justify-center p-2 rounded-lg border border-accent-muted/30 bg-background/95 backdrop-blur-sm text-text-muted hover:text-text hover:bg-surface/50 transition-all duration-300"
+          aria-label="Open recently viewed sidebar"
         >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-        </svg>
-      </button>
+          <svg
+            className="h-5 w-5 transition-transform duration-300 rotate-180"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+          </svg>
+        </button>
+      )}
 
       {/* Sidebar */}
       <aside
@@ -128,20 +128,43 @@ const RightSidebar = ({ isOpen, onToggle }: RightSidebarProps) => {
         }`}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-accent-muted/30">
-          <div>
+        <div className="flex items-center border-b border-accent-muted/30 p-4 gap-2">
+          <div className="flex-1">
             <h2 className="text-lg font-semibold text-text">Recently Viewed</h2>
             <p className="text-xs text-text-muted">Characters you've checked</p>
           </div>
-          {items.length > 0 && (
+          <div className="flex items-center gap-2">
+            {items.length > 0 && (
+              <button
+                type="button"
+                onClick={clearAll}
+                className="text-xs text-text-muted hover:text-[var(--color-error-text)] transition-colors"
+              >
+                Clear all
+              </button>
+            )}
             <button
               type="button"
-              onClick={clearAll}
-              className="text-xs text-text-muted hover:text-[var(--color-error-text)] transition-colors"
+              onClick={onToggle}
+              aria-label="Close recently viewed sidebar"
+              className="p-2 rounded-lg text-text-muted hover:text-text hover:bg-surface/50 transition-colors"
             >
-              Clear all
+              <svg
+                className="h-5 w-5 transition-transform duration-300"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 5l7 7-7 7M5 5l7 7-7 7"
+                />
+              </svg>
             </button>
-          )}
+          </div>
         </div>
 
         {/* Content */}

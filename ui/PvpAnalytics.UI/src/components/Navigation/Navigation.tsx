@@ -17,7 +17,6 @@ const Navigation = () => {
     const menuRef = useRef<HTMLDivElement>(null)
     const hamburgerRef = useRef<HTMLButtonElement>(null)
 
-    // Save sidebar collapsed state to localStorage and dispatch event
     useEffect(() => {
         localStorage.setItem('sidebarCollapsed', JSON.stringify(sidebarCollapsed))
         globalThis.dispatchEvent(new Event('sidebarToggle'))
@@ -28,12 +27,10 @@ const Navigation = () => {
     }
 
 
-    // Close mobile menu when route changes
     useEffect(() => {
         setMobileMenuOpen(false)
     }, [location.pathname])
 
-    // Close mobile menu on outside click
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (
@@ -53,7 +50,6 @@ const Navigation = () => {
         }
     }, [mobileMenuOpen])
 
-    // Close mobile menu on Escape key
     useEffect(() => {
         const handleEscape = (event: KeyboardEvent) => {
             if (event.key === 'Escape' && mobileMenuOpen) {
@@ -120,7 +116,6 @@ const Navigation = () => {
 
     return (
         <>
-            {/* Global Search Bar - Always at Top */}
             <div className="sticky top-0 z-50 border-b border-accent-muted/30 bg-background/95 backdrop-blur-sm">
                 <div className="container mx-auto px-4 py-3 flex items-center gap-3">
                     <div className="flex-1">
@@ -132,9 +127,7 @@ const Navigation = () => {
                 </div>
             </div>
 
-            {/* Mobile Layout */}
             <div className="lg:hidden">
-                {/* Hamburger Button Row */}
                 <div
                     className="sticky top-[73px] z-40 border-b border-accent-muted/30 bg-background/95 backdrop-blur-sm">
                     <div className="flex items-center justify-center px-4 py-3">
@@ -174,16 +167,13 @@ const Navigation = () => {
                     </div>
                 </div>
 
-                {/* Slide-in Sidebar Menu */}
                 {mobileMenuOpen && (
                     <>
-                        {/* Backdrop */}
                         <div
                             className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden"
                             onClick={closeMobileMenu}
                             aria-hidden="true"
                         />
-                        {/* Sidebar */}
                         <div
                             ref={menuRef}
                             id="mobile-menu"
@@ -200,16 +190,13 @@ const Navigation = () => {
                 )}
             </div>
 
-            {/* Desktop Left Sidebar */}
             <aside
                 className={`hidden lg:flex fixed left-0 top-[73px] bottom-0 z-40 border-r border-accent-muted/30 bg-background/95 backdrop-blur-sm flex-col transition-all duration-300 ${
                     sidebarCollapsed ? 'w-20' : 'w-64'
                 }`}>
-                {/* Toggle Button */}
                 <div className={`flex items-center border-b border-accent-muted/30 p-4 gap-2 ${
                     sidebarCollapsed ? 'justify-center' : 'justify-end'
                 }`}>
-                    <ThemeToggle/>
                     <button
                         type="button"
                         onClick={toggleSidebar}
@@ -233,7 +220,6 @@ const Navigation = () => {
                     </button>
                 </div>
 
-                {/* Navigation Items */}
                 <nav className="flex-1 overflow-y-auto px-2 py-4">
                     <div className="flex flex-col gap-2">
                         {navItems.map((item) => renderNavItem(item, undefined, sidebarCollapsed))}
