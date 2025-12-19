@@ -12,3 +12,4 @@ dist/
 *.lua
 sonar-project.properties
 .cursor
+.sonarqube/
