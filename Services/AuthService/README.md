@@ -139,7 +139,7 @@ Cors__AllowedOrigins__1=https://localhost:8080
 
 ## Database
 
-- **Database**: Oracle Database 26ai (or Oracle Database 23c Free)
+- **Database**: Oracle Database 23c Free
 - **Schema**: Managed via EF Core Migrations
 - **Auto-migration**: Migrations run automatically on startup
 - **Tables**:

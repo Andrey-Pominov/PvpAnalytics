@@ -18,8 +18,8 @@
       retries: 5
       start_period: 30s
 
-  auth-oracle:
-    image: gvenzl/oracle-xe:latest
+  auth-sql:
+    image: gvenzl/oracle-xe:23-slim
     restart: always
     environment:
       - ORACLE_PASSWORD=${ORACLE_PASSWORD?ORACLE_PASSWORD not set}
@@ -29,7 +29,7 @@
     volumes:
       - auth-oracle-data:/opt/oracle/oradata
     healthcheck:
-      test: ["CMD-SHELL", "sqlplus -S sys/${ORACLE_PASSWORD}@localhost:1521/XE as sysdba <<< 'SELECT 1 FROM DUAL;' | grep -q '1' || exit 1"]
+      test: ["CMD-SHELL", "sqlplus -S sys/${ORACLE_PASSWORD}@//localhost:1521/XE as sysdba <<< 'SELECT 1 FROM DUAL;' | grep -q '1' || exit 1"]
       interval: 10s
       timeout: 10s
       retries: 10
