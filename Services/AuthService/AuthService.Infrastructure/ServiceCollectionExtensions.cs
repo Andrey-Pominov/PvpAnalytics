@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Oracle.EntityFrameworkCore;
 using PvpAnalytics.Shared.Security;
 
 namespace AuthService.Infrastructure;
@@ -21,12 +22,12 @@ public static class ServiceCollectionExtensions
 
         if ((connectionString.StartsWith("Host=", StringComparison.OrdinalIgnoreCase) ||
              connectionString.Contains("Port=5432", StringComparison.OrdinalIgnoreCase)) &&
-            !connectionString.Contains("Server=", StringComparison.OrdinalIgnoreCase))
+            !connectionString.Contains("Data Source=", StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidOperationException(
-                $"Invalid connection string for AuthService: AuthService must use SQL Server, but detected PostgreSQL connection string format. " +
+                $"Invalid connection string for AuthService: AuthService must use Oracle Database, but detected PostgreSQL connection string format. " +
                 $"Connection string starts with: {connectionString[..Math.Min(50, connectionString.Length)]}... " +
-                $"Check for environment variable 'ConnectionStrings__DefaultConnection' that might be overriding the SQL Server connection string.");
+                $"Check for environment variable 'ConnectionStrings__DefaultConnection' that might be overriding the Oracle connection string.");
         }
 
         if (connectionString.StartsWith("InMemory:", StringComparison.OrdinalIgnoreCase))
@@ -37,7 +38,7 @@ public static class ServiceCollectionExtensions
         else
         {
             services.AddDbContext<AuthDbContext>(options =>
-                options.UseSqlServer(connectionString));
+                options.UseOracle(connectionString));
         }
 
         services

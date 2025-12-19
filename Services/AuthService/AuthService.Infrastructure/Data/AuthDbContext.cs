@@ -27,7 +27,7 @@ public class AuthDbContext(DbContextOptions<AuthDbContext> options)
         {
             b.Property(u => u.FullName).HasMaxLength(200);
             b.Property(u => u.CreatedAt)
-                .HasDefaultValueSql("GETUTCDATE()")
+                .HasDefaultValueSql("SYS_EXTRACT_UTC(SYSTIMESTAMP)")
                 .ValueGeneratedOnAdd();
         });
 

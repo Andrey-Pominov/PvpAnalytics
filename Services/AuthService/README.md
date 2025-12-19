@@ -109,7 +109,7 @@ Refresh an expired access token using a refresh token.
 
 Required environment variables (set in `.env` file or Docker Compose):
 
-- `ConnectionStrings__DefaultConnection`: SQL Server connection string
+- `ConnectionStrings__DefaultConnection`: Oracle Database connection string (format: `Data Source=host:port/service_name;User Id=username;Password=password;`)
 - `Jwt__Issuer`: JWT issuer (e.g., "PvpAnalytics.Auth")
 - `Jwt__Audience`: JWT audience (e.g., "PvpAnalytics.Api")
 - `Jwt__SigningKey`: Secret key for signing JWTs
@@ -139,12 +139,12 @@ Cors__AllowedOrigins__1=https://localhost:8080
 
 ## Database
 
-- **Database**: SQL Server 2022+
+- **Database**: Oracle Database 26ai (or Oracle Database 23c Free)
 - **Schema**: Managed via EF Core Migrations
 - **Auto-migration**: Migrations run automatically on startup
 - **Tables**:
-  - `AspNetUsers`: User accounts
-  - `AspNetRoles`: User roles (if used)
+  - `Users`: User accounts (renamed from AspNetUsers)
+  - `Roles`: User roles (renamed from AspNetRoles)
   - `RefreshTokens`: Refresh token storage
 
 ## Running Locally
@@ -152,22 +152,24 @@ Cors__AllowedOrigins__1=https://localhost:8080
 ### Prerequisites
 
 - .NET 9 SDK
-- SQL Server 2022+ (or Docker)
+- Oracle Database 26ai (or Oracle Database 23c Free) - can use Docker
 
 ### Steps
 
-1. **Start SQL Server** (if not using Docker):
+1. **Start Oracle Database** (if not using Docker):
    ```bash
-   docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=YourPassword123!" \
-        -p 1433:1433 --name auth-sql \
-        mcr.microsoft.com/mssql/server:2022-latest
+   docker run -d --name auth-oracle \
+        -e ORACLE_PASSWORD=YourPassword123! \
+        -e ORACLE_DATABASE=AuthService \
+        -p 1521:1521 \
+        gvenzl/oracle-xe:23-slim
    ```
 
 2. **Configure connection string** in `appsettings.Development.json` or use User Secrets:
    ```bash
    cd Services/AuthService/AuthService.Api
    dotnet user-secrets set "ConnectionStrings:DefaultConnection" \
-        "Server=localhost,1433;Database=AuthService;User Id=sa;Password=YourPassword123!;TrustServerCertificate=True"
+        "Data Source=localhost:1521/XE;User Id=system;Password=YourPassword123!;"
    dotnet user-secrets set "Jwt:SigningKey" "YourSecretKeyHere"
    ```
 
@@ -181,7 +183,7 @@ Cors__AllowedOrigins__1=https://localhost:8080
 The service is included in the main `docker-compose.yaml`. Ensure your `.env` file contains:
 
 ```bash
-SA_PASSWORD=YourPassword123!
+ORACLE_PASSWORD=YourPassword123!
 JWT_SIGNING_KEY=YourSecretKeyHere
 ```
 
@@ -203,7 +205,7 @@ docker compose up -d auth
 
 - **ASP.NET Core Identity**: User management and authentication
 - **Entity Framework Core**: Data access and migrations
-- **SQL Server**: Database provider
+- **Oracle Database 26ai**: Database provider (via Oracle.EntityFrameworkCore)
 - **JWT Bearer Authentication**: Token-based authentication
 
 ## Testing

@@ -18,23 +18,22 @@
       retries: 5
       start_period: 30s
 
-  auth-sql:
-    image: mcr.microsoft.com/mssql/server:2022-latest
+  auth-oracle:
+    image: gvenzl/oracle-xe:latest
     restart: always
     environment:
-      - ACCEPT_EULA=Y
-      - MSSQL_SA_PASSWORD=${SA_PASSWORD?SA_PASSWORD not set}
-      - MSSQL_PID=Developer
+      - ORACLE_PASSWORD=${ORACLE_PASSWORD?ORACLE_PASSWORD not set}
+      - ORACLE_DATABASE=AuthService
     ports:
-      - "1433:1433"
+      - "1521:1521"
     volumes:
-      - auth-sql-data:/var/opt/mssql
+      - auth-oracle-data:/opt/oracle/oradata
     healthcheck:
-      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -d master -Q \"SELECT 1\" -C || exit 1"]
+      test: ["CMD-SHELL", "sqlplus -S sys/${ORACLE_PASSWORD}@localhost:1521/XE as sysdba <<< 'SELECT 1 FROM DUAL;' | grep -q '1' || exit 1"]
       interval: 10s
-      timeout: 5s
+      timeout: 10s
       retries: 10
-      start_period: 40s
+      start_period: 60s
 
   logging-postgres:
     image: postgres:16
@@ -92,7 +91,7 @@
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:8081
-      - ConnectionStrings__DefaultConnection=Server=auth-sql,1433;Database=AuthService;User Id=sa;Password=${SA_PASSWORD?SA_PASSWORD not set};TrustServerCertificate=True;Encrypt=True
+      - ConnectionStrings__DefaultConnection=Data Source=auth-oracle:1521/XE;User Id=system;Password=${ORACLE_PASSWORD?ORACLE_PASSWORD not set};
       - JWT__Issuer=PvpAnalytics.Auth
       - JWT__Audience=PvpAnalytics.Api
       - JWT__SigningKey=${JWT_SIGNING_KEY?JWT_SIGNING_KEY not set}
@@ -105,7 +104,7 @@
     depends_on:
       db:
         condition: service_healthy
-      auth-sql:
+      auth-oracle:
         condition: service_healthy
       logging:
         condition: service_healthy
@@ -202,5 +201,5 @@
     restart: unless-stopped
 
 volumes:
-  auth-sql-data:
+  auth-oracle-data:
   logging-postgres-data:
