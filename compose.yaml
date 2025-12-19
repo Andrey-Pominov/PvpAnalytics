@@ -18,7 +18,7 @@
       retries: 5
       start_period: 30s
 
-  auth-sql:
+  auth-oracle:
     image: gvenzl/oracle-xe:23-slim
     restart: always
     environment:
