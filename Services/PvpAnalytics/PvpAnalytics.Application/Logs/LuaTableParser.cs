@@ -356,12 +356,9 @@ public static partial class LuaTableParser
         var lookup = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var rootPlayers = ExtractRootPlayers(lines);
         
-        foreach (var player in rootPlayers)
+        foreach (var player in rootPlayers.Where(player => !string.IsNullOrEmpty(player.Faction)))
         {
-            if (!string.IsNullOrEmpty(player.Faction))
-            {
-                lookup[player.PlayerGuid] = player.Faction;
-            }
+            if (player.Faction != null) lookup[player.PlayerGuid] = player.Faction;
         }
 
         return lookup;
@@ -374,126 +371,134 @@ public static partial class LuaTableParser
         var playersDepth = 0;
         LuaPlayerData? currentPlayer = null;
         var playerBraceDepth = 0;
+        var seenMatches = false;
 
         foreach (var line in lines)
         {
             var trimmed = line.Trim();
 
-            // Check if we're entering the root players section (not inside matches)
-            if (!inPlayers && trimmed.StartsWith("[\"players\"]"))
-            {
-                // Verify we're not inside matches section
-                var lineIndex = Array.IndexOf(lines, line);
-                var beforeLine = string.Join("\n", lines.Take(lineIndex));
-                if (!beforeLine.Contains("[\"matches\"]"))
-                {
-                    inPlayers = true;
-                    playersDepth = CalculateBraceDelta(trimmed);
-                    continue;
-                }
-            }
+            UpdateSeenMatches(trimmed, ref seenMatches);
+
+            if (TryEnterPlayersSection(trimmed, ref inPlayers, ref playersDepth, seenMatches))
+                continue;
 
             if (!inPlayers)
                 continue;
 
-            playersDepth += CalculateBraceDelta(trimmed);
-            if (playersDepth <= 0)
-            {
-                if (currentPlayer != null)
-                {
-                    players.Add(currentPlayer);
-                    currentPlayer = null;
-                }
-                inPlayers = false;
+            if (TryExitPlayersSection(trimmed, ref inPlayers, ref playersDepth, ref currentPlayer, players))
                 continue;
-            }
 
             var playerMatch = PlayerIdRegex().Match(trimmed);
-            if (playerMatch.Success)
-            {
-                if (currentPlayer != null)
-                {
-                    players.Add(currentPlayer);
-                }
-                currentPlayer = new LuaPlayerData
-                {
-                    PlayerGuid = playerMatch.Groups[1].Value
-                };
-                playerBraceDepth = Math.Max(1, CalculateBraceDelta(trimmed));
+            if (TryStartNewPlayer(trimmed, playerMatch, ref currentPlayer, ref playerBraceDepth, players))
                 continue;
-            }
 
             if (currentPlayer == null)
                 continue;
 
-            ExtractPlayerField(trimmed, currentPlayer);
-
-            if (!playerMatch.Success)
-                playerBraceDepth += CalculateBraceDelta(trimmed);
-            if (playerBraceDepth <= 0)
-            {
-                players.Add(currentPlayer);
-                currentPlayer = null;
-            }
+            ProcessPlayerFieldLine(trimmed, playerMatch, currentPlayer, ref playerBraceDepth, players, ref currentPlayer);
         }
 
-        if (currentPlayer != null)
-        {
-            players.Add(currentPlayer);
-        }
-
+        FinalizePlayer(currentPlayer, players);
         return players;
+    }
+
+    private static void UpdateSeenMatches(string trimmed, ref bool seenMatches)
+    {
+        if (trimmed.StartsWith("[\"matches\"]"))
+            seenMatches = true;
+    }
+
+    private static bool TryEnterPlayersSection(string trimmed, ref bool inPlayers, ref int playersDepth, bool seenMatches)
+    {
+        if (!inPlayers && trimmed.StartsWith("[\"players\"]") && !seenMatches)
+        {
+            inPlayers = true;
+            playersDepth = CalculateBraceDelta(trimmed);
+            return true;
+        }
+        return false;
+    }
+
+    private static bool TryExitPlayersSection(string trimmed, ref bool inPlayers, ref int playersDepth, ref LuaPlayerData? currentPlayer, List<LuaPlayerData> players)
+    {
+        playersDepth += CalculateBraceDelta(trimmed);
+        if (playersDepth <= 0)
+        {
+            FinalizePlayer(currentPlayer, players);
+            currentPlayer = null;
+            inPlayers = false;
+            return true;
+        }
+        return false;
+    }
+
+    private static bool TryStartNewPlayer(string trimmed, Match playerMatch, ref LuaPlayerData? currentPlayer, ref int playerBraceDepth, List<LuaPlayerData> players)
+    {
+        if (!playerMatch.Success)
+            return false;
+
+        FinalizePlayer(currentPlayer, players);
+        currentPlayer = new LuaPlayerData
+        {
+            PlayerGuid = playerMatch.Groups[1].Value
+        };
+        playerBraceDepth = Math.Max(1, CalculateBraceDelta(trimmed));
+        return true;
+    }
+
+    private static void ProcessPlayerFieldLine(string trimmed, Match playerMatch, LuaPlayerData currentPlayer, ref int playerBraceDepth, List<LuaPlayerData> players, ref LuaPlayerData? currentPlayerRef)
+    {
+        ExtractPlayerField(trimmed, currentPlayer);
+
+        if (!playerMatch.Success)
+            playerBraceDepth += CalculateBraceDelta(trimmed);
+
+        if (playerBraceDepth <= 0)
+        {
+            FinalizePlayer(currentPlayerRef, players);
+            currentPlayerRef = null;
+        }
+    }
+
+    private static void FinalizePlayer(LuaPlayerData? currentPlayer, List<LuaPlayerData> players)
+    {
+        if (currentPlayer != null)
+            players.Add(currentPlayer);
     }
 
     private static void ExtractPlayerField(string line, LuaPlayerData player)
     {
-        var trimmed = line.Trim();
-        
         ExtractField(line, NameRegex(), value => player.Name = value.Trim());
         ExtractField(line, RealmRegex(), value => player.Realm = value.Trim());
         ExtractField(line, ClassIdRegex(), value => player.ClassId = value.Trim());
         ExtractField(line, ClassRegex(), value => player.Class = value.Trim());
-        ExtractField(line, SpecIdRegex(), value => 
-        {
-            if (int.TryParse(value.Trim(), out var specId))
-                player.SpecId = specId;
-        });
+        ExtractField(line, SpecIdRegex(), value => ParseAndSetInt(value, val => player.SpecId = val));
         ExtractField(line, FactionRegex(), value => player.Faction = value.Trim());
-        ExtractField(line, KdRatioRegex(), value =>
-        {
-            if (double.TryParse(value.Trim(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var kdRatio))
-                player.KdRatio = kdRatio;
-        });
-        ExtractField(line, LossesRegex(), value =>
-        {
-            if (int.TryParse(value.Trim(), out var losses))
-                player.Losses = losses;
-        });
-        ExtractField(line, WinsRegex(), value =>
-        {
-            if (int.TryParse(value.Trim(), out var wins))
-                player.Wins = wins;
-        });
-        ExtractField(line, MatchesPlayedRegex(), value =>
-        {
-            if (int.TryParse(value.Trim(), out var matchesPlayed))
-                player.MatchesPlayed = matchesPlayed;
-        });
-        ExtractField(line, TotalDamageRegex(), value =>
-        {
-            if (long.TryParse(value.Trim(), out var totalDamage))
-                player.TotalDamage = totalDamage;
-        });
-        ExtractField(line, TotalHealingRegex(), value =>
-        {
-            if (long.TryParse(value.Trim(), out var totalHealing))
-                player.TotalHealing = totalHealing;
-        });
-        ExtractField(line, InterruptsPerMatchRegex(), value =>
-        {
-            if (double.TryParse(value.Trim(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var interrupts))
-                player.InterruptsPerMatch = interrupts;
-        });
+        ExtractField(line, KdRatioRegex(), value => ParseAndSetDouble(value, val => player.KdRatio = val));
+        ExtractField(line, LossesRegex(), value => ParseAndSetInt(value, val => player.Losses = val));
+        ExtractField(line, WinsRegex(), value => ParseAndSetInt(value, val => player.Wins = val));
+        ExtractField(line, MatchesPlayedRegex(), value => ParseAndSetInt(value, val => player.MatchesPlayed = val));
+        ExtractField(line, TotalDamageRegex(), value => ParseAndSetLong(value, val => player.TotalDamage = val));
+        ExtractField(line, TotalHealingRegex(), value => ParseAndSetLong(value, val => player.TotalHealing = val));
+        ExtractField(line, InterruptsPerMatchRegex(), value => ParseAndSetDouble(value, val => player.InterruptsPerMatch = val));
+    }
+
+    private static void ParseAndSetInt(string value, Action<int> setter)
+    {
+        if (int.TryParse(value.Trim(), out var parsed))
+            setter(parsed);
+    }
+
+    private static void ParseAndSetLong(string value, Action<long> setter)
+    {
+        if (long.TryParse(value.Trim(), out var parsed))
+            setter(parsed);
+    }
+
+    private static void ParseAndSetDouble(string value, Action<double> setter)
+    {
+        if (double.TryParse(value.Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out var parsed))
+            setter(parsed);
     }
 
     private static bool TryStartNewMatchNew(string trimmedLine, NewFormatParserState state)

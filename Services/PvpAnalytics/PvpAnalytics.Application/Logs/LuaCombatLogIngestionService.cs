@@ -8,6 +8,7 @@ using PvpAnalytics.Core.Enum;
 using PvpAnalytics.Core.Logs;
 using PvpAnalytics.Core.Models;
 using PvpAnalytics.Core.Repositories;
+using PvpAnalytics.Shared;
 
 namespace PvpAnalytics.Application.Logs;
 
@@ -595,11 +596,10 @@ public class LuaCombatLogIngestionService(
         // First, ensure we have pending players added to the cache
         foreach (var luaPlayer in rootPlayers)
         {
-            if (string.IsNullOrWhiteSpace(luaPlayer.Name) || string.IsNullOrWhiteSpace(luaPlayer.Realm))
+            if (IsValidPlayerData(luaPlayer))
             {
-                continue;
+                _playerCache.GetOrAddPending(luaPlayer.Name!, luaPlayer.Realm!);
             }
-            _playerCache.GetOrAddPending(luaPlayer.Name, luaPlayer.Realm);
         }
 
         // Do a batch lookup to get existing players
@@ -608,7 +608,7 @@ public class LuaCombatLogIngestionService(
         // Now process each player
         foreach (var luaPlayer in rootPlayers)
         {
-            if (string.IsNullOrWhiteSpace(luaPlayer.Name) || string.IsNullOrWhiteSpace(luaPlayer.Realm))
+            if (!IsValidPlayerData(luaPlayer))
             {
                 logger.LogDebug("Skipping player with missing name or realm. GUID: {Guid}", luaPlayer.PlayerGuid);
                 continue;
@@ -616,35 +616,7 @@ public class LuaCombatLogIngestionService(
 
             try
             {
-                // Try to get existing player first
-                var existingPlayer = _playerCache.GetCached(luaPlayer.Name);
-                
-                if (existingPlayer != null)
-                {
-                    // Update existing player
-                    var originalClass = existingPlayer.Class;
-                    var originalFaction = existingPlayer.Faction;
-                    var originalSpec = existingPlayer.Spec;
-
-                    UpdatePlayerFromLuaData(existingPlayer, luaPlayer);
-
-                    // Mark for update if any field changed
-                    if (existingPlayer.Class != originalClass || 
-                        existingPlayer.Faction != originalFaction || 
-                        existingPlayer.Spec != originalSpec)
-                    {
-                        _playerCache.MarkForUpdate(existingPlayer);
-                        logger.LogDebug("Updated existing player {PlayerName}-{Realm} from root data. Class: {Class}, Faction: {Faction}",
-                            luaPlayer.Name, luaPlayer.Realm, luaPlayer.Class, luaPlayer.Faction);
-                    }
-                }
-                else
-                {
-                    // Player doesn't exist yet, will be created later with default values
-                    // Store the data for later application (after BatchPersistAsync)
-                    logger.LogDebug("Player {PlayerName}-{Realm} will be created. Root data available: Class: {Class}, Faction: {Faction}",
-                        luaPlayer.Name, luaPlayer.Realm, luaPlayer.Class, luaPlayer.Faction);
-                }
+                ProcessSingleRootPlayer(luaPlayer);
             }
             catch (Exception ex)
             {
@@ -652,6 +624,49 @@ public class LuaCombatLogIngestionService(
                     luaPlayer.PlayerGuid, luaPlayer.Name);
             }
         }
+    }
+
+    private static bool IsValidPlayerData(LuaPlayerData luaPlayer)
+    {
+        return !string.IsNullOrWhiteSpace(luaPlayer.Name) && !string.IsNullOrWhiteSpace(luaPlayer.Realm);
+    }
+
+    private void ProcessSingleRootPlayer(LuaPlayerData luaPlayer)
+    {
+        var existingPlayer = _playerCache.GetCached(luaPlayer.Name!);
+        
+        if (existingPlayer != null)
+        {
+            UpdateExistingPlayerFromRootData(existingPlayer, luaPlayer);
+        }
+        else
+        {
+            logger.LogDebug("Player {PlayerName}-{Realm} will be created. Root data available: Class: {Class}, Faction: {Faction}",
+                luaPlayer.Name, luaPlayer.Realm, luaPlayer.Class, luaPlayer.Faction);
+        }
+    }
+
+    private void UpdateExistingPlayerFromRootData(Player existingPlayer, LuaPlayerData luaPlayer)
+    {
+        var originalClass = existingPlayer.Class;
+        var originalFaction = existingPlayer.Faction;
+        var originalSpec = existingPlayer.Spec;
+
+        UpdatePlayerFromLuaData(existingPlayer, luaPlayer);
+
+        if (HasPlayerDataChanged(existingPlayer, originalClass, originalFaction, originalSpec))
+        {
+            _playerCache.MarkForUpdate(existingPlayer);
+            logger.LogDebug("Updated existing player {PlayerName}-{Realm} from root data. Class: {Class}, Faction: {Faction}",
+                luaPlayer.Name, luaPlayer.Realm, luaPlayer.Class, luaPlayer.Faction);
+        }
+    }
+
+    private static bool HasPlayerDataChanged(Player player, string originalClass, string originalFaction, string originalSpec)
+    {
+        return player.Class != originalClass || 
+               player.Faction != originalFaction || 
+               player.Spec != originalSpec;
     }
 
     /// <summary>
@@ -695,6 +710,83 @@ public class LuaCombatLogIngestionService(
     }
 
     /// <summary>
+    /// Maps a WoW specialization ID to its human-readable name.
+    /// </summary>
+    private static string MapSpecIdToName(int specId)
+    {
+        // Map SpecId to WoWSpecialization enum, then to AppConstants.WoWSpec name
+        return specId switch
+        {
+            // Death Knight
+            (int)WoWSpecialization.Blood => AppConstants.WoWSpec.DeathKnight.Blood,
+            (int)WoWSpecialization.FrostDK => AppConstants.WoWSpec.DeathKnight.Frost,
+            (int)WoWSpecialization.Unholy => AppConstants.WoWSpec.DeathKnight.Unholy,
+
+            // Demon Hunter
+            (int)WoWSpecialization.Havoc => AppConstants.WoWSpec.DemonHunter.Havoc,
+            (int)WoWSpecialization.Vengeance => AppConstants.WoWSpec.DemonHunter.Vengeance,
+
+            // Druid
+            (int)WoWSpecialization.Balance => AppConstants.WoWSpec.Druid.Balance,
+            (int)WoWSpecialization.Feral => AppConstants.WoWSpec.Druid.Feral,
+            (int)WoWSpecialization.Guardian => AppConstants.WoWSpec.Druid.Guardian,
+            (int)WoWSpecialization.RestorationDruid => AppConstants.WoWSpec.Druid.Restoration,
+
+            // Evoker
+            (int)WoWSpecialization.Devastation => AppConstants.WoWSpec.Evoker.Devastation,
+            (int)WoWSpecialization.Preservation => AppConstants.WoWSpec.Evoker.Preservation,
+            (int)WoWSpecialization.Augmentation => AppConstants.WoWSpec.Evoker.Augmentation,
+
+            // Hunter
+            (int)WoWSpecialization.BeastMastery => AppConstants.WoWSpec.Hunter.BeastMastery,
+            (int)WoWSpecialization.Marksmanship => AppConstants.WoWSpec.Hunter.Marksmanship,
+            (int)WoWSpecialization.Survival => AppConstants.WoWSpec.Hunter.Survival,
+
+            // Mage
+            (int)WoWSpecialization.Arcane => AppConstants.WoWSpec.Mage.Arcane,
+            (int)WoWSpecialization.Fire => AppConstants.WoWSpec.Mage.Fire,
+            (int)WoWSpecialization.FrostMage => AppConstants.WoWSpec.Mage.Frost,
+
+            // Monk
+            (int)WoWSpecialization.Brewmaster => AppConstants.WoWSpec.Monk.Brewmaster,
+            (int)WoWSpecialization.Mistweaver => AppConstants.WoWSpec.Monk.Mistweaver,
+            (int)WoWSpecialization.Windwalker => AppConstants.WoWSpec.Monk.Windwalker,
+
+            // Paladin
+            (int)WoWSpecialization.HolyPaladin => AppConstants.WoWSpec.Paladin.Holy,
+            (int)WoWSpecialization.ProtectionPaladin => AppConstants.WoWSpec.Paladin.Protection,
+            (int)WoWSpecialization.Retribution => AppConstants.WoWSpec.Paladin.Retribution,
+
+            // Priest
+            (int)WoWSpecialization.Discipline => AppConstants.WoWSpec.Priest.Discipline,
+            (int)WoWSpecialization.HolyPriest => AppConstants.WoWSpec.Priest.Holy,
+            (int)WoWSpecialization.Shadow => AppConstants.WoWSpec.Priest.Shadow,
+
+            // Rogue
+            (int)WoWSpecialization.Assassination => AppConstants.WoWSpec.Rogue.Assassination,
+            (int)WoWSpecialization.Outlaw => AppConstants.WoWSpec.Rogue.Outlaw,
+            (int)WoWSpecialization.Subtlety => AppConstants.WoWSpec.Rogue.Subtlety,
+
+            // Shaman
+            (int)WoWSpecialization.Elemental => AppConstants.WoWSpec.Shaman.Elemental,
+            (int)WoWSpecialization.Enhancement => AppConstants.WoWSpec.Shaman.Enhancement,
+            (int)WoWSpecialization.RestorationShaman => AppConstants.WoWSpec.Shaman.Restoration,
+
+            // Warlock
+            (int)WoWSpecialization.Affliction => AppConstants.WoWSpec.Warlock.Affliction,
+            (int)WoWSpecialization.Demonology => AppConstants.WoWSpec.Warlock.Demonology,
+            (int)WoWSpecialization.Destruction => AppConstants.WoWSpec.Warlock.Destruction,
+
+            // Warrior
+            (int)WoWSpecialization.Arms => AppConstants.WoWSpec.Warrior.Arms,
+            (int)WoWSpecialization.Fury => AppConstants.WoWSpec.Warrior.Fury,
+            (int)WoWSpecialization.ProtectionWarrior => AppConstants.WoWSpec.Warrior.Protection,
+
+            _ => string.Empty
+        };
+    }
+
+    /// <summary>
     /// Updates a Player entity with data from LuaPlayerData, only setting fields that are not already populated.
     /// </summary>
     private static void UpdatePlayerFromLuaData(Player player, LuaPlayerData luaPlayer)
@@ -717,8 +809,12 @@ public class LuaCombatLogIngestionService(
 
         if (string.IsNullOrWhiteSpace(player.Spec) && luaPlayer.SpecId.HasValue)
         {
-            // Convert specId to spec name if needed, or store as string
-            player.Spec = luaPlayer.SpecId.Value.ToString();
+            // Convert specId to human-readable spec name
+            var specName = MapSpecIdToName(luaPlayer.SpecId.Value);
+            if (!string.IsNullOrWhiteSpace(specName))
+            {
+                player.Spec = specName;
+            }
         }
     }
 }
