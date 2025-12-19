@@ -294,9 +294,11 @@ public static partial class LuaTableParser
         var matches = new List<LuaMatchData>();
         var lines = content.Split('\n');
         var factionLookup = ExtractFactionMap(lines);
+        var rootPlayers = ExtractRootPlayers(lines);
         var state = new NewFormatParserState
         {
-            PlayerFactions = factionLookup
+            PlayerFactions = factionLookup,
+            RootPlayers = rootPlayers
         };
 
         var inMatchesSection = false;
@@ -340,34 +342,68 @@ public static partial class LuaTableParser
             matches.Add(state.CurrentMatch);
         }
 
+        // Add root players to all matches
+        foreach (var match in matches)
+        {
+            match.Players.AddRange(rootPlayers);
+        }
+
         return matches;
     }
 
     private static Dictionary<string, string> ExtractFactionMap(string[] lines)
     {
         var lookup = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var rootPlayers = ExtractRootPlayers(lines);
+        
+        foreach (var player in rootPlayers)
+        {
+            if (!string.IsNullOrEmpty(player.Faction))
+            {
+                lookup[player.PlayerGuid] = player.Faction;
+            }
+        }
+
+        return lookup;
+    }
+
+    private static List<LuaPlayerData> ExtractRootPlayers(string[] lines)
+    {
+        var players = new List<LuaPlayerData>();
         var inPlayers = false;
         var playersDepth = 0;
-        string? currentPlayerId = null;
+        LuaPlayerData? currentPlayer = null;
         var playerBraceDepth = 0;
 
         foreach (var line in lines)
         {
             var trimmed = line.Trim();
 
-            switch (inPlayers)
+            // Check if we're entering the root players section (not inside matches)
+            if (!inPlayers && trimmed.StartsWith("[\"players\"]"))
             {
-                case false when trimmed.StartsWith("[\"players\"]"):
+                // Verify we're not inside matches section
+                var lineIndex = Array.IndexOf(lines, line);
+                var beforeLine = string.Join("\n", lines.Take(lineIndex));
+                if (!beforeLine.Contains("[\"matches\"]"))
+                {
                     inPlayers = true;
                     playersDepth = CalculateBraceDelta(trimmed);
                     continue;
-                case false:
-                    continue;
+                }
             }
+
+            if (!inPlayers)
+                continue;
 
             playersDepth += CalculateBraceDelta(trimmed);
             if (playersDepth <= 0)
             {
+                if (currentPlayer != null)
+                {
+                    players.Add(currentPlayer);
+                    currentPlayer = null;
+                }
                 inPlayers = false;
                 continue;
             }
@@ -375,23 +411,89 @@ public static partial class LuaTableParser
             var playerMatch = PlayerIdRegex().Match(trimmed);
             if (playerMatch.Success)
             {
-                currentPlayerId = playerMatch.Groups[1].Value;
+                if (currentPlayer != null)
+                {
+                    players.Add(currentPlayer);
+                }
+                currentPlayer = new LuaPlayerData
+                {
+                    PlayerGuid = playerMatch.Groups[1].Value
+                };
                 playerBraceDepth = Math.Max(1, CalculateBraceDelta(trimmed));
+                continue;
             }
 
-            if (currentPlayerId == null)
+            if (currentPlayer == null)
                 continue;
 
-            if (FactionRegex().Match(trimmed) is { Success: true } factionMatch)
-                lookup[currentPlayerId] = factionMatch.Groups[1].Value.Trim();
+            ExtractPlayerField(trimmed, currentPlayer);
 
             if (!playerMatch.Success)
                 playerBraceDepth += CalculateBraceDelta(trimmed);
             if (playerBraceDepth <= 0)
-                currentPlayerId = null;
+            {
+                players.Add(currentPlayer);
+                currentPlayer = null;
+            }
         }
 
-        return lookup;
+        if (currentPlayer != null)
+        {
+            players.Add(currentPlayer);
+        }
+
+        return players;
+    }
+
+    private static void ExtractPlayerField(string line, LuaPlayerData player)
+    {
+        var trimmed = line.Trim();
+        
+        ExtractField(line, NameRegex(), value => player.Name = value.Trim());
+        ExtractField(line, RealmRegex(), value => player.Realm = value.Trim());
+        ExtractField(line, ClassIdRegex(), value => player.ClassId = value.Trim());
+        ExtractField(line, ClassRegex(), value => player.Class = value.Trim());
+        ExtractField(line, SpecIdRegex(), value => 
+        {
+            if (int.TryParse(value.Trim(), out var specId))
+                player.SpecId = specId;
+        });
+        ExtractField(line, FactionRegex(), value => player.Faction = value.Trim());
+        ExtractField(line, KdRatioRegex(), value =>
+        {
+            if (double.TryParse(value.Trim(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var kdRatio))
+                player.KdRatio = kdRatio;
+        });
+        ExtractField(line, LossesRegex(), value =>
+        {
+            if (int.TryParse(value.Trim(), out var losses))
+                player.Losses = losses;
+        });
+        ExtractField(line, WinsRegex(), value =>
+        {
+            if (int.TryParse(value.Trim(), out var wins))
+                player.Wins = wins;
+        });
+        ExtractField(line, MatchesPlayedRegex(), value =>
+        {
+            if (int.TryParse(value.Trim(), out var matchesPlayed))
+                player.MatchesPlayed = matchesPlayed;
+        });
+        ExtractField(line, TotalDamageRegex(), value =>
+        {
+            if (long.TryParse(value.Trim(), out var totalDamage))
+                player.TotalDamage = totalDamage;
+        });
+        ExtractField(line, TotalHealingRegex(), value =>
+        {
+            if (long.TryParse(value.Trim(), out var totalHealing))
+                player.TotalHealing = totalHealing;
+        });
+        ExtractField(line, InterruptsPerMatchRegex(), value =>
+        {
+            if (double.TryParse(value.Trim(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var interrupts))
+                player.InterruptsPerMatch = interrupts;
+        });
     }
 
     private static bool TryStartNewMatchNew(string trimmedLine, NewFormatParserState state)
@@ -630,6 +732,7 @@ public static partial class LuaTableParser
         public int MatchBraceDepth { get; set; }
         public List<string> CurrentMatchPlayerIds { get; } = new();
         public Dictionary<string, string> PlayerFactions { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+        public List<LuaPlayerData> RootPlayers { get; set; } = new();
 
         public void Reset()
         {
@@ -721,4 +824,64 @@ public static partial class LuaTableParser
                     \["mode"\]\s*=\s*"([^"]+)"
                     """)]
     private static partial Regex ModeLowerRegex();
+
+    [GeneratedRegex("""
+                    \["name"\]\s*=\s*"([^"]+)"
+                    """)]
+    private static partial Regex NameRegex();
+
+    [GeneratedRegex("""
+                    \["realm"\]\s*=\s*"([^"]+)"
+                    """)]
+    private static partial Regex RealmRegex();
+
+    [GeneratedRegex("""
+                    \["classId"\]\s*=\s*"([^"]+)"
+                    """)]
+    private static partial Regex ClassIdRegex();
+
+    [GeneratedRegex("""
+                    \["class"\]\s*=\s*"([^"]+)"
+                    """)]
+    private static partial Regex ClassRegex();
+
+    [GeneratedRegex("""
+                    \["specId"\]\s*=\s*(\d+)
+                    """)]
+    private static partial Regex SpecIdRegex();
+
+    [GeneratedRegex("""
+                    \["kdratio"\]\s*=\s*([\d.]+)
+                    """)]
+    private static partial Regex KdRatioRegex();
+
+    [GeneratedRegex("""
+                    \["losses"\]\s*=\s*(\d+)
+                    """)]
+    private static partial Regex LossesRegex();
+
+    [GeneratedRegex("""
+                    \["wins"\]\s*=\s*(\d+)
+                    """)]
+    private static partial Regex WinsRegex();
+
+    [GeneratedRegex("""
+                    \["matchesPlayed"\]\s*=\s*(\d+)
+                    """)]
+    private static partial Regex MatchesPlayedRegex();
+
+    [GeneratedRegex("""
+                    \["totalDamage"\]\s*=\s*(\d+)
+                    """)]
+    private static partial Regex TotalDamageRegex();
+
+    [GeneratedRegex("""
+                    \["totalHealing"\]\s*=\s*(\d+)
+                    """)]
+    private static partial Regex TotalHealingRegex();
+
+    [GeneratedRegex("""
+                    \["interruptsPerMatch"\]\s*=\s*([\d.]+)
+                    """)]
+    private static partial Regex InterruptsPerMatchRegex();
 }

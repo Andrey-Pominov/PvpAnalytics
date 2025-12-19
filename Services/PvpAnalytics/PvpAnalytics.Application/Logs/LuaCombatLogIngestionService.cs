@@ -32,6 +32,15 @@ public class LuaCombatLogIngestionService(
 
         var luaMatches = LuaTableParser.Parse(fileStream);
 
+        // Process root players data if available
+        List<LuaPlayerData>? rootPlayersData = null;
+        if (luaMatches.Count > 0 && luaMatches[0].Players.Count > 0)
+        {
+            rootPlayersData = luaMatches[0].Players;
+            await ProcessRootPlayersAsync(rootPlayersData, ct);
+            await _playerCache.BatchPersistAsync(ct);
+        }
+
         var allPersistedMatches = new List<Match>();
 
         foreach (var luaMatch in luaMatches)
@@ -53,6 +62,13 @@ public class LuaCombatLogIngestionService(
 
         var pendingPlayerNames = _playerCache.GetPendingCreates().Keys.ToList();
         await _playerCache.BatchPersistAsync(ct);
+
+        // Apply root player data to newly created players
+        if (rootPlayersData != null)
+        {
+            await ApplyRootPlayerDataToNewPlayersAsync(rootPlayersData, ct);
+            await _playerCache.BatchPersistAsync(ct);
+        }
 
         await EnrichPlayersWithWowApiAsync(pendingPlayerNames, ct);
 
@@ -568,5 +584,141 @@ public class LuaCombatLogIngestionService(
     {
         var baseStr = string.Join('|', playerKeys.OrderBy(x => x)) + $"|{start:O}|{end:O}|{arenaMatchId}";
         return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(baseStr)));
+    }
+
+    /// <summary>
+    /// Processes player data from the root players table in the new format.
+    /// Creates or updates Player entities with the available information.
+    /// </summary>
+    private async Task ProcessRootPlayersAsync(List<LuaPlayerData> rootPlayers, CancellationToken ct)
+    {
+        // First, ensure we have pending players added to the cache
+        foreach (var luaPlayer in rootPlayers)
+        {
+            if (string.IsNullOrWhiteSpace(luaPlayer.Name) || string.IsNullOrWhiteSpace(luaPlayer.Realm))
+            {
+                continue;
+            }
+            _playerCache.GetOrAddPending(luaPlayer.Name, luaPlayer.Realm);
+        }
+
+        // Do a batch lookup to get existing players
+        await _playerCache.BatchLookupAsync(ct);
+
+        // Now process each player
+        foreach (var luaPlayer in rootPlayers)
+        {
+            if (string.IsNullOrWhiteSpace(luaPlayer.Name) || string.IsNullOrWhiteSpace(luaPlayer.Realm))
+            {
+                logger.LogDebug("Skipping player with missing name or realm. GUID: {Guid}", luaPlayer.PlayerGuid);
+                continue;
+            }
+
+            try
+            {
+                // Try to get existing player first
+                var existingPlayer = _playerCache.GetCached(luaPlayer.Name);
+                
+                if (existingPlayer != null)
+                {
+                    // Update existing player
+                    var originalClass = existingPlayer.Class;
+                    var originalFaction = existingPlayer.Faction;
+                    var originalSpec = existingPlayer.Spec;
+
+                    UpdatePlayerFromLuaData(existingPlayer, luaPlayer);
+
+                    // Mark for update if any field changed
+                    if (existingPlayer.Class != originalClass || 
+                        existingPlayer.Faction != originalFaction || 
+                        existingPlayer.Spec != originalSpec)
+                    {
+                        _playerCache.MarkForUpdate(existingPlayer);
+                        logger.LogDebug("Updated existing player {PlayerName}-{Realm} from root data. Class: {Class}, Faction: {Faction}",
+                            luaPlayer.Name, luaPlayer.Realm, luaPlayer.Class, luaPlayer.Faction);
+                    }
+                }
+                else
+                {
+                    // Player doesn't exist yet, will be created later with default values
+                    // Store the data for later application (after BatchPersistAsync)
+                    logger.LogDebug("Player {PlayerName}-{Realm} will be created. Root data available: Class: {Class}, Faction: {Faction}",
+                        luaPlayer.Name, luaPlayer.Realm, luaPlayer.Class, luaPlayer.Faction);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to process root player data for GUID {Guid}, Name: {Name}",
+                    luaPlayer.PlayerGuid, luaPlayer.Name);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Applies root player data to newly created players after they've been persisted.
+    /// </summary>
+    private async Task ApplyRootPlayerDataToNewPlayersAsync(List<LuaPlayerData> rootPlayers, CancellationToken ct)
+    {
+        // Do another lookup to get any newly created players
+        await _playerCache.BatchLookupAsync(ct);
+
+        foreach (var luaPlayer in rootPlayers)
+        {
+            if (string.IsNullOrWhiteSpace(luaPlayer.Name))
+                continue;
+
+            var player = _playerCache.GetCached(luaPlayer.Name);
+            if (player == null || player.Id <= 0)
+                continue;
+
+            // Only update if player still has empty fields
+            if (string.IsNullOrWhiteSpace(player.Class) || 
+                string.IsNullOrWhiteSpace(player.Faction) || 
+                string.IsNullOrWhiteSpace(player.Spec))
+            {
+                var originalClass = player.Class;
+                var originalFaction = player.Faction;
+                var originalSpec = player.Spec;
+
+                UpdatePlayerFromLuaData(player, luaPlayer);
+
+                if (player.Class != originalClass || 
+                    player.Faction != originalFaction || 
+                    player.Spec != originalSpec)
+                {
+                    _playerCache.MarkForUpdate(player);
+                    logger.LogDebug("Applied root player data to newly created player {PlayerName}-{Realm}. Class: {Class}, Faction: {Faction}",
+                        luaPlayer.Name, luaPlayer.Realm, luaPlayer.Class, luaPlayer.Faction);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Updates a Player entity with data from LuaPlayerData, only setting fields that are not already populated.
+    /// </summary>
+    private static void UpdatePlayerFromLuaData(Player player, LuaPlayerData luaPlayer)
+    {
+        // Only update if the field is empty/null in the player entity
+        if (string.IsNullOrWhiteSpace(player.Class) && !string.IsNullOrWhiteSpace(luaPlayer.Class))
+        {
+            player.Class = luaPlayer.Class;
+        }
+        else if (string.IsNullOrWhiteSpace(player.Class) && !string.IsNullOrWhiteSpace(luaPlayer.ClassId))
+        {
+            // Fallback to ClassId if Class is not available
+            player.Class = luaPlayer.ClassId;
+        }
+
+        if (string.IsNullOrWhiteSpace(player.Faction) && !string.IsNullOrWhiteSpace(luaPlayer.Faction))
+        {
+            player.Faction = luaPlayer.Faction;
+        }
+
+        if (string.IsNullOrWhiteSpace(player.Spec) && luaPlayer.SpecId.HasValue)
+        {
+            // Convert specId to spec name if needed, or store as string
+            player.Spec = luaPlayer.SpecId.Value.ToString();
+        }
     }
 }

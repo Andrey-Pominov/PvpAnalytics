@@ -12,5 +12,6 @@ public class LuaMatchData
     public string? Faction { get; set; }
     public string? Mode { get; set; }
     public Dictionary<string, object>? Statistics { get; set; }
+    public List<LuaPlayerData> Players { get; set; } = new();
 }
 
