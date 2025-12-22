@@ -31,7 +31,7 @@ function hasDangerousPatterns(cleaned: string): boolean {
     /__proto__/i,
     /prototype/i,
     /constructor/i,
-    /\[.*\]\s*\(/, // Array access followed by function call
+    /\[.*]\s*\(/, // Array access followed by function call
   ]
   return dangerousPatterns.some((pattern) => pattern.test(cleaned))
 }
@@ -46,7 +46,8 @@ function hasUnsafeMethodCalls(cleaned: string): boolean {
     return true // Treat overly long inputs as potentially unsafe
   }
 
-  const methodCallPattern = /(\w+)(?:\s{0,10})\.(?:\s{0,10})(\w+)(?:\s{0,10})\(/g
+  const methodCallPattern = /(\w+)\s*\.\s*(\w+)\s*\(/g
+
   const matches = cleaned.matchAll(methodCallPattern)
     const MAX_MATCHES = 1000
   let matchCount = 0
@@ -173,7 +174,7 @@ function extractVariables(expression: string): string[] {
  * Returns ParsedMetric for backward compatibility with existing code
  */
 export function parseMetric(expression: string): ParsedMetric {
-  if (!expression || typeof expression !== 'string') {
+  if (!expression) {
     return {
       expression: expression || '',
       variables: [],

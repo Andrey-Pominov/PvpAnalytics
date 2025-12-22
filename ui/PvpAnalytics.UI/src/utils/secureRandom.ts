@@ -14,7 +14,7 @@
 export const getSecureRandomFloat = (): number => {
   // Check for browser crypto API (Web Crypto API)
   // This is available in all modern browsers and is the standard secure RNG
-  if (typeof globalThis.window !== 'undefined' && globalThis.window.crypto?.getRandomValues) {
+  if (globalThis.window.crypto?.getRandomValues) {
     const array = new Uint32Array(1)
     globalThis.window.crypto.getRandomValues(array)
     // Convert Uint32 (0 to 2^32-1) to float [0, 1)
