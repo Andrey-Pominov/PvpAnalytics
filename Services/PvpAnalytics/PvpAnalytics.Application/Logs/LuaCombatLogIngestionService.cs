@@ -594,12 +594,9 @@ public class LuaCombatLogIngestionService(
     private async Task ProcessRootPlayersAsync(List<LuaPlayerData> rootPlayers, CancellationToken ct)
     {
         // First, ensure we have pending players added to the cache
-        foreach (var luaPlayer in rootPlayers)
+        foreach (var luaPlayer in rootPlayers.Where(IsValidPlayerData))
         {
-            if (IsValidPlayerData(luaPlayer))
-            {
-                _playerCache.GetOrAddPending(luaPlayer.Name!, luaPlayer.Realm!);
-            }
+            _playerCache.GetOrAddPending(luaPlayer.Name!, luaPlayer.Realm!);
         }
 
         // Do a batch lookup to get existing players
@@ -683,7 +680,7 @@ public class LuaCombatLogIngestionService(
                 continue;
 
             var player = _playerCache.GetCached(luaPlayer.Name);
-            if (player == null || player.Id <= 0)
+            if (player is not { Id: > 0 })
                 continue;
 
             // Only update if player still has empty fields

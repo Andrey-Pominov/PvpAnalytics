@@ -293,8 +293,8 @@ public static partial class LuaTableParser
     {
         var matches = new List<LuaMatchData>();
         var lines = content.Split('\n');
-        var factionLookup = ExtractFactionMap(lines);
         var rootPlayers = ExtractRootPlayers(lines);
+        var factionLookup = ExtractFactionMap(rootPlayers);
         var state = new NewFormatParserState
         {
             PlayerFactions = factionLookup,
@@ -351,12 +351,11 @@ public static partial class LuaTableParser
         return matches;
     }
 
-    private static Dictionary<string, string> ExtractFactionMap(string[] lines)
+    private static Dictionary<string, string> ExtractFactionMap(List<LuaPlayerData> players)
     {
         var lookup = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        var rootPlayers = ExtractRootPlayers(lines);
         
-        foreach (var player in rootPlayers.Where(player => !string.IsNullOrEmpty(player.Faction)))
+        foreach (var player in players.Where(player => !string.IsNullOrEmpty(player.Faction)))
         {
             if (player.Faction != null) lookup[player.PlayerGuid] = player.Faction;
         }
@@ -735,9 +734,9 @@ public static partial class LuaTableParser
         public bool InMatchPlayers { get; set; }
         public int MatchPlayersDepth { get; set; }
         public int MatchBraceDepth { get; set; }
-        public List<string> CurrentMatchPlayerIds { get; } = new();
-        public Dictionary<string, string> PlayerFactions { get; set; } = new(StringComparer.OrdinalIgnoreCase);
-        public List<LuaPlayerData> RootPlayers { get; set; } = new();
+        public List<string> CurrentMatchPlayerIds { get; } = [];
+        public Dictionary<string, string> PlayerFactions { get; init; } = new(StringComparer.OrdinalIgnoreCase);
+        public List<LuaPlayerData> RootPlayers { get; set; } = [];
 
         public void Reset()
         {
