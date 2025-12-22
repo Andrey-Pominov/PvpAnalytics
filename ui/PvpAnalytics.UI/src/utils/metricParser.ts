@@ -31,7 +31,7 @@ function hasDangerousPatterns(cleaned: string): boolean {
     /__proto__/i,
     /prototype/i,
     /constructor/i,
-    /\[.*\]\s*\(/, // Array access followed by function call
+    /\[.*]\s*\(/, // Array access followed by function call
   ]
   return dangerousPatterns.some((pattern) => pattern.test(cleaned))
 }
@@ -40,18 +40,30 @@ function hasDangerousPatterns(cleaned: string): boolean {
  * Checks if expression contains unsafe method calls (non-Math.*)
  */
 function hasUnsafeMethodCalls(cleaned: string): boolean {
-  // Check for method calls that are NOT Math.* (Math.* is allowed)
-  // Use regex to capture the identifier immediately before the dot
-  // Use bounded whitespace (\s{0,10}) instead of \s* to prevent ReDoS
-  const methodCallPattern = /(\w+)\s{0,10}\.\s{0,10}\w+\s{0,10}\(/g
-  let methodMatch
-  while ((methodMatch = methodCallPattern.exec(cleaned)) !== null) {
-    const identifierBeforeDot = methodMatch[1]
-    // Allow Math.* but block other method calls - must be exactly "Math"
+  // Limit input length to prevent ReDoS attacks
+  const MAX_INPUT_LENGTH = 10000
+  if (cleaned.length > MAX_INPUT_LENGTH) {
+    return true // Treat overly long inputs as potentially unsafe
+  }
+
+  const methodCallPattern =/([a-zA-Z0-9_$]+)\s*\.\s*([a-zA-Z0-9_$]+)\s*\(/g;
+
+  const matches = cleaned.matchAll(methodCallPattern)
+    const MAX_MATCHES = 1000
+  let matchCount = 0
+  
+  for (const match of matches) {
+    matchCount++
+    if (matchCount > MAX_MATCHES) {
+      return true // Too many matches, treat as potentially unsafe
+    }
+    
+    const identifierBeforeDot = match[1]
     if (identifierBeforeDot !== 'Math') {
       return true
     }
   }
+  
   return false
 }
 
@@ -162,9 +174,9 @@ function extractVariables(expression: string): string[] {
  * Returns ParsedMetric for backward compatibility with existing code
  */
 export function parseMetric(expression: string): ParsedMetric {
-  if (!expression || typeof expression !== 'string') {
+  if (!expression) {
     return {
-      expression: expression || '',
+      expression: expression,
       variables: [],
       isValid: false,
       error: 'Expression must be a non-empty string',

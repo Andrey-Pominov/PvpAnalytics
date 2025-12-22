@@ -38,7 +38,7 @@ jobs:
 
       - name: Install Node.js dependencies
         working-directory: ui/PvpAnalytics.UI
-        run: npm install
+        run: npm install --ignore-scripts
 
       - name: Build TypeScript project
         working-directory: ui/PvpAnalytics.UI
