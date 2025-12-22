@@ -46,7 +46,7 @@ function hasUnsafeMethodCalls(cleaned: string): boolean {
     return true // Treat overly long inputs as potentially unsafe
   }
 
-  const methodCallPattern = /(\w+)\s*\.\s*(\w+)\s*\(/g
+  const methodCallPattern =/([a-zA-Z0-9_$]+)\s*\.\s*([a-zA-Z0-9_$]+)\s*\(/g;
 
   const matches = cleaned.matchAll(methodCallPattern)
     const MAX_MATCHES = 1000
@@ -176,7 +176,7 @@ function extractVariables(expression: string): string[] {
 export function parseMetric(expression: string): ParsedMetric {
   if (!expression) {
     return {
-      expression: expression || '',
+      expression: expression,
       variables: [],
       isValid: false,
       error: 'Expression must be a non-empty string',
