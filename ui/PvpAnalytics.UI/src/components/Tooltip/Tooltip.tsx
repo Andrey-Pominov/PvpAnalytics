@@ -1,4 +1,5 @@
 import {useState, useRef, useEffect, type ReactNode} from 'react'
+import {getSecureRandomId} from '../../utils/secureRandom'
 
 interface TooltipProps {
     content: string
@@ -8,7 +9,7 @@ interface TooltipProps {
 
 const Tooltip = ({content, children, position = 'top'}: TooltipProps) => {
     const [isVisible, setIsVisible] = useState(false)
-    const tooltipId = useRef(`tooltip-${Math.random().toString(36).slice(2, 11)}`)
+    const tooltipId = useRef(getSecureRandomId('tooltip'))
 
     const positionClasses = {
         top: 'bottom-full left-1/2 -translate-x-1/2 mb-2',
