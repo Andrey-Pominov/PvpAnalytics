@@ -16,8 +16,7 @@ public class CombatLogIngestionService(
     IRepository<MatchResult> resultRepo,
     IRepository<CombatLogEntry> entryRepo,
     IWowApiService wowApiService,
-    ILogger<CombatLogIngestionService> logger,
-    ILoggerFactory loggerFactory)
+    ILogger<CombatLogIngestionService> logger)
     : ICombatLogIngestionService
 {
     private readonly PlayerCache _playerCache = new(playerRepo);
@@ -26,11 +25,10 @@ public class CombatLogIngestionService(
         _playerRegions = new(StringComparer.OrdinalIgnoreCase); // Track region per player for WoW API
 
     /// <summary>
-    /// Ingests combat-log text from the provided stream and persists arena matches, combat entries, players, and match results.
+    /// Ingests combat-log text from the provided stream in traditional format and persists arena matches, combat entries, players, and match results.
     /// Processes multiple matches: starts recording on ARENA_MATCH_START, stops on ZONE_CHANGE, saves all matches found.
-    /// Automatically detects format (Traditional or Lua Table) and routes to appropriate parser.
     /// </summary>
-    /// <param name="fileStream">A readable stream containing the combat log text (UTF-8 or BOM-detected).</param>
+    /// <param name="fileStream">A readable stream containing the combat log text in traditional format (UTF-8 or BOM-detected).</param>
     /// <param name="ct">Token to observe for cancellation.</param>
     /// <remarks>
     /// Matches are detected by ARENA_MATCH_START events and finalized on ZONE_CHANGE events. All matches found in the file are persisted.
@@ -38,38 +36,8 @@ public class CombatLogIngestionService(
     /// <returns>List of all persisted <see cref="Match"/> entities created from the stream.</returns>
     public async Task<List<Match>> IngestAsync(Stream fileStream, CancellationToken ct = default)
     {
-        logger.LogInformation("Combat log ingestion started.");
-
-        var format = CombatLogFormatDetector.DetectFormat(fileStream);
-        if (format == CombatLogFormat.LuaTable)
-        {
-            return await RouteToLuaServiceAsync(fileStream, ct);
-        }
-
-        var allPersistedMatches = await ProcessTraditionalFormatAsync(fileStream, ct);
-        await FinalizeIngestionAsync(ct);
-
-        logger.LogInformation("Combat log ingestion completed. Persisted {MatchCount} match(es).",
-            allPersistedMatches.Count);
-        return allPersistedMatches;
-    }
-
-    private async Task<List<Match>> RouteToLuaServiceAsync(Stream fileStream, CancellationToken ct)
-    {
-        logger.LogInformation("Detected Lua table format, routing to Lua parser.");
-        var luaLogger = loggerFactory.CreateLogger<LuaCombatLogIngestionService>();
-        var luaService = new LuaCombatLogIngestionService(
-            playerRepo,
-            matchRepo,
-            resultRepo,
-            entryRepo,
-            wowApiService,
-            luaLogger);
-        return await luaService.IngestAsync(fileStream, ct);
-    }
-
-    private async Task<List<Match>> ProcessTraditionalFormatAsync(Stream fileStream, CancellationToken ct)
-    {
+        logger.LogInformation("Traditional combat log ingestion started.");
+        
         using var reader = new StreamReader(fileStream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true,
             leaveOpen: true);
 
@@ -93,202 +61,207 @@ public class CombatLogIngestionService(
         }
 
         await FinalizePendingMatchAsync(matchState, allPersistedMatches, ct);
+        await FinalizeIngestionAsync(ct);
+
+        logger.LogInformation("Traditional combat log ingestion completed. Persisted {MatchCount} match(es).",
+            allPersistedMatches.Count);
         return allPersistedMatches;
     }
 
     private async Task<bool> ProcessParsedLineAsync(
-        ParsedCombatLogEvent parsed,
-        MatchProcessingState state,
-        List<Match> allPersistedMatches,
-        CancellationToken ct)
-    {
-        return parsed.EventType switch
+            ParsedCombatLogEvent parsed,
+            MatchProcessingState state,
+            List<Match> allPersistedMatches,
+            CancellationToken cancellationToken)
         {
-            CombatLogEventTypes.ArenaMatchStart => HandleArenaMatchStart(parsed, state),
-            CombatLogEventTypes.ZoneChange => await HandleZoneChangeAsync(parsed, state, allPersistedMatches, ct),
-            _ => false
-        };
-    }
+            return parsed.EventType switch
+            {
+                CombatLogEventTypes.ArenaMatchStart => HandleArenaMatchStart(parsed, state),
+                CombatLogEventTypes.ZoneChange => await HandleZoneChangeAsync(parsed, state, allPersistedMatches,
+                    cancellationToken),
+                _ => false
+            };
+        }
 
     private bool HandleArenaMatchStart(ParsedCombatLogEvent parsed, MatchProcessingState state)
-    {
-        state.MatchStart = parsed.Timestamp;
-        state.CurrentArenaMatchId = parsed.ArenaMatchId;
-        state.MatchInProgress = true;
-        state.ResetMatchBuffers();
-
-        if (parsed.ZoneId.HasValue)
         {
-            state.CurrentZoneId = parsed.ZoneId;
-            ArenaZoneIds.GetNameOrDefault(parsed.ZoneId.Value);
-        }
+            state.MatchStart = parsed.Timestamp;
+            state.CurrentArenaMatchId = parsed.ArenaMatchId;
+            state.MatchInProgress = true;
+            state.ResetMatchBuffers();
 
-        logger.LogInformation("Arena match started: {ArenaMatchId} at {Timestamp}", state.CurrentArenaMatchId,
-            state.MatchStart);
-        return true;
-    }
+            if (parsed.ZoneId.HasValue)
+            {
+                state.CurrentZoneId = parsed.ZoneId;
+                ArenaZoneIds.GetNameOrDefault(parsed.ZoneId.Value);
+            }
+
+            logger.LogInformation("Arena match started: {ArenaMatchId} at {Timestamp}", state.CurrentArenaMatchId,
+                state.MatchStart);
+            return true;
+        }
 
     private async Task<bool> HandleZoneChangeAsync(
-        ParsedCombatLogEvent parsed,
-        MatchProcessingState state,
-        List<Match> allPersistedMatches,
-        CancellationToken ct)
-    {
-        if (state is { MatchInProgress: true, CurrentArenaMatchId: not null })
+            ParsedCombatLogEvent parsed,
+            MatchProcessingState state,
+            List<Match> allPersistedMatches,
+            CancellationToken cancellationToken)
         {
-            state.MatchEnd = parsed.Timestamp;
-            var persistedMatch = await FinalizeCurrentMatchAsync(state, ct);
-            if (persistedMatch.Id > 0)
+            if (state is { MatchInProgress: true, CurrentArenaMatchId: not null })
             {
-                allPersistedMatches.Add(persistedMatch);
-                logger.LogInformation("Persisted match {MatchId} with arena match ID {ArenaMatchId}.",
-                    persistedMatch.Id, state.CurrentArenaMatchId);
+                state.MatchEnd = parsed.Timestamp;
+                var persistedMatch = await FinalizeCurrentMatchAsync(state, cancellationToken);
+                if (persistedMatch.Id > 0)
+                {
+                    allPersistedMatches.Add(persistedMatch);
+                    logger.LogInformation("Persisted match {MatchId} with arena match ID {ArenaMatchId}.",
+                        persistedMatch.Id, state.CurrentArenaMatchId);
+                }
+
+                state.ResetMatchState();
             }
 
-            state.ResetMatchState();
-        }
+            if (parsed.ZoneId.HasValue)
+            {
+                state.CurrentZoneId = parsed.ZoneId;
+                _ = parsed.ZoneName ?? ArenaZoneIds.GetNameOrDefault(parsed.ZoneId.Value);
+            }
 
-        if (parsed.ZoneId.HasValue)
-        {
-            state.CurrentZoneId = parsed.ZoneId;
-            _ = parsed.ZoneName ?? ArenaZoneIds.GetNameOrDefault(parsed.ZoneId.Value);
+            return true;
         }
-
-        return true;
-    }
 
     private Task ProcessCombatEventAsync(ParsedCombatLogEvent parsed, MatchProcessingState state)
-    {
-        TrackSpellIfPresent(parsed, state);
-        ProcessPlayer(parsed.SourceName, state);
-        ProcessPlayer(parsed.TargetName, state);
-        CreateCombatLogEntryIfValid(parsed, state);
-        state.MatchEnd = parsed.Timestamp;
-        return Task.CompletedTask;
-    }
+        {
+            TrackSpellIfPresent(parsed, state);
+            ProcessPlayer(parsed.SourceName, state);
+            ProcessPlayer(parsed.TargetName, state);
+            CreateCombatLogEntryIfValid(parsed, state);
+            state.MatchEnd = parsed.Timestamp;
+            return Task.CompletedTask;
+        }
 
     private static void TrackSpellIfPresent(ParsedCombatLogEvent parsed, MatchProcessingState state)
-    {
-        if (string.IsNullOrEmpty(parsed.SourceName) || string.IsNullOrEmpty(parsed.SpellName))
-            return;
-
-        var (playerName, _) = PlayerInfoExtractor.ParsePlayerName(parsed.SourceName);
-        if (string.IsNullOrEmpty(playerName))
-            return;
-
-        if (!state.PlayerSpells.TryGetValue(playerName, out var spells))
         {
-            spells = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            state.PlayerSpells[playerName] = spells;
-        }
+            if (string.IsNullOrEmpty(parsed.SourceName) || string.IsNullOrEmpty(parsed.SpellName))
+                return;
 
-        spells.Add(parsed.SpellName);
-    }
+            var (playerName, _) = PlayerInfoExtractor.ParsePlayerName(parsed.SourceName);
+            if (string.IsNullOrEmpty(playerName))
+                return;
+
+            if (!state.PlayerSpells.TryGetValue(playerName, out var spells))
+            {
+                spells = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                state.PlayerSpells[playerName] = spells;
+            }
+
+            spells.Add(parsed.SpellName);
+        }
 
     private void ProcessPlayer(string? fullName, MatchProcessingState state)
-    {
-        if (string.IsNullOrEmpty(fullName))
-            return;
-
-        var (playerName, realm) = PlayerInfoExtractor.ParsePlayerName(fullName);
-        if (string.IsNullOrEmpty(playerName))
-            return;
-
-        var cached = _playerCache.GetCached(playerName);
-        if (cached != null)
         {
-            state.PlayersByKey.TryAdd(playerName, cached);
-            state.Participants.Add(playerName);
-            return;
-        }
+            if (string.IsNullOrEmpty(fullName))
+                return;
 
-        if (string.IsNullOrWhiteSpace(realm))
-            return;
+            var (playerName, realm) = PlayerInfoExtractor.ParsePlayerName(fullName);
+            if (string.IsNullOrEmpty(playerName))
+                return;
 
-        _playerCache.GetOrAddPending(playerName, realm);
-        var region = ExtractRegion(fullName);
-        if (!string.IsNullOrEmpty(region))
-        {
-            _playerRegions[playerName] = region;
-        }
-
-        state.Participants.Add(playerName);
-    }
-
-    private static void CreateCombatLogEntryIfValid(ParsedCombatLogEvent parsed, MatchProcessingState state)
-    {
-        var (sourceName, _) = !string.IsNullOrEmpty(parsed.SourceName)
-            ? PlayerInfoExtractor.ParsePlayerName(parsed.SourceName)
-            : (string.Empty, string.Empty);
-
-        if (string.IsNullOrEmpty(sourceName) || !state.PlayersByKey.TryGetValue(sourceName, out var source))
-            return;
-
-        if (source.Id <= 0)
-            return;
-
-        var (targetName, _) = !string.IsNullOrEmpty(parsed.TargetName)
-            ? PlayerInfoExtractor.ParsePlayerName(parsed.TargetName)
-            : (string.Empty, string.Empty);
-
-        var target = !string.IsNullOrEmpty(targetName) && state.PlayersByKey.TryGetValue(targetName, out var tgt)
-            ? tgt
-            : null;
-
-        state.BufferedEntries.Add(new CombatLogEntry
-        {
-            Timestamp = parsed.Timestamp,
-            SourcePlayerId = source.Id,
-            TargetPlayerId = target?.Id,
-            Ability = parsed.SpellName ?? parsed.EventType,
-            DamageDone = parsed.Damage ?? 0,
-            HealingDone = parsed.Healing ?? 0,
-            CrowdControl = string.Empty,
-            SourcePlayer = source
-        });
-    }
-
-    private async Task<Match> FinalizeCurrentMatchAsync(MatchProcessingState state, CancellationToken ct)
-    {
-        await _playerCache.BatchLookupAsync(ct);
-        LoadCachedPlayersIntoState(state);
-        await UpdatePlayersFromSpellsAsync(state.PlayersByKey, state.PlayerSpells);
-
-        var gameMode =
-            GameModeHelper.GetGameModeFromParticipantCount(state.Participants.Count, state.CurrentArenaMatchId);
-        var arenaZone = state.CurrentZoneId.HasValue
-            ? ArenaZoneIds.GetArenaZone(state.CurrentZoneId.Value)
-            : ArenaZone.Unknown;
-        var mapName = ArenaZoneIds.GetDisplayName(arenaZone);
-        var context = new MatchIngestionContext(
-            arenaZone, state.MatchStart, state.MatchEnd,
-            state.Participants, state.BufferedEntries, state.PlayersByKey, state.PlayerSpells, gameMode,
-            state.CurrentArenaMatchId!, mapName);
-
-        return await FinalizeAndPersistAsync(context, ct);
-    }
-
-    private void LoadCachedPlayersIntoState(MatchProcessingState state)
-    {
-        foreach (var name in state.Participants)
-        {
-            var cached = _playerCache.GetCached(name);
+            var cached = _playerCache.GetCached(playerName);
             if (cached != null)
             {
-                state.PlayersByKey.TryAdd(name, cached);
+                state.PlayersByKey.TryAdd(playerName, cached);
+                state.Participants.Add(playerName);
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(realm))
+                return;
+
+            _playerCache.GetOrAddPending(playerName, realm);
+            var region = ExtractRegion(fullName);
+            if (!string.IsNullOrEmpty(region))
+            {
+                _playerRegions[playerName] = region;
+            }
+
+            state.Participants.Add(playerName);
+        }
+
+    private static void CreateCombatLogEntryIfValid(ParsedCombatLogEvent parsed, MatchProcessingState state)
+        {
+            var (sourceName, _) = !string.IsNullOrEmpty(parsed.SourceName)
+                ? PlayerInfoExtractor.ParsePlayerName(parsed.SourceName)
+                : (string.Empty, string.Empty);
+
+            if (string.IsNullOrEmpty(sourceName) || !state.PlayersByKey.TryGetValue(sourceName, out var source))
+                return;
+
+            if (source.Id <= 0)
+                return;
+
+            var (targetName, _) = !string.IsNullOrEmpty(parsed.TargetName)
+                ? PlayerInfoExtractor.ParsePlayerName(parsed.TargetName)
+                : (string.Empty, string.Empty);
+
+            var target = !string.IsNullOrEmpty(targetName) && state.PlayersByKey.TryGetValue(targetName, out var tgt)
+                ? tgt
+                : null;
+
+            state.BufferedEntries.Add(new CombatLogEntry
+            {
+                Timestamp = parsed.Timestamp,
+                SourcePlayerId = source.Id,
+                TargetPlayerId = target?.Id,
+                Ability = parsed.SpellName ?? parsed.EventType,
+                DamageDone = parsed.Damage ?? 0,
+                HealingDone = parsed.Healing ?? 0,
+                CrowdControl = string.Empty,
+                SourcePlayer = source
+            });
+        }
+
+    private async Task<Match> FinalizeCurrentMatchAsync(MatchProcessingState state, CancellationToken cancellationToken)
+        {
+            await _playerCache.BatchLookupAsync(cancellationToken);
+            LoadCachedPlayersIntoState(state);
+            await UpdatePlayersFromSpellsAsync(state.PlayersByKey, state.PlayerSpells);
+
+            var gameMode =
+                GameModeHelper.GetGameModeFromParticipantCount(state.Participants.Count, state.CurrentArenaMatchId);
+            var arenaZone = state.CurrentZoneId.HasValue
+                ? ArenaZoneIds.GetArenaZone(state.CurrentZoneId.Value)
+                : ArenaZone.Unknown;
+            var mapName = ArenaZoneIds.GetDisplayName(arenaZone);
+            var context = new MatchIngestionContext(
+                arenaZone, state.MatchStart, state.MatchEnd,
+                state.Participants, state.BufferedEntries, state.PlayersByKey, state.PlayerSpells, gameMode,
+                state.CurrentArenaMatchId!, mapName);
+
+            return await FinalizeAndPersistAsync(context, cancellationToken);
+        }
+
+    private void LoadCachedPlayersIntoState(MatchProcessingState state)
+        {
+            foreach (var name in state.Participants)
+            {
+                var cached = _playerCache.GetCached(name);
+                if (cached != null)
+                {
+                    state.PlayersByKey.TryAdd(name, cached);
+                }
             }
         }
-    }
 
     private async Task FinalizePendingMatchAsync(
         MatchProcessingState state,
         List<Match> allPersistedMatches,
-        CancellationToken ct)
+        CancellationToken cancellationToken)
     {
         if (!state.MatchInProgress || state.CurrentArenaMatchId == null)
             return;
 
-        var persistedMatch = await FinalizeCurrentMatchAsync(state, ct);
+        var persistedMatch = await FinalizeCurrentMatchAsync(state, cancellationToken);
         if (persistedMatch.Id > 0)
         {
             allPersistedMatches.Add(persistedMatch);
@@ -297,12 +270,12 @@ public class CombatLogIngestionService(
         }
     }
 
-    private async Task FinalizeIngestionAsync(CancellationToken ct)
+    private async Task FinalizeIngestionAsync(CancellationToken cancellationToken)
     {
         var pendingPlayerNames = _playerCache.GetPendingCreates().Keys.ToList();
-        await _playerCache.BatchPersistAsync(ct);
-        await EnrichPlayersWithWowApiAsync(pendingPlayerNames, ct);
-        await _playerCache.BatchPersistAsync(ct);
+        await _playerCache.BatchPersistAsync(cancellationToken);
+        await EnrichPlayersWithWowApiAsync(pendingPlayerNames, cancellationToken);
+        await _playerCache.BatchPersistAsync(cancellationToken);
     }
 
     private sealed class MatchProcessingState

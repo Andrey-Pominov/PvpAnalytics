@@ -46,15 +46,30 @@ public sealed class PvpAnalyticsApiFactory : WebApplicationFactory<Api.IProgram>
                 options.DefaultChallengeScheme = TestAuthHandler.AuthenticationScheme;
             }).AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(TestAuthHandler.AuthenticationScheme, _ => { });
 
-            services.AddScoped<ICombatLogIngestionService, TestCombatLogIngestionService>();
+            // Register test service as keyed services for both formats
+            services.AddKeyedScoped<ICombatLogIngestionService, TestCombatLogIngestionService>(CombatLogFormat.Traditional);
+            services.AddKeyedScoped<ICombatLogIngestionService, TestCombatLogIngestionService>(CombatLogFormat.LuaTable);
+            
+            // Register test factory
+            services.AddScoped<ICombatLogIngestionServiceFactory, TestCombatLogIngestionServiceFactory>();
         });
     }
 }
 
-internal sealed class TestCombatLogIngestionService(TestIngestionState state) : ICombatLogIngestionService
+internal sealed class TestCombatLogIngestionService(TestIngestionState state) 
+    : ICombatLogIngestionService
 {
     public Task<List<Match>> IngestAsync(Stream fileStream, CancellationToken ct = default)
         => state.Handler(fileStream, ct);
+}
+
+internal sealed class TestCombatLogIngestionServiceFactory(IServiceProvider serviceProvider) 
+    : ICombatLogIngestionServiceFactory
+{
+    public ICombatLogIngestionService GetService(CombatLogFormat format)
+    {
+        return serviceProvider.GetRequiredKeyedService<ICombatLogIngestionService>(format);
+    }
 }
 
 public sealed class TestIngestionState
