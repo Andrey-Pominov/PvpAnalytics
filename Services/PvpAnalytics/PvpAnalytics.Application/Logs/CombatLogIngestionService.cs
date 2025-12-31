@@ -93,7 +93,6 @@ public class CombatLogIngestionService(
             if (parsed.ZoneId.HasValue)
             {
                 state.CurrentZoneId = parsed.ZoneId;
-                ArenaZoneIds.GetNameOrDefault(parsed.ZoneId.Value);
             }
 
             logger.LogInformation("Arena match started: {ArenaMatchId} at {Timestamp}", state.CurrentArenaMatchId,
@@ -124,7 +123,6 @@ public class CombatLogIngestionService(
             if (parsed.ZoneId.HasValue)
             {
                 state.CurrentZoneId = parsed.ZoneId;
-                _ = parsed.ZoneName ?? ArenaZoneIds.GetNameOrDefault(parsed.ZoneId.Value);
             }
 
             return true;

@@ -170,7 +170,7 @@ public class MatchDetailService(PvpAnalyticsDbContext dbContext) : IMatchDetailS
             SourcePlayerId = entry.SourcePlayerId,
             SourcePlayerName = entry.SourcePlayer.Name,
             TargetPlayerId = entry.TargetPlayerId,
-            TargetPlayerName = entry.TargetPlayer.Name,
+            TargetPlayerName = entry.TargetPlayer?.Name ?? "Unknown",
             Ability = entry.Ability,
             DamageDone = entry.DamageDone > 0 ? entry.DamageDone : null,
             HealingDone = entry.HealingDone > 0 ? entry.HealingDone : null,
