@@ -168,7 +168,7 @@ public class MatchDetailService(PvpAnalyticsDbContext dbContext) : IMatchDetailS
             Timestamp = relativeTimestamp,
             EventType = eventType,
             SourcePlayerId = entry.SourcePlayerId,
-            SourcePlayerName = entry.SourcePlayer?.Name ?? "Unknown",
+            SourcePlayerName = entry.SourcePlayer.Name,
             TargetPlayerId = entry.TargetPlayerId,
             TargetPlayerName = entry.TargetPlayer?.Name ?? "Unknown",
             Ability = entry.Ability,

@@ -16,7 +16,13 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICrudService<Match>, MatchService>();
         services.AddScoped<ICrudService<MatchResult>, MatchResultService>();
         services.AddScoped<ICrudService<CombatLogEntry>, CombatLogEntryService>();
-        services.AddScoped<ICombatLogIngestionService, CombatLogIngestionService>();
+        
+        // Register combat log ingestion services as keyed services
+        services.AddKeyedScoped<ICombatLogIngestionService, CombatLogIngestionService>(CombatLogFormat.Traditional);
+        services.AddKeyedScoped<ICombatLogIngestionService, LuaCombatLogIngestionService>(CombatLogFormat.LuaTable);
+        
+        // Register factory
+        services.AddScoped<ICombatLogIngestionServiceFactory, CombatLogIngestionServiceFactory>();
         services.AddScoped<IMatchDetailService, MatchDetailService>();
         services.AddScoped<IOpponentScoutingService, OpponentScoutingService>();
         services.AddScoped<IMatchupAnalyticsService, MatchupAnalyticsService>();

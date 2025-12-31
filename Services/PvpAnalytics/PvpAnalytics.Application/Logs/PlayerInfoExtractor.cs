@@ -1,5 +1,4 @@
 using PvpAnalytics.Core.Entities;
-using PvpAnalytics.Core.Enum;
 using PvpAnalytics.Core.Logs;
 
 namespace PvpAnalytics.Application.Logs;
@@ -92,7 +91,7 @@ public static class PlayerInfoExtractor
     /// </summary>
     public static string DetermineSpecForMatch(HashSet<string> spells)
     {
-        if (spells == null || spells.Count == 0)
+        if (spells.Count == 0)
             return string.Empty;
 
         return PlayerAttributeMappings.DetermineSpec(spells) ?? string.Empty;
